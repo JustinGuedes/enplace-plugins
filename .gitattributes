@@ -1,0 +1,2 @@
+*.enplace binary
+catalogue.json -diff linguist-generated
