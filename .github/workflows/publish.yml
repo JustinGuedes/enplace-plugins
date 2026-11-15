@@ -1,0 +1,72 @@
+# Checks every change. On main it then publishes each plugin whose version
+# is new: it builds, signs and adds it to the catalogue on GitHub Pages,
+# next to the bundles already there. Nothing is committed back, so main
+# only ever holds people's own commits. Servers that read the catalogue see
+# new versions within a day.
+name: Publish
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Formatted
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; echo "::error::Run gofmt -w ."; exit 1; }
+      - run: go vet ./...
+      - name: Plugin logic builds for WASI
+        run: GOOS=wasip1 GOARCH=wasm go vet ./plugins/... && GOOS=wasip1 GOARCH=wasm go build ./plugins/...
+      - run: go test -race ./...
+      - name: Every changed plugin has a new version
+        run: scripts/check-versions.sh "${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before || 'HEAD^' }}"
+
+  publish:
+    needs: check
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}catalogue.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/configure-pages@v5
+        id: pages
+      - name: Bring down what's published
+        run: scripts/fetch-catalogue.sh "${{ steps.pages.outputs.base_url }}" site
+      - name: Build, sign and publish new versions
+        env:
+          ENPLACE_PLUGIN_SIGNING_KEY: ${{ secrets.ENPLACE_PLUGIN_SIGNING_KEY }}
+        run: |
+          if [ -z "$ENPLACE_PLUGIN_SIGNING_KEY" ]; then
+            echo "::error::Add the ENPLACE_PLUGIN_SIGNING_KEY secret (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+          go run ./cmd/enplace-plugin publish plugins/*/ --catalogue site --new-only
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - uses: actions/deploy-pages@v4
+        id: deploy
