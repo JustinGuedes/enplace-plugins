@@ -1,0 +1,44 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "github",
+  "name": "GitHub",
+  "version": "1.5.0",
+  "kind": "service",
+  "author": "Enplace",
+  "summary": "Link a project to its GitHub repo, and see the version in the code beside the release plan.",
+  "description": "Links a project to its code on GitHub. Enplace finds the file the code keeps its version in (an Xcode project, package.json, Gradle, pubspec.yaml, Cargo.toml, a VERSION file and more), or you name it, and reads the version from it every 15 minutes (or the moment it changes, with instant updates on), with the latest tag and how many commits have landed since. With Release cycle on, each release shows what the code says beside what it plans to ship, and warns when they don't match. Pull requests and commits that mention a work item's key (ENP-12 in a branch name, pull request title or commit message) show on that item, and the item moves with its pull request: opened goes to review, merged goes to done, and closed without merging goes back to doing. When GitHub says an open pull request can merge, its work item offers Merge (you confirm first); when it can't, the item says why, like conflicts with main, and can hand it to an agent to fix. Each move shows in history and can be undone; the plugin's Move work permission decides whether moves wait for you. Public repos work without a token; add one for private repos.",
+  "colour": "#b9a4ff",
+  "icon": "code",
+  "glyph": [
+    { "d": "M6.5 3.5L17.5 3.5C19.16 3.5 20.5 4.84 20.5 6.5L20.5 17.5C20.5 19.16 19.16 20.5 17.5 20.5L6.5 20.5C4.84 20.5 3.5 19.16 3.5 17.5L3.5 6.5C3.5 4.84 4.84 3.5 6.5 3.5Z", "paint": "soft" },
+    { "d": "M8.5 9L8.5 15" },
+    { "d": "M15.5 10C15.5 12.5 13.5 13 11.5 13.2C9.9 13.4 8.5 14 8.5 15" },
+    { "d": "M10.25 7.25C10.25 8.22 9.47 9 8.5 9C7.53 9 6.75 8.22 6.75 7.25C6.75 6.28 7.53 5.5 8.5 5.5C9.47 5.5 10.25 6.28 10.25 7.25Z" },
+    { "d": "M10.25 16.75C10.25 17.72 9.47 18.5 8.5 18.5C7.53 18.5 6.75 17.72 6.75 16.75C6.75 15.78 7.53 15 8.5 15C9.47 15 10.25 15.78 10.25 16.75Z" },
+    { "d": "M17.25 8.25C17.25 9.22 16.47 10 15.5 10C14.53 10 13.75 9.22 13.75 8.25C13.75 7.28 14.53 6.5 15.5 6.5C16.47 6.5 17.25 7.28 17.25 8.25Z", "paint": "solid" }
+  ],
+  "inherit": "offer",
+  "card_settings": ["repo", "branch"],
+  "levels": ["project", "product"],
+  "suggest_for": ["app", "website"],
+  "requires": [ { "id": "releases", "version": "^2.0.0", "optional": true } ],
+  "permissions": { "read": ["projects", "work"], "ops": ["work.move"], "hosts": ["api.github.com"] },
+  "settings": [
+    { "key": "repo", "name": "Repository", "type": "text", "scope": "project", "help": "Like owner/name, or the repo's GitHub link." },
+    { "key": "branch", "name": "Branch", "type": "text", "scope": "project", "help": "Blank uses the repo's default branch." },
+    { "key": "version_file", "name": "Version file", "type": "text", "scope": "project", "help": "Blank: Enplace finds it. Or a path in the repo, like ios/project.yml." },
+    { "key": "move_work", "name": "Move work with pull requests", "type": "toggle", "scope": "project", "default": true, "help": "A pull request that mentions an item's key moves it: opened to review, merged to done, closed without merging back to doing." },
+    { "key": "token", "name": "GitHub token", "type": "secret", "scope": "workspace", "help": "Needed for private repos. A fine-grained token with read-only access to Contents, Metadata, Pull requests and Checks covers everything; give it Pull requests: read and write to merge from a work item; add Webhooks: read and write to let Enplace turn on instant updates for you. Without one, GitHub allows only a few checks an hour." }
+  ],
+  "contributes": {
+    "project_cards": [ { "key": "code", "name": "Code", "size": "wide" } ],
+    "schedule": { "every": 15, "per": "project" },
+    "webhook": { "signature_header": "X-Hub-Signature-256", "signature_prefix": "sha256=", "event_header": "X-GitHub-Event", "connect": "hook_connect", "disconnect": "hook_disconnect" },
+    "settings_panel": true,
+    "work_panel": true,
+    "tools": [
+      { "name": "get_code", "description": "A project's linked GitHub repo: the version in its version file (and which file), the branch and latest commit, the latest version tag and how many commits are past it. With work, the pull requests and commits that mention that work item.", "action": "tool_code", "project": true,
+        "params": [ { "name": "work", "description": "A work item's key, like ENP-12, for the pull requests and commits that mention it." } ] }
+    ]
+  }
+}

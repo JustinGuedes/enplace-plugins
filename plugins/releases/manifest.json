@@ -1,0 +1,62 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "releases",
+  "name": "Release cycle",
+  "version": "2.10.0",
+  "author": "Enplace",
+  "summary": "Releases on a cadence, with ship rules at cut-off, or deploys as work is done.",
+  "description": "Plans a project's releases on a cadence you set, numbers them, and applies your ship rules at cut-off: ship what's done, wait, skip a release with nothing in it, or hold for must-ship work. Work joins a release through its Release field; everything else stays general project work. When work ships as soon as it's done (a website deployed on each fix), each day's finished work is recorded as one deploy instead. Put it on a product for that product's own releases, or on the project to share one cycle across the products that have none of their own. App Store and GitHub tell it what's live and what the code says, and Release lanes lays the work out by release.",
+  "colour": "#8fb4ff",
+  "icon": "rocket",
+  "glyph": [
+    { "d": "M19.5 12C19.5 16.14 16.14 19.5 12 19.5C7.86 19.5 4.5 16.14 4.5 12C4.5 7.86 7.86 4.5 12 4.5C16.14 4.5 19.5 7.86 19.5 12Z", "paint": "soft" },
+    { "d": "M18.5 8.25C20.2 11.19 19.71 14.9 17.31 17.3C14.91 19.7 11.2 20.19 8.26 18.5C5.32 16.8 3.88 13.34 4.76 10.06C5.64 6.78 8.61 4.5 12 4.5" },
+    { "d": "M9.5 2L12 4.5L9.5 7" },
+    { "d": "M12 8.75L15.25 12L12 15.25L8.75 12Z", "paint": "solid" }
+  ],
+  "inherit": "offer",
+  "card_settings": ["ships"],
+  "levels": ["project", "product"],
+  "suggest_for": ["app", "website"],
+  "permissions": { "read": ["projects", "work"], "ops": ["work.fields"] },
+  "settings": [
+    { "key": "ships", "name": "Work ships", "type": "select", "scope": "project", "options": ["In releases on the cadence", "As each piece is done"], "default": "In releases on the cadence", "help": "As each piece is done: done means shipped, like a website deployed on each fix, and each day's finished work is one deploy." },
+    { "key": "enabled", "name": "Plan releases on a cadence", "type": "toggle", "scope": "project", "default": true, "help": "Off: releases are only the ones you add." },
+    { "key": "follow_project", "name": "Follow the project's cadence", "type": "toggle", "scope": "project", "level": "product", "default": false, "help": "Use the project's Release cycle for how often, the ship day, the cut-off and the day the cadence counts from, so releases land on the same days. Versions, ship rules and how work ships stay this product's own." },
+    { "key": "every_weeks", "hide_when": "follow_project", "name": "A release every", "type": "select", "scope": "project", "options": ["1", "2", "3", "4", "6", "8", "12"], "default": "2", "help": "Weeks between releases." },
+    { "key": "weekday", "hide_when": "follow_project", "name": "Ship day", "type": "select", "scope": "project", "options": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], "default": "Friday" },
+    { "key": "anchor", "hide_when": "follow_project", "name": "Counting from", "type": "text", "scope": "project", "help": "A ship day the cadence counts from, like 2026-11-20, so releases land on the same weeks. Empty: the first ship day planned." },
+    { "key": "cutoff_days", "hide_when": "follow_project", "name": "Cut-off, days before shipping", "type": "number", "scope": "project", "default": 2 },
+    { "key": "scheme", "name": "Version style", "type": "select", "scope": "project", "options": ["Short (1.4)", "Semantic (1.4.0)", "Calendar (2026.11)", "Number (14)"], "default": "Short (1.4)" },
+    { "key": "bump", "name": "Each release bumps", "type": "select", "scope": "project", "options": ["Major", "Minor", "Patch"], "default": "Minor" },
+    { "key": "next_version", "name": "Next version", "type": "text", "scope": "project", "help": "Where numbering starts when nothing is live yet, like 1.0." },
+    { "key": "nothing_done", "name": "At cut-off, nothing is done", "type": "select", "scope": "project", "options": ["Skip the release", "Ask me"], "default": "Skip the release" },
+    { "key": "partly_done", "name": "At cut-off, some is done", "type": "select", "scope": "project", "options": ["Ship what's done", "Wait for everything", "Ask me"], "default": "Ship what's done" },
+    { "key": "must_ship_late", "name": "Must-ship work isn't done", "type": "select", "scope": "project", "options": ["Ask me", "Hold the release", "Skip the release", "Ship, then hotfix"], "default": "Ask me" },
+    { "key": "must_ship_from", "name": "Counts as must-ship", "type": "select", "scope": "project", "options": ["Urgent only", "High and up", "Medium and up", "Low and up"], "default": "Urgent only", "help": "Besides work marked Must ship." }
+  ],
+  "contributes": {
+    "brief": true,
+    "dashboard": [ { "key": "soon", "name": "Shipping soon", "size": "wide" } ],
+    "project_cards": [ { "key": "release", "name": "Next release", "size": "small" } ],
+    "pages": [
+      { "key": "all", "name": "Releases", "icon": "rocket", "where": "workspace", "nav": "main" },
+      { "key": "releases", "name": "Releases", "icon": "rocket", "where": "project" }
+    ],
+    "work_fields": [
+      { "key": "release", "name": "Release", "type": "choice", "icon": "rocket", "on_card": true, "goal_scope": "A release" },
+      { "key": "must_ship", "name": "Must ship", "type": "toggle", "icon": "bolt", "on_card": true }
+    ],
+    "project_status": true,
+    "deadlines": true,
+    "events": ["work.created", "work.moved", "work.done", "work.updated"],
+    "schedule": { "every": 15, "per": "workspace" },
+    "calendar": true,
+    "tools": [
+      { "name": "list_releases", "description": "A project's releases: versions, ship dates, cut-offs, how much is done and what the ship rules will do. Also says how to put work in a release.", "action": "tool_releases", "project": true }
+    ],
+    "skills": [
+      { "name": "release-notes", "description": "Write What's new for a release from the work that's done." }
+    ]
+  }
+}

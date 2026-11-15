@@ -1,0 +1,44 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "app",
+  "name": "App Store",
+  "version": "3.1.0",
+  "kind": "service",
+  "author": "Enplace",
+  "summary": "Follow an app on the App Store: its icon, live version, review, rating, reviews and downloads.",
+  "description": "Goes on an app product. Link the app to its App Store listing to get its icon, the live version and its rating, and add App Store Connect keys to follow each version through review and read its reviews. With your vendor number too, it shows downloads, purchases and where they come from. With Release cycle on, the cycle numbers releases from what's live and follows each one through review. For Android, add Google Play to the same product.",
+  "colour": "#7cc4ff",
+  "icon": "app",
+  "glyph": [
+    { "d": "M9 3.5L15 3.5C18.04 3.5 20.5 5.96 20.5 9L20.5 15C20.5 18.04 18.04 20.5 15 20.5L9 20.5C5.96 20.5 3.5 18.04 3.5 15L3.5 9C3.5 5.96 5.96 3.5 9 3.5Z", "paint": "soft" },
+    { "d": "M9 3.5L15 3.5C18.04 3.5 20.5 5.96 20.5 9L20.5 15C20.5 18.04 18.04 20.5 15 20.5L9 20.5C5.96 20.5 3.5 18.04 3.5 15L3.5 9C3.5 5.96 5.96 3.5 9 3.5Z" },
+    { "d": "M12 7C12.6 10 14 11.4 17 12C14 12.6 12.6 14 12 17C11.4 14 10 12.6 7 12C10 11.4 11.4 10 12 7Z", "paint": "solid" }
+  ],
+  "card_settings": ["app_store"],
+  "suggest_for": ["app"],
+  "requires": [ { "id": "releases", "version": "^2.7.0", "optional": true } ],
+  "permissions": { "read": ["projects"], "ops": ["project.icon"], "hosts": ["itunes.apple.com", "api.appstoreconnect.apple.com"] },
+  "settings": [
+    { "key": "app_store", "name": "App Store app", "type": "text", "scope": "project", "help": "Its bundle ID like com.example.app, its App Store link or its App Store ID. Or search for it above." },
+    { "key": "overview", "name": "On the project's overview", "type": "select", "scope": "project", "options": ["One summary card", "A card for each number", "No statistics"], "default": "One summary card", "help": "How the app's downloads, rating and reviews show on the overview. The App page always has all of it." },
+    { "key": "asc_issuer_id", "name": "Issuer ID", "type": "secret", "scope": "workspace", "help": "App Store Connect → Users and Access → Integrations → App Store Connect API." },
+    { "key": "asc_key_id", "name": "Key ID", "type": "secret", "scope": "workspace", "help": "The ID of the key you generated there." },
+    { "key": "asc_private_key", "name": "Private key (.p8)", "type": "secret", "scope": "workspace", "multiline": true, "help": "Paste the whole .p8 file, including the BEGIN and END lines." },
+    { "key": "asc_vendor", "name": "Vendor number", "type": "text", "scope": "workspace", "help": "For downloads and purchases. App Store Connect → Payments and Financial Reports, the number beside your name at the top. The key above also needs the Sales, Finance or Admin role." }
+  ],
+  "contributes": {
+    "project_cards": [
+      { "key": "store", "name": "App Store", "size": "wide" },
+      { "key": "downloads", "name": "Downloads", "size": "small", "together": { "how": "sum", "label": "new in the last 7 days" } },
+      { "key": "rating", "name": "Rating", "size": "small", "together": { "how": "average", "label": "average rating" } },
+      { "key": "sales", "name": "Purchases", "size": "small", "together": { "how": "sum", "label": "in the last 30 days" } },
+      { "key": "reviews", "name": "Latest reviews", "size": "wide" }
+    ],
+    "pages": [ { "key": "stores", "name": "App Store", "icon": "app", "glyph": [{"d": "M5.5 4.5L18.5 4.5L20.5 9.5L3.5 9.5Z", "paint": "soft"},{"d": "M5.5 4.5L18.5 4.5L20.5 9.5L3.5 9.5Z"},{"d": "M5 9.5L5 19.5L19 19.5L19 9.5"},{"d": "M10 19.5L10 14.5L14 14.5L14 19.5"}], "where": "project" } ],
+    "schedule": { "every": 60, "per": "project" },
+    "settings_panel": true,
+    "tools": [
+      { "name": "get_app", "description": "A product's App Store app: its bundle ID, the version live on the App Store, rating, each version's state in App Store Connect when keys are set, and with a vendor number its downloads, purchases and latest reviews.", "action": "tool_app", "project": true }
+    ]
+  }
+}

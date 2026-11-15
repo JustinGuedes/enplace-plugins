@@ -1,0 +1,13 @@
+{"data":{"team":{"id":"t-eng","key":"ENG","name":"Engineering",
+ "states":{"nodes":[
+  {"id":"s-triage","name":"Triage","type":"triage","position":-1},
+  {"id":"s-backlog","name":"Backlog","type":"backlog","position":0},
+  {"id":"s-todo","name":"Todo","type":"unstarted","position":1},
+  {"id":"s-progress","name":"In Progress","type":"started","position":2},
+  {"id":"s-review","name":"In Review","type":"started","position":3},
+  {"id":"s-done","name":"Done","type":"completed","position":4},
+  {"id":"s-canceled","name":"Canceled","type":"canceled","position":5},
+  {"id":"s-dup","name":"Duplicate","type":"canceled","position":6}]},
+ "labels":{"nodes":[{"id":"l-bug","name":"Bug"},{"id":"l-ios","name":"iOS"}]},
+ "projects":{"nodes":[{"id":"p-sync","name":"Sync engine","state":"started"},{"id":"p-old","name":"Old launch","state":"completed"}]}},
+ "issueLabels":{"nodes":[{"id":"l-feature","name":"Feature"},{"id":"l-bug","name":"Bug"}]}}}

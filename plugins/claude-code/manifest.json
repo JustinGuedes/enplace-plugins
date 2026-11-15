@@ -1,0 +1,30 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "claude-code",
+  "name": "Claude Code",
+  "version": "1.0.0",
+  "kind": "agent",
+  "author": "Enplace",
+  "summary": "Send work to Claude Code on your own computer, on your Claude plan.",
+  "description": "Send copies a prompt for the work item. Paste it into Claude Code on your computer: it picks the item up through the Enplace connector, reports progress there, and hands it back for review. Messages you leave on the item reach it on its next Enplace call. It runs on your own Claude plan and your own login; Enplace never sees either.",
+  "colour": "#ff9b6b",
+  "icon": "agent",
+  "glyph": [
+    { "d": "M6 4.5L18 4.5C19.66 4.5 21 5.84 21 7.5L21 16.5C21 18.16 19.66 19.5 18 19.5L6 19.5C4.34 19.5 3 18.16 3 16.5L3 7.5C3 5.84 4.34 4.5 6 4.5Z", "paint": "soft" },
+    { "d": "M6 4.5L18 4.5C19.66 4.5 21 5.84 21 7.5L21 16.5C21 18.16 19.66 19.5 18 19.5L6 19.5C4.34 19.5 3 18.16 3 16.5L3 7.5C3 5.84 4.34 4.5 6 4.5Z" },
+    { "d": "M7.5 9.5L10.5 12L7.5 14.5" },
+    { "d": "M12.5 15L16.5 15" }
+  ],
+  "default": true,
+  "contributes": {
+    "runner": {
+      "agent": "Claude",
+      "where": "computer",
+      "pays": "plan",
+      "kind": "prompt",
+      "hint": "Copies the prompt. Claude Code on your computer picks it up over MCP.",
+      "connect": "claude_code",
+      "prompt": "Enplace work item {key}: {title}\n\nUse the Enplace connector: call start_work for {key}, do the work, post progress with add_note, then submit_for_review with a short report and any pull request link."
+    }
+  }
+}

@@ -1,0 +1,537 @@
+// Command logic is the GitHub plugin: it links a project to its repo and
+// reads the version the code is at. Every 15 minutes (and on "Check now")
+// it asks GitHub for the branch's latest commit; when that moved, it reads
+// the version file again (found on its own, or the one named in settings),
+// and it looks at the version tags and how far the branch is past the
+// latest one.
+//
+// It publishes what it found as "public.code", in a shape any code host
+// plugin can publish too, so Release cycle can show the code's version
+// beside its plan without knowing about GitHub:
+//
+//	{"provider":"github","repo":"owner/name","url":"https://github.com/owner/name",
+//	 "branch":"main","file":"project.yml","version":"1.5","tag":"v1.4",
+//	 "tag_version":"1.4","ahead":12,"sha":"…","commit_at":"…","checked_at":"…"}
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/JustinGuedes/enplace-plugins/plugins/github/versionfile"
+	"github.com/JustinGuedes/enplace-plugins/sdk/plugin"
+)
+
+func main() { plugin.Run(handle) }
+
+const (
+	keyCode   = "code"
+	keyPublic = "public.code"
+	// repoEvery is how often the repo's details (default branch, link)
+	// are looked up again.
+	repoEvery = 24 * time.Hour
+	// tryFiles is how many found files are read looking for a version.
+	tryFiles = 4
+)
+
+// Code is what the last check found.
+type Code struct {
+	Repo          string    `json:"repo"` // owner/name as GitHub spells it
+	Typed         string    `json:"typed"`
+	URL           string    `json:"url,omitempty"`
+	DefaultBranch string    `json:"default_branch,omitempty"`
+	Private       bool      `json:"private,omitempty"`
+	RepoAt        time.Time `json:"repo_at,omitempty"`
+	Branch        string    `json:"branch,omitempty"`
+	// FileSetting is the version file setting the version was read with.
+	FileSetting string    `json:"file_setting,omitempty"`
+	File        string    `json:"file,omitempty"`
+	Auto        bool      `json:"auto,omitempty"` // the file was found, not named
+	Version     string    `json:"version,omitempty"`
+	SHA         string    `json:"sha,omitempty"`
+	Message     string    `json:"message,omitempty"`
+	CommitURL   string    `json:"commit_url,omitempty"`
+	CommitAt    time.Time `json:"commit_at,omitempty"`
+	Tag         string    `json:"tag,omitempty"`
+	TagVersion  string    `json:"tag_version,omitempty"`
+	TagSHA      string    `json:"tag_sha,omitempty"`
+	Ahead       int       `json:"ahead"`
+	// Note says why there's no version, when the repo was read fine.
+	Note string `json:"note,omitempty"`
+	// Error is what went wrong last time; what was found before is kept.
+	Error     string    `json:"error,omitempty"`
+	CheckedAt time.Time `json:"checked_at"`
+}
+
+// Public is what other plugins read, as "public.code".
+type Public struct {
+	Provider   string    `json:"provider"`
+	Repo       string    `json:"repo"`
+	URL        string    `json:"url,omitempty"`
+	Branch     string    `json:"branch,omitempty"`
+	File       string    `json:"file,omitempty"`
+	Version    string    `json:"version,omitempty"`
+	Tag        string    `json:"tag,omitempty"`
+	TagVersion string    `json:"tag_version,omitempty"`
+	Ahead      int       `json:"ahead"`
+	SHA        string    `json:"sha,omitempty"`
+	CommitAt   time.Time `json:"commit_at,omitempty"`
+	CheckedAt  time.Time `json:"checked_at"`
+}
+
+type run struct {
+	// fresh: the repo changed, so links found before are dropped.
+	fresh bool
+	req   *plugin.Request
+	res   *plugin.Response
+	pid   string
+	fetch fetcher
+}
+
+func handle(req *plugin.Request) (*plugin.Response, error) {
+	r := &run{req: req, res: &plugin.Response{}, pid: req.ProjectID, fetch: plugin.Fetch}
+	switch req.Hook {
+	case plugin.HookSchedule:
+		r.save(r.check(false))
+	case plugin.HookWebhook:
+		r.webhook()
+	case plugin.HookAction:
+		if req.Action == nil {
+			break
+		}
+		switch req.Action.Name {
+		case "check":
+			c := r.check(true)
+			r.save(c)
+			switch {
+			case c == nil:
+			case c.Error != "":
+				r.res.Toast = c.Error
+			case c.Version != "":
+				r.res.Toast = "The code says " + c.Version
+			default:
+				r.res.Toast = "Checked " + c.Repo
+			}
+		case "hook_connect":
+			r.connect()
+		case "hook_disconnect":
+			r.disconnect()
+		case actMerge:
+			r.merge()
+		case "tool_code":
+			var args struct {
+				Work string `json:"work"`
+			}
+			_ = json.Unmarshal(req.Action.Args, &args)
+			r.res.Data = r.tool(args.Work)
+		}
+	case plugin.HookRender:
+		c := r.current()
+		for _, slot := range req.Slots {
+			switch slot {
+			case "project_card:code":
+				r.card(slot, c)
+			case plugin.SlotSettingsPanel:
+				r.setCard(slot, r.panel(c))
+			case plugin.SlotWorkPanel:
+				r.setCard(slot, r.workPanel(c))
+			}
+		}
+	}
+	return r.res, nil
+}
+
+// merge merges the pull request a person pressed Merge on (they were
+// asked first), then reads the repo again so the work it mentions moves to
+// done straight away. Data says whether it merged, for the card.
+func (r *run) merge() {
+	var args struct {
+		Number int    `json:"number"`
+		SHA    string `json:"sha"`
+	}
+	_ = json.Unmarshal(r.req.Action.Args, &args)
+	fail := func(msg string) {
+		r.res.Toast = msg
+		r.res.Data = map[string]any{"merged": false, "error": msg}
+	}
+	c := r.current()
+	switch {
+	case args.Number <= 0:
+		fail("Which pull request? Enplace didn't get its number.")
+		return
+	case c == nil:
+		fail("Link this project to its GitHub repo first.")
+		return
+	case r.req.Secrets["token"] == "":
+		fail("Add a GitHub token with Pull requests: read and write in the plugin's settings to merge from Enplace.")
+		return
+	}
+	gh := &client{fetch: r.fetch, token: r.req.Secrets["token"], repo: c.Repo}
+	if err := gh.merge(args.Number, args.SHA); err != nil {
+		fail(err.Error())
+		return
+	}
+	r.save(r.check(true))
+	r.res.Toast = fmt.Sprintf("Merged #%d", args.Number)
+	r.res.Data = map[string]any{"merged": true}
+}
+
+func (r *run) setting(key string) string {
+	v, _ := r.req.ProjectSettings[r.pid][key].(string)
+	return strings.TrimSpace(v)
+}
+
+// current is the last check, if it was for the repo set now.
+func (r *run) current() *Code {
+	var c *Code
+	if !r.req.State.GetProject(r.pid, keyCode, &c) || c == nil || c.Typed != r.setting("repo") {
+		return nil
+	}
+	return c
+}
+
+func (r *run) save(c *Code) {
+	r.res.SetProject(r.pid, keyCode, c)
+	if c == nil {
+		r.res.SetProject(r.pid, keyLinks, nil)
+		r.res.SetProject(r.pid, keyMoves, nil)
+	}
+	if c == nil || (c.Version == "" && c.Tag == "") {
+		r.res.SetProject(r.pid, keyPublic, nil)
+		return
+	}
+	r.res.SetProject(r.pid, keyPublic, Public{Provider: "github", Repo: c.Repo, URL: c.URL, Branch: c.Branch, File: c.File, Version: c.Version,
+		Tag: c.Tag, TagVersion: c.TagVersion, Ahead: c.Ahead, SHA: c.SHA, CommitAt: c.CommitAt, CheckedAt: c.CheckedAt})
+}
+
+// check asks GitHub what changed since last time. force reads everything
+// again. It's nil when no repo is set.
+func (r *run) check(force bool) *Code {
+	typed := r.setting("repo")
+	if typed == "" {
+		return nil
+	}
+	now := r.req.Now
+	repo := parseRepo(typed)
+	if repo == "" {
+		return &Code{Typed: typed, Error: "That isn't a GitHub repo. Use owner/name or the repo's link.", CheckedAt: now}
+	}
+	c := r.current()
+	if c == nil || !strings.EqualFold(c.Repo, repo) {
+		c = &Code{Repo: repo}
+		r.fresh = true
+	}
+	c.Typed, c.CheckedAt, c.Error = typed, now, ""
+	gh := &client{fetch: r.fetch, token: r.req.Secrets["token"], repo: c.Repo}
+	fail := func(err error) *Code {
+		c.Error = upper(err.Error())
+		if !strings.HasSuffix(c.Error, ".") {
+			c.Error += "."
+		}
+		return c
+	}
+
+	if force || c.DefaultBranch == "" || now.Sub(c.RepoAt) >= repoEvery {
+		info, err := gh.repoInfo()
+		if err != nil {
+			return fail(err)
+		}
+		c.Repo, c.URL, c.DefaultBranch, c.Private, c.RepoAt = info.FullName, info.HTMLURL, info.DefaultBranch, info.Private, now
+		gh.repo = c.Repo
+	}
+	branch := r.setting("branch")
+	if branch == "" {
+		branch = c.DefaultBranch
+	}
+	if branch != c.Branch {
+		c.Branch, c.SHA, c.Version, c.File = branch, "", "", ""
+	}
+
+	head, err := gh.head(branch)
+	if err != nil {
+		return fail(err)
+	}
+	fileSetting := strings.Trim(r.setting("version_file"), "/ ")
+	moved := head.SHA != c.SHA
+	if moved || force || fileSetting != c.FileSetting || (c.Version == "" && c.Note == "") {
+		c.SHA, c.CommitURL, c.CommitAt = head.SHA, head.HTMLURL, head.Commit.Committer.Date
+		c.Message, _, _ = strings.Cut(head.Commit.Message, "\n")
+		if err := r.readVersion(gh, c, fileSetting); err != nil {
+			return fail(err)
+		}
+	}
+
+	if err := r.link(gh, c, moved || force); err != nil {
+		return fail(err)
+	}
+
+	tags, err := gh.tags()
+	if err != nil {
+		return fail(err)
+	}
+	best := latestTag(tags)
+	if best == nil {
+		c.Tag, c.TagVersion, c.TagSHA, c.Ahead = "", "", "", 0
+		return c
+	}
+	if best.Name != c.Tag || best.Commit.SHA != c.TagSHA || moved || force {
+		n := 0
+		if best.Commit.SHA != head.SHA {
+			if n, err = gh.ahead(best.Commit.SHA, head.SHA); err != nil {
+				return fail(err)
+			}
+		}
+		c.Tag, c.TagVersion, c.TagSHA, c.Ahead = best.Name, versionfile.FromTag(best.Name), best.Commit.SHA, n
+	}
+	return c
+}
+
+// readVersion reads the version at c.SHA from the named file, or finds it.
+func (r *run) readVersion(gh *client, c *Code, named string) error {
+	c.FileSetting, c.Note = named, ""
+	if named != "" {
+		data, err := gh.file(named, c.SHA)
+		if err != nil {
+			return err
+		}
+		c.File, c.Auto = named, false
+		v, err := versionfile.Read(named, data)
+		if err != nil {
+			c.Version = ""
+			c.Note = "There's no version in " + named + " that Enplace can read."
+			return nil
+		}
+		c.Version = v
+		return nil
+	}
+	paths, err := gh.files(c.SHA)
+	if err != nil {
+		return err
+	}
+	cands := versionfile.Candidates(paths)
+	// The file found last time goes first, so it doesn't flip between two.
+	if c.File != "" {
+		for i, p := range cands {
+			if p == c.File {
+				cands = append([]string{p}, append(cands[:i:i], cands[i+1:]...)...)
+				break
+			}
+		}
+	}
+	for i, p := range cands {
+		if i >= tryFiles {
+			break
+		}
+		data, err := gh.file(p, c.SHA)
+		if err != nil {
+			continue
+		}
+		if v, err := versionfile.Read(p, data); err == nil {
+			c.File, c.Auto, c.Version = p, true, v
+			return nil
+		}
+	}
+	c.File, c.Auto, c.Version = "", true, ""
+	c.Note = "Enplace didn't find a version file. Name it in the settings, like ios/project.yml."
+	return nil
+}
+
+// latestTag is the highest version tag, or nil.
+func latestTag(tags []tag) *tag {
+	var best *tag
+	for i := range tags {
+		v := versionfile.FromTag(tags[i].Name)
+		if v == "" {
+			continue
+		}
+		if best == nil || versionfile.Newer(v, versionfile.FromTag(best.Name)) {
+			best = &tags[i]
+		}
+	}
+	return best
+}
+
+func upper(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// ----- Drawing -----
+
+func (r *run) setCard(slot string, blocks []plugin.Block) {
+	if r.res.Cards == nil {
+		r.res.Cards = map[string][]plugin.Block{}
+	}
+	r.res.Cards[slot] = blocks
+}
+
+func (r *run) settingsHref() string {
+	for _, p := range r.req.Projects {
+		if p.ID == r.pid {
+			return "/p/" + strings.ToLower(p.Key) + "/settings/github"
+		}
+	}
+	return ""
+}
+
+// where says where the version came from, like "project.yml · main · 12 commits since v1.4".
+func where(c *Code) string {
+	var parts []string
+	if c.File != "" {
+		parts = append(parts, c.File)
+	}
+	if c.Branch != "" {
+		parts = append(parts, c.Branch)
+	}
+	switch {
+	case c.Tag == "":
+	case c.Ahead == 0:
+		parts = append(parts, "tagged "+c.Tag)
+	case c.Ahead == 1:
+		parts = append(parts, "1 commit since "+c.Tag)
+	default:
+		parts = append(parts, fmt.Sprintf("%d commits since %s", c.Ahead, c.Tag))
+	}
+	return strings.Join(parts, " · ")
+}
+
+func (r *run) card(slot string, c *Code) {
+	if r.setting("repo") == "" {
+		r.setCard(slot, []plugin.Block{
+			{Type: plugin.BlockText, Text: "No repo linked yet. Link one to see the version in the code.", Tone: "muted"},
+			{Type: plugin.BlockButtons, Buttons: []plugin.Button{{Label: "Link repo", Href: r.settingsHref()}}},
+		})
+		r.res.Signal(slot, plugin.LevelQuiet, "")
+		return
+	}
+	if c == nil {
+		r.setCard(slot, []plugin.Block{
+			{Type: plugin.BlockStat, Label: "Not checked yet", Value: parseRepoOr(r.setting("repo")), Sub: "Enplace checks every 15 minutes.", Tone: "muted"},
+			{Type: plugin.BlockButtons, Buttons: []plugin.Button{{Label: "Check now", Action: "check"}}},
+		})
+		return
+	}
+	blocks := []plugin.Block{}
+	stat := plugin.Block{Type: plugin.BlockStat, Label: "Version", Value: c.Version, Sub: where(c)}
+	if c.Version == "" {
+		stat.Value, stat.Tone = "No version", "muted"
+		if c.Note != "" {
+			stat.Sub = c.Note
+		}
+	}
+	blocks = append(blocks, stat)
+	if c.Error != "" {
+		blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: c.Error, Tone: "warn"})
+	} else if c.Message != "" {
+		blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: "Latest: " + c.Message + " · " + ago(c.CommitAt, r.req.Now), Tone: "muted"})
+	}
+	btns := []plugin.Button{}
+	if c.URL != "" {
+		btns = append(btns, plugin.Button{Label: "Open repo", URL: c.URL})
+	}
+	btns = append(btns, plugin.Button{Label: "Check now", Action: "check"})
+	blocks = append(blocks, plugin.Block{Type: plugin.BlockButtons, Buttons: btns})
+	r.setCard(slot, blocks)
+
+	// New code is everyday news; only a broken link needs the person.
+	switch {
+	case c.Error != "":
+		r.res.Signal(slot, plugin.LevelNormal, "Can't read "+c.Repo)
+		r.res.Say(slot, "Enplace can't read "+c.Repo+": "+c.Error, "Can't read")
+	case c.Version != "":
+		r.res.Signal(slot, plugin.LevelQuiet, "")
+		r.res.Say(slot, "The code says "+c.Version+" ("+where(c)+").", c.Version)
+	default:
+		r.res.Signal(slot, plugin.LevelQuiet, "")
+	}
+}
+
+func parseRepoOr(s string) string {
+	if r := parseRepo(s); r != "" {
+		return r
+	}
+	return s
+}
+
+func (r *run) panel(c *Code) []plugin.Block {
+	if r.setting("repo") == "" {
+		return []plugin.Block{{Type: plugin.BlockText, Text: "Add the repo above. Enplace then finds the file your version lives in and reads it every 15 minutes.", Tone: "muted"}}
+	}
+	if c == nil {
+		return []plugin.Block{
+			{Type: plugin.BlockText, Text: "Not checked yet.", Tone: "muted"},
+			{Type: plugin.BlockButtons, Buttons: []plugin.Button{{Label: "Check now", Action: "check"}}},
+		}
+	}
+	var blocks []plugin.Block
+	if c.Error != "" {
+		blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: c.Error, Tone: "warn"})
+	}
+	switch {
+	case c.Version != "" && c.Auto:
+		blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: fmt.Sprintf("Reading %s from %s (%s), found on its own. Name another file above to use that instead.", c.Version, c.File, versionfile.Kind(c.File))})
+	case c.Version != "":
+		blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: fmt.Sprintf("Reading %s from %s.", c.Version, c.File)})
+	case c.Note != "":
+		blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: c.Note})
+	}
+	line := "Checked " + ago(c.CheckedAt, r.req.Now)
+	if c.Branch != "" {
+		line = "On " + c.Branch + " · " + strings.ToLower(line[:1]) + line[1:]
+	}
+	blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: line, Tone: "muted"})
+	btns := []plugin.Button{{Label: "Check now", Action: "check"}}
+	if c.URL != "" {
+		btns = append(btns, plugin.Button{Label: "Open repo", URL: c.URL})
+	}
+	return append(blocks, plugin.Block{Type: plugin.BlockButtons, Buttons: btns})
+}
+
+func (r *run) tool(work string) map[string]any {
+	c := r.current()
+	if r.setting("repo") == "" {
+		return map[string]any{"linked": false, "how_to": "Set the github plugin's repo setting to owner/name or the repo's link (update_project with plugin_settings). version_file is optional: Enplace finds the file on its own."}
+	}
+	if c == nil {
+		return map[string]any{"linked": true, "repo": r.setting("repo"), "checked": false}
+	}
+	out := map[string]any{"linked": true, "checked": true, "repo": c.Repo, "url": c.URL, "branch": c.Branch, "version": c.Version, "version_file": c.File,
+		"version_file_found_automatically": c.Auto, "latest_tag": c.Tag, "tag_version": c.TagVersion, "commits_since_tag": c.Ahead,
+		"head": map[string]any{"sha": c.SHA, "message": c.Message, "at": c.CommitAt, "url": c.CommitURL}, "checked_at": c.CheckedAt}
+	if c.Note != "" {
+		out["note"] = c.Note
+	}
+	if c.Error != "" {
+		out["error"] = c.Error
+	}
+	if work = strings.ToUpper(strings.TrimSpace(work)); work != "" {
+		ls := Links{}
+		r.req.State.GetProject(r.pid, keyLinks, &ls)
+		list := ls[work]
+		if list == nil {
+			list = []Link{}
+		}
+		out["work"] = map[string]any{"key": work, "links": list, "how_to_link": "Put " + work + " in a branch name, pull request title or commit message."}
+	}
+	return out
+}
+
+func ago(t, now time.Time) string {
+	if t.IsZero() {
+		return "a while ago"
+	}
+	d := now.Sub(t)
+	switch {
+	case d < time.Minute:
+		return "just now"
+	case d < time.Hour:
+		return fmt.Sprintf("%d min ago", int(d.Minutes()))
+	case d < 24*time.Hour:
+		return fmt.Sprintf("%d h ago", int(d.Hours()))
+	}
+	return fmt.Sprintf("%d days ago", int(d.Hours()/24))
+}
