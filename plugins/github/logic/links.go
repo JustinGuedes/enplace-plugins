@@ -26,7 +26,7 @@ const (
 // Link is a pull request or commit that mentions a work item's key, in its
 // title, branch or message.
 type Link struct {
-	Kind   string    `json:"kind"` // pr or commit
+	Kind   string    `json:"kind"` // pr, commit, or branch (pushed with no pull request)
 	Number int       `json:"number,omitempty"`
 	Title  string    `json:"title"`
 	URL    string    `json:"url"`
@@ -211,6 +211,7 @@ func (r *run) link(gh *client, c *Code, moved bool) error {
 			}
 		}
 	}
+	r.linkBranches(gh, c, prs, ls, re)
 	ls.trim()
 	details(gh, ls, moved, r.req.Now)
 	r.res.SetProject(r.pid, keyLinks, ls)
@@ -503,6 +504,10 @@ func (r *run) workPanel(c *Code) []plugin.Block {
 				}
 				events = append(events, plugin.Item{Title: opened, Sub: name, Value: at(when), Icon: "code", Button: link(checks)})
 			}
+		case "branch":
+			out = append(out, branchStrip(l, r.req.Now))
+			events = append(events, plugin.Item{Title: "Pushed code with no pull request", Sub: l.Branch + ": " + l.Title, Value: at(l.At), Icon: "code",
+				Button: &plugin.Button{Label: "Open a pull request", URL: l.URL}})
 		default:
 			sha := l.SHA
 			if len(sha) > 7 {

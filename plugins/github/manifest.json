@@ -2,11 +2,11 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "github",
   "name": "GitHub",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "kind": "service",
   "author": "Enplace",
   "summary": "Link a project to its GitHub repo, and see the version in the code beside the release plan.",
-  "description": "Links a project to its code on GitHub. Enplace finds the file the code keeps its version in (an Xcode project, package.json, Gradle, pubspec.yaml, Cargo.toml, a VERSION file and more), or you name it, and reads the version from it every 15 minutes (or the moment it changes, with instant updates on), with the latest tag and how many commits have landed since. With Release cycle on, each release shows what the code says beside what it plans to ship, and warns when they don't match. Pull requests and commits that mention a work item's key (ENP-12 in a branch name, pull request title or commit message) show on that item, and the item moves with its pull request: opened goes to review, merged goes to done, and closed without merging goes back to doing. When GitHub says an open pull request can merge, its work item offers Merge (you confirm first); when it can't, the item says why, like conflicts with main, and can hand it to an agent to fix. Each move shows in history and can be undone; the plugin's Move work permission decides whether moves wait for you. Public repos work without a token; add one for private repos.",
+  "description": "Links a project to its code on GitHub. Enplace finds the file the code keeps its version in (an Xcode project, package.json, Gradle, pubspec.yaml, Cargo.toml, a VERSION file and more), or you name it, and reads the version from it every 15 minutes (or the moment it changes, with instant updates on), with the latest tag and how many commits have landed since. With Release cycle on, each release shows what the code says beside what it plans to ship, and warns when they don't match. Pull requests and commits that mention a work item's key (ENP-12 in a branch name, pull request title or commit message) show on that item, and the item moves with its pull request: opened goes to review, merged goes to done, and closed without merging goes back to doing. When GitHub says an open pull request can merge, its work item offers Merge (you confirm first); when it can't, the item says why, like conflicts with main, and can hand it to an agent to fix. A branch that mentions a key but has no pull request shows on its item with a way to open one, and Today's brief names work stuck on GitHub. Each move shows in history and can be undone; the plugin's Move work permission decides whether moves wait for you. Public repos work without a token; add one for private repos.",
   "colour": "#b9a4ff",
   "icon": "code",
   "glyph": [
@@ -31,6 +31,7 @@
     { "key": "token", "name": "GitHub token", "type": "secret", "scope": "workspace", "help": "Needed for private repos. A fine-grained token with read-only access to Contents, Metadata, Pull requests and Checks covers everything; give it Pull requests: read and write to merge from a work item; add Webhooks: read and write to let Enplace turn on instant updates for you. Without one, GitHub allows only a few checks an hour." }
   ],
   "contributes": {
+    "brief": true,
     "project_cards": [ { "key": "code", "name": "Code", "size": "wide" } ],
     "schedule": { "every": 15, "per": "project" },
     "webhook": { "signature_header": "X-Hub-Signature-256", "signature_prefix": "sha256=", "event_header": "X-GitHub-Event", "connect": "hook_connect", "disconnect": "hook_disconnect" },

@@ -312,6 +312,19 @@ type Webhook struct {
 	// before it's turned off. Both optional.
 	Connect    string `json:"connect,omitempty"`
 	Disconnect string `json:"disconnect,omitempty"`
+	// Answers makes each delivery wait for the plugin: Enplace runs the
+	// webhook hook at once and sends its Response.Data back as the reply's
+	// JSON body. It's for an outside app that syncs with the plugin (a
+	// notes app sending what changed and taking back what to write),
+	// rather than a service that only announces changes.
+	Answers bool `json:"answers,omitempty"`
+	// Service, About and Steps are the words on the webhook's settings
+	// card: what the outside app is called, a line on what it does, and
+	// the steps to set it up (with the address and secret shown above
+	// them). Without them the card has general words.
+	Service string   `json:"service,omitempty"`
+	About   string   `json:"about,omitempty"`
+	Steps   []string `json:"steps,omitempty"`
 }
 
 // WorkField is a field a plugin adds to work.
@@ -709,6 +722,14 @@ func (m *Manifest) Check() error {
 		}
 		if len(wh.Connect) > 60 || len(wh.Disconnect) > 60 {
 			return errors.New("webhook: connect and disconnect are action names")
+		}
+		if len(wh.Service) > 40 || len(wh.About) > 300 || len(wh.Steps) > 6 {
+			return errors.New("webhook: service, about and steps are short words for the settings card")
+		}
+		for _, st := range wh.Steps {
+			if st == "" || len(st) > 300 {
+				return errors.New("webhook: each step is a line of up to 300 characters")
+			}
 		}
 	}
 	for _, f := range c.WorkFields {

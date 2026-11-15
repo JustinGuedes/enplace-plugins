@@ -79,10 +79,10 @@ func TestCheckFindsVersionAndTag(t *testing.T) {
 	}
 
 	// Nothing moved: only the head, pull requests (with the open one that
-	// mentions work) and the tags are asked for.
+	// mentions work), the branches and the tags are asked for.
 	f.calls = nil
 	res = runWith(f, request(stateOf(res), map[string]any{"repo": "https://github.com/acme/app.git"}, now.Add(15*time.Minute)))
-	if len(f.calls) != 4 {
+	if len(f.calls) != 5 {
 		t.Fatalf("calls %v", f.calls)
 	}
 	stateOf(res).GetProject("p1", keyCode, &c)

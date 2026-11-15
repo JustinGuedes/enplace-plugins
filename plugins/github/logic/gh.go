@@ -267,6 +267,36 @@ func (c *client) pulls() ([]pull, error) {
 	return ps, err
 }
 
+// branch is one branch and the commit at its tip.
+type branch struct {
+	Name   string `json:"name"`
+	Commit struct {
+		SHA string `json:"sha"`
+	} `json:"commit"`
+}
+
+// branches are the repo's first 100 branches.
+func (c *client) branches() ([]branch, error) {
+	var bs []branch
+	err := c.getJSON("/repos/"+c.repo+"/branches?per_page=100", &bs)
+	return bs, err
+}
+
+// hasPull says whether a branch ever had a pull request, open or not.
+func (c *client) hasPull(branch string) (bool, error) {
+	owner, _, _ := strings.Cut(c.repo, "/")
+	var ps []pull
+	err := c.getJSON("/repos/"+c.repo+"/pulls?state=all&per_page=1&head="+url.QueryEscape(owner+":"+branch), &ps)
+	return len(ps) > 0, err
+}
+
+// commitAt is one commit, by its sha.
+func (c *client) commitAt(sha string) (*commit, error) {
+	var cm commit
+	err := c.getJSON("/repos/"+c.repo+"/commits/"+url.PathEscape(sha), &cm)
+	return &cm, err
+}
+
 // commits are the latest 50 commits on a branch.
 func (c *client) commits(branch string) ([]commit, error) {
 	var cs []commit

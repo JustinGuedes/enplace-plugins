@@ -137,6 +137,8 @@ func handle(req *plugin.Request) (*plugin.Response, error) {
 				r.setCard(slot, r.panel(c))
 			case plugin.SlotWorkPanel:
 				r.setCard(slot, r.workPanel(c))
+			case plugin.SlotBrief:
+				r.brief()
 			}
 		}
 	}

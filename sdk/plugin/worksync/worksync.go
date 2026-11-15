@@ -152,6 +152,11 @@ type Config struct {
 	// Noun is what one outside item is called, like "issue", for the tray
 	// and the brief. Default "item".
 	Noun string
+	// Mirror sends every open work item of the project out (a Creator
+	// source only), the ones there before the sync started too, whatever
+	// the "create outside" setting says: for a source that is a copy of
+	// the project, like a folder of notes.
+	Mirror bool
 }
 
 func (s *Sync) skips(field string) bool { return slices.Contains(s.cfg.Skip, field) }
@@ -279,6 +284,54 @@ func (s *Sync) Links() map[string]*Link { return s.links }
 
 // Field is the work field that carries an item's outside reference.
 func (s *Sync) Field() string { return s.Req.Plugin.ID + ".link" }
+
+// Open is one project's sync, for a source that answers a hook the sync
+// doesn't (like a webhook its own app calls): change what it needs, call
+// Run, then Save.
+func Open(req *plugin.Request, res *plugin.Response, cfg Config, projectID string) *Sync {
+	return open(req, res, cfg, projectID)
+}
+
+// Save writes what the sync changed into the response.
+func (s *Sync) Save() { s.save() }
+
+// Relink moves a link to a new outside id, for an item whose id changed
+// outside (a note renamed or moved). It reports whether there was a link
+// to move; one already at the new id is replaced.
+func (s *Sync) Relink(from, to string) bool {
+	l := s.links[from]
+	if l == nil || from == to {
+		return false
+	}
+	delete(s.links, from)
+	s.dirty[shard(from)] = true
+	l.ID = to
+	s.links[to] = l
+	s.touch(l)
+	return true
+}
+
+// Adopt links an outside item to work that already exists (a note that
+// names its work item but has no link yet, like one restored from a
+// backup). Where the two differ, the side changed last wins at the next
+// Run: the outside item when it's newer than the work, else the work.
+func (s *Sync) Adopt(it Item, workID string) bool {
+	w := findWork(s.Req, workID)
+	if w == nil || w.ProjectID != s.ProjectID || s.links[it.ID] != nil || s.linkFor(w.ID) != nil {
+		return false
+	}
+	base := s.snapItem(it)
+	if it.UpdatedAt.After(w.UpdatedAt) {
+		base = s.snapWork(w)
+	}
+	l := &Link{ID: it.ID, Ref: it.Ref, URL: it.URL, Work: w.ID, State: Linked, Base: base, Status: it.Status, Seen: it.UpdatedAt.Add(-time.Second), Synced: s.Req.Now}
+	s.links[it.ID] = l
+	s.touch(l)
+	if w.Fields[s.Field()] != it.Ref {
+		s.op("work.fields", map[string]any{"id": w.ID, "fields": map[string]string{s.Field(): it.Ref}})
+	}
+	return true
+}
 
 // Handle answers every hook for a source plugin.
 func Handle(req *plugin.Request, cfg Config) (*plugin.Response, error) {
@@ -632,10 +685,13 @@ func (s *Sync) Run() {
 	}
 
 	// New Enplace work goes out, when the person asked for that.
-	if c, ok := s.cfg.Source.(Creator); ok && s.pushes() && s.Setting("create_outside") == "true" {
+	if c, ok := s.cfg.Source.(Creator); ok && s.pushes() && (s.cfg.Mirror || s.Setting("create_outside") == "true") {
 		for _, w := range mine {
-			if w.Fields[s.Field()] != "" || s.linkFor(w.ID) != nil || w.CreatedAt.Before(s.status.Since) || w.Done() {
+			if w.Fields[s.Field()] != "" || s.linkFor(w.ID) != nil || (!s.cfg.Mirror && w.CreatedAt.Before(s.status.Since)) || w.Done() {
 				continue
+			}
+			if s.ops >= maxOps {
+				break // the rest go out next time
 			}
 			it, err := c.Create(s, *w, s.itemFor(w))
 			if err != nil {

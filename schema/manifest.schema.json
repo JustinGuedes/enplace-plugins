@@ -447,6 +447,12 @@
         "webhook": {
           "additionalProperties": false,
           "properties": {
+            "about": {
+              "type": "string"
+            },
+            "answers": {
+              "type": "boolean"
+            },
             "connect": {
               "type": "string"
             },
@@ -456,11 +462,20 @@
             "event_header": {
               "type": "string"
             },
+            "service": {
+              "type": "string"
+            },
             "signature_header": {
               "type": "string"
             },
             "signature_prefix": {
               "type": "string"
+            },
+            "steps": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
             }
           },
           "type": "object"

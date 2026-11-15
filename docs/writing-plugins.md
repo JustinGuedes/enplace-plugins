@@ -301,6 +301,23 @@ create (`Creator`) and close (`Closer`) items. The base brings the rest:
 `Request.Waiting` (the plugin's own changes still in Approvals), project
 `Stages` and work `UpdatedAt` are there for any plugin, not just sources.
 
+A source can also be a copy of the project rather than a list of its
+own (`Config.Mirror`): every open work item goes out, the ones there before
+the sync started too. `Relink` follows an item whose outside id changed (a
+renamed note), and `Adopt` links an outside item to work that already
+exists. Obsidian vault uses all three.
+
+### An app that syncs through a webhook
+
+Some outside places can't be reached from Enplace at all, like a vault of
+notes on someone's laptop. An app there can call the project's webhook
+instead and wait for the plugin's answer: with `"answers": true` in
+`contributes.webhook`, Enplace runs the webhook hook at once (after
+checking the signature, as for any delivery) and sends the response's
+`Data` back as the reply's JSON body. `service`, `about` and `steps` put
+the right words on the settings card ("Connect Obsidian", and how). The
+Obsidian vault plugin works this way with the Enplace plugin for Obsidian.
+
 ### The code a project ships
 
 A plugin that reads a project's code (GitHub now; GitLab or Bitbucket could
@@ -316,6 +333,26 @@ how the code compares with the release it plans:
 
 `plugins/github/versionfile` finds and reads version files without knowing
 where they come from, so another code host plugin can use it as it is.
+
+A code plugin also says what each work item's code needs, in the same
+shape whatever the host, so Enplace's screens and brief never name a host.
+On the item's work panel:
+
+- **A strip per pull request** (`label` "PR #81", `tone` done or muted once
+  merged or closed). Its first button opens it.
+- **`pr.merge`** on the strip when the host says it can merge now, with
+  `args` `{number, sha, base}` and a `confirm`. Enplace runs the action
+  when the person confirms.
+- **`pr.status`** otherwise, which Enplace reads instead of running: `args`
+  `{state, base}` with state `conflicts`, `behind`, `failing`, `blocked`,
+  `waiting` or `checking`, a sentence for people as its label, and a `url`
+  where it's sorted out.
+- **Code pushed with no pull request:** a strip labelled "Branch <name>"
+  with `pr.status` state `nopr` and a `url` that opens one.
+
+The person sees the plugin's name as the host ("Resolve on GitHub"). A brief
+line ("Code waiting on a fix: ENP-83 has conflicts…") names stuck work
+across projects.
 
 Pack one plugin into a bundle:
 

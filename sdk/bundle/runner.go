@@ -208,7 +208,7 @@ func (r *Runner) Title(pluginName string) string {
 func (r *Runner) FillPrompt(key, title string) string {
 	p := r.Prompt
 	if strings.TrimSpace(p) == "" {
-		p = "Enplace work item {key}: {title}\n\nUse the Enplace MCP: call start_work for {key}, do the work, post progress with add_note, then submit_for_review with a short report and any pull request link."
+		p = "Enplace work item {key}: {title}\n\nUse the Enplace MCP: call start_work for {key}, do the work, post progress with add_note, then submit_for_review with a short report and any pull request link. When you change code, open a pull request titled \"{key}: what it does\" so Enplace links it. Pass your session link as session_url to start_work and submit_for_review."
 	}
 	return strings.NewReplacer("{key}", key, "{title}", title).Replace(p)
 }

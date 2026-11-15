@@ -48,6 +48,7 @@ One manifest format, with a `kind` that fills in the rest:
 
 - [GitHub Issues](plugins/github-issues): Use a repository's issues as a project's work.
 - [Linear](plugins/linear): Use a Linear team as a project's work.
+- [Obsidian vault](plugins/obsidian): Keep a project's work as Markdown notes in your Obsidian vault.
 
 ### Services
 
