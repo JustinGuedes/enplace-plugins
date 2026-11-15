@@ -3,6 +3,7 @@
   "id": "calendar-feeds",
   "name": "Calendar feeds",
   "version": "2.0.1",
+  "kind": "extension",
   "author": "Enplace",
   "summary": "Show your calendars on the timeline so plans fit around meetings.",
   "description": "Subscribe to any calendar's private iCal link (Google, iCloud, Outlook). Events show as busy blocks on Calendar and Today, refreshed every 15 minutes. Read-only: nothing is ever written back.",

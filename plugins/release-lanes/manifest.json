@@ -3,6 +3,7 @@
   "id": "release-lanes",
   "name": "Release lanes",
   "version": "2.4.1",
+  "kind": "extension",
   "author": "Enplace",
   "summary": "See work grouped by the release it ships in.",
   "description": "A lane per upcoming release, with what the ship rules will do at cut-off shown on each lane. Drag work between lanes to plan it into a release, park it for later, or keep it as general project work.",

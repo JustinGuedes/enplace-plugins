@@ -30,7 +30,47 @@ One manifest format, with a `kind` that fills in the rest:
 - `agent`: does work items for people, like Claude Code or Codex.
 - `source`: keeps a project's work in step with another tool, like Linear.
 - `service`: follows something a product ships to: a store, a site, a repo.
-- no kind: a plugin that does a bit of everything, like Release cycle.
+- `extension`: adds a feature across Enplace, like Release cycle or XP.
+
+## The plugins
+
+<!-- plugins: go test ./plugins -update -->
+
+### Agents
+
+- [Claude on your API key](plugins/claude-api): Enplace runs Claude itself on your own Anthropic API key, up to the caps you set.
+- [Claude in the cloud](plugins/claude-cloud): Send work to your own Claude Code task on claude.ai, so it runs with your laptop closed.
+- [Claude Code](plugins/claude-code): Send work to Claude Code on your own computer, on your Claude plan.
+- [Codex CLI](plugins/codex-cli): Send work to the Codex CLI on your own computer, on your own plan.
+- [Gemini CLI](plugins/gemini-cli): Send work to the Gemini CLI on your own computer, on your own plan.
+
+### Work sources
+
+- [GitHub Issues](plugins/github-issues): Use a repository's issues as a project's work.
+- [Linear](plugins/linear): Use a Linear team as a project's work.
+
+### Services
+
+- [App Store](plugins/app): Follow an app on the App Store: its icon, live version, review, rating, reviews and downloads.
+- [GitHub](plugins/github): Link a project to its GitHub repo, and see the version in the code beside the release plan.
+- [Google Play](plugins/google-play): Keep an app's Google Play listing beside the product: its package, page and live version.
+- [Uptime](plugins/website): Check a website is up every 15 minutes, with how fast it answered, its page title and its icon.
+
+### Extensions
+
+- [Calendar feeds](plugins/calendar-feeds): Show your calendars on the timeline so plans fit around meetings.
+- [Markdown export](plugins/markdown-export): Download a project's work as Markdown files with front matter.
+- [Release lanes](plugins/release-lanes): See work grouped by the release it ships in.
+- [Release cycle](plugins/releases): Releases on a cadence, with ship rules at cut-off, or deploys as work is done.
+- [Work sync](plugins/work-sync): The shared engine work sources build on, like Linear, GitHub Issues and Obsidian.
+- [XP](plugins/xp): Turn finished work into XP, levels, streaks, quests and badges.
+
+### Skill packs
+
+- [Plain-words writing](plugins/plain-words): Skills for writing that people read once and act on: updates, release notes and replies.
+- [Ship an app](plugins/ship-an-app): Skills for getting an iPhone or Android app out: TestFlight builds, store screenshots and review notes.
+
+<!-- /plugins -->
 
 ## Publishing happens on its own
 

@@ -10,8 +10,8 @@ import (
 
 // Kinds of plugin. A kind says what a plugin is for: it fills in where the
 // plugin can be switched on and how it flows down, and keeps it to the
-// pieces that kind uses, so a manifest only says what's its own. A plugin
-// without a kind can use every piece.
+// pieces that kind uses, so a manifest only says what's its own. Every
+// plugin names one; a bundle from before kinds reads as KindExtension.
 const (
 	// KindSkills brings skills for agents, and nothing else: no logic.
 	// Each skills/<name>.md describes itself in its front matter, so the
@@ -26,6 +26,10 @@ const (
 	// KindService follows something a product ships to: a store, a site,
 	// a repo.
 	KindService = "service"
+	// KindExtension adds a feature across Enplace, like the release cycle
+	// or XP. It may use every piece and fills nothing in: the manifest
+	// says where it goes with Levels.
+	KindExtension = "extension"
 )
 
 // kindRule is what a kind fills in and allows.
@@ -34,7 +38,7 @@ type kindRule struct {
 	levels  []string
 	inherit string
 	extends []string
-	// pieces are the contributes keys the kind may use.
+	// pieces are the contributes keys the kind may use; nil allows all.
 	pieces []string
 }
 
@@ -58,6 +62,7 @@ var kinds = map[string]kindRule{
 		pieces: []string{"brief", "calendar", "deadlines", "events", "pages", "project_cards", "project_status",
 			"schedule", "settings_panel", "skills", "tools", "webhook", "work_fields", "work_panel"},
 	},
+	KindExtension: {},
 }
 
 // KindNames are the kinds a manifest can name, in order.
@@ -74,11 +79,11 @@ func KindNames() []string {
 // then checks it only uses the kind's pieces.
 func (m *Manifest) applyKind() error {
 	if m.Kind == "" {
-		return nil
+		m.Kind = KindExtension
 	}
 	rule, ok := kinds[m.Kind]
 	if !ok {
-		return fmt.Errorf("kind must be one of %s, or left out", strings.Join(KindNames(), ", "))
+		return fmt.Errorf("kind must be one of %s", strings.Join(KindNames(), ", "))
 	}
 	if m.Scope == "" {
 		m.Scope = rule.scope
@@ -91,6 +96,9 @@ func (m *Manifest) applyKind() error {
 	}
 	if len(m.Extends) == 0 && rule.extends != nil {
 		m.Extends = slices.Clone(rule.extends)
+	}
+	if rule.pieces == nil {
+		return nil
 	}
 	used, err := m.Contributes.pieces()
 	if err != nil {

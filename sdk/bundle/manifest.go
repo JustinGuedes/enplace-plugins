@@ -10,8 +10,8 @@ import (
 )
 
 // Manifest is manifest.json: everything Enplace needs to know about a plugin
-// before running any of it. Only id, name and version are required; a Kind
-// fills in most of the rest.
+// before running any of it. Id, name, version and kind are required; the
+// kind fills in most of the rest.
 type Manifest struct {
 	// Schema points editors at schema/manifest.schema.json. Enplace
 	// ignores it.
@@ -25,10 +25,10 @@ type Manifest struct {
 	Name string `json:"name"`
 	// Version is semantic (1.4.0). Servers only pick up a new version.
 	Version string `json:"version"`
-	// Kind is what the plugin is for: KindSkills, KindAgent, KindSource or
-	// KindService. It fills in Scope, Levels, Inherit and Extends when
-	// they're left out, and keeps the plugin to that kind's pieces. Left
-	// out, the plugin may use every piece and says where it goes itself.
+	// Kind is what the plugin is for: KindSkills, KindAgent, KindSource,
+	// KindService or KindExtension. It fills in Scope, Levels, Inherit and
+	// Extends when they're left out, and keeps the plugin to that kind's
+	// pieces.
 	Kind string `json:"kind,omitempty"`
 	// Author, Summary (one line in the store), Description (its page in
 	// the store) and Homepage describe it to people.

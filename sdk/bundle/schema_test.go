@@ -39,7 +39,7 @@ func manifestSchema() []byte {
 	s["$schema"] = "https://json-schema.org/draft/2020-12/schema"
 	s["$id"] = "https://raw.githubusercontent.com/JustinGuedes/enplace-plugins/main/schema/manifest.schema.json"
 	s["title"] = "Enplace plugin manifest"
-	s["required"] = []string{"id", "name", "version"}
+	s["required"] = []string{"id", "name", "version", "kind"}
 	props := s["properties"].(map[string]any)
 	props["kind"] = map[string]any{"enum": KindNames()}
 	props["scope"] = map[string]any{"enum": []string{"workspace", "project", "both"}}
@@ -48,6 +48,9 @@ func manifestSchema() []byte {
 	// Each kind may only contribute its own pieces.
 	var rules []any
 	for _, k := range KindNames() {
+		if kinds[k].pieces == nil {
+			continue
+		}
 		pieces := map[string]any{}
 		for _, p := range kinds[k].pieces {
 			pieces[p] = true

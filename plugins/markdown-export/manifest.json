@@ -3,6 +3,7 @@
   "id": "markdown-export",
   "name": "Markdown export",
   "version": "2.1.0",
+  "kind": "extension",
   "author": "Enplace",
   "summary": "Download a project's work as Markdown files with front matter.",
   "description": "One file per item with its fields as YAML front matter, ready for Obsidian or a git repo.",

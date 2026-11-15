@@ -44,9 +44,10 @@ itself wins over its kind.
 | `agent` | Doing work items: Send to Claude, Codex… | the workspace | `runner` |
 | `source` | Keeping a project's work in step with another tool | projects and products, offered down, extends `work-sync` | cards, fields, panels, schedule, tools, webhook, skills |
 | `service` | Following something a product ships to: a store, a site, a repo | products | cards, pages, fields, panels, schedule, tools, webhook, calendar, skills |
+| `extension` | A feature across Enplace, like Release cycle or XP | nothing: say where with `levels` | every piece |
 
-Leave `kind` out for a plugin that does a bit of everything, like Release
-cycle or XP: it can use every piece, and says where it goes with `levels`.
+Every manifest names its kind. Pick the narrowest one that fits: an
+`extension` can do anything, so it has to say where it goes itself.
 
 A whole skills plugin:
 

@@ -4,6 +4,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -114,6 +115,15 @@ func collect(dir string) (map[string][]byte, error) {
 	m, err := os.ReadFile(filepath.Join(dir, "manifest.json"))
 	if err != nil {
 		return nil, err
+	}
+	var head struct {
+		Kind string `json:"kind"`
+	}
+	if err := json.Unmarshal(m, &head); err != nil {
+		return nil, fmt.Errorf("%s: %w", filepath.Join(dir, "manifest.json"), err)
+	}
+	if head.Kind == "" {
+		return nil, fmt.Errorf("%s: name its kind, one of %s", filepath.Join(dir, "manifest.json"), strings.Join(bundle.KindNames(), ", "))
 	}
 	files["manifest.json"] = m
 	for _, extra := range []string{"README.md", "icon.png", "icon.svg"} {

@@ -45,6 +45,9 @@ func TestEveryPluginPacks(t *testing.T) {
 			if m.ID != id {
 				t.Errorf("manifest id %q, folder %q: they must match", m.ID, id)
 			}
+			if !strings.Contains(string(raw), `"kind"`) {
+				t.Error("name the plugin's kind in its manifest")
+			}
 			if m.Summary == "" {
 				t.Error("a summary is shown in the store: add one")
 			}

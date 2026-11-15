@@ -67,7 +67,7 @@ func TestKindKeepsAPluginToItsPieces(t *testing.T) {
 	}
 }
 
-func TestNoKindStillNeedsNoScope(t *testing.T) {
+func TestAnExtensionSaysWhereItGoes(t *testing.T) {
 	cases := map[string]string{
 		`"levels":["workspace"]`:              "workspace",
 		`"levels":["workspace","project"]`:    "both",
@@ -76,13 +76,23 @@ func TestNoKindStillNeedsNoScope(t *testing.T) {
 		`"scope":"both","levels":["product"]`: "both",
 	}
 	for body, scope := range cases {
-		m, err := parseDemo(t, body)
+		m, err := parseDemo(t, `"kind":"extension",`+body)
 		if err != nil {
 			t.Fatalf("%s: %v", body, err)
 		}
 		if m.Scope != scope {
 			t.Errorf("%s: scope %s, want %s", body, m.Scope, scope)
 		}
+	}
+}
+
+func TestABundleFromBeforeKindsIsAnExtension(t *testing.T) {
+	m, err := parseDemo(t, `"levels":["project"],"contributes":{"pages":[{"key":"p","name":"P","where":"project"}]}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Kind != KindExtension || m.Scope != "project" {
+		t.Errorf("kind %q, scope %q", m.Kind, m.Scope)
 	}
 }
 

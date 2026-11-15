@@ -19,7 +19,7 @@ func skillPack(t *testing.T, root, id, version, skill string) string {
 	if err := os.MkdirAll(filepath.Join(dir, "skills"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	manifest := `{"id":"` + id + `","name":"Test pack","version":"` + version + `","summary":"For tests.","scope":"both",
+	manifest := `{"id":"` + id + `","name":"Test pack","version":"` + version + `","kind":"extension","summary":"For tests.","scope":"both",
 		"permissions":{},"contributes":{"skills":[{"name":"tidy","description":"Keep it tidy."}]}}`
 	write(t, filepath.Join(dir, "manifest.json"), manifest)
 	write(t, filepath.Join(dir, "skills", "tidy.md"), skill)

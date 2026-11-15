@@ -3,6 +3,7 @@
   "id": "xp",
   "name": "XP",
   "version": "1.1.0",
+  "kind": "extension",
   "author": "Enplace",
   "summary": "Turn finished work into XP, levels, streaks, quests and badges.",
   "description": "You become a character and each project you switch XP on for becomes a skill you name (the gym could be Strength). Finished work earns XP, more for higher priority and bigger estimates. Keep a daily streak, clear this week's quests for bonus XP, earn badges, and unlock each skill's tree as it levels up.",
