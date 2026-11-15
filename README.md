@@ -1,43 +1,64 @@
 # Enplace plugins
 
-Plugins and skill packs for [Enplace](https://enplace.guedio.com), published
-so they reach any Enplace server without a new Enplace release.
+Every plugin and skill pack [Enplace](https://enplace.guedio.com) uses, and
+the kit to write your own.
 
-This repo holds only what a server downloads:
+Enplace's server is private and stays small. This repo is its public side:
+the contract a plugin is built against, never how Enplace works inside.
 
-- `catalogue.json`: the list of plugins, each with its version, what it
-  adds, and the SHA-256 of its bundle. It's signed by the publisher.
-- `bundles/<id>-<version>.enplace`: each plugin, packed and signed.
+```
+cmd/enplace-plugin/   the author's tool: keygen, pack, publish
+sdk/
+  plugin/             what a plugin's logic receives and answers
+    plugintest/       run logic in plain go test
+    worksync/         the engine work-source plugins share
+  bundle/             the .enplace bundle: manifest, kinds, signing
+  catalogue/          the signed catalogue servers read
+plugins/<id>/         each plugin's source
+schema/               the manifest's JSON schema, for editors
+docs/                 how to write a plugin
+scripts/              what the Publish Action runs
+```
 
-The plugins' source isn't here. Don't edit these files by hand: a changed
-file no longer matches its signature or hash, and servers refuse it.
+Start with [docs/writing-plugins.md](docs/writing-plugins.md).
+
+## Kinds of plugin
+
+One manifest format, with a `kind` that fills in the rest:
+
+- `skills`: skills for agents, nothing else. A manifest of five lines.
+- `agent`: does work items for people, like Claude Code or Codex.
+- `source`: keeps a project's work in step with another tool, like Linear.
+- `service`: follows something a product ships to: a store, a site, a repo.
+- no kind: a plugin that does a bit of everything, like Release cycle.
+
+## Publishing happens on its own
+
+When a change reaches `main`, the [Publish](.github/workflows/publish.yml)
+Action checks everything, then builds, signs and publishes each plugin whose
+version is new to the catalogue on GitHub Pages. It commits nothing back,
+so `main` only holds people's own commits.
+
+To ship a change to a plugin, **bump its `version`** and merge. A pull
+request that changes a plugin without a new version fails its check, since
+servers only pick up new versions. A version is published once: its
+bundle never changes after that.
+
+The Action signs with the `ENPLACE_PLUGIN_SIGNING_KEY` secret: the private
+key file `enplace-plugin keygen` wrote.
 
 ## Using it on a server
 
-Set these where the server runs:
-
-    ENPLACE_CATALOGUE_URL=https://raw.githubusercontent.com/JustinGuedes/enplace-plugins/main/catalogue.json
+    ENPLACE_CATALOGUE_URL=https://justinguedes.github.io/enplace-plugins/catalogue.json
     ENPLACE_PLUGIN_KEYS=<the publisher's public key>
 
-Or, for one workspace, add the `catalogue.json` link as a source in
-Settings → Plugins → Store.
+Or, for one workspace, add that link as a source in Settings → Plugins →
+Store. Skill packs from a trusted publisher update themselves within a day;
+plugins with code wait for a workspace owner to press Update.
 
-What happens then:
+## Working on it
 
-- The plugins show in the store. A plugin that also comes with Enplace
-  shows once, at the newer version.
-- Skill packs (skills only, no code) from a publisher the server trusts
-  update themselves within a day. Each update is in History with Undo.
-- Plugins with code wait for a workspace owner to press Update. A server
-  installs code only when it trusts the key that signed it.
-
-## Publishing
-
-From a checkout of the Enplace server repo, with this repo checked out
-next to it and the signing key at hand:
-
-    make publish-plugins KEY=~/enplace-plugin.key
-    cd ../enplace-plugins && git add -A && git commit -m "plain-words 1.1.0" && git push
-
-Bump a plugin's version whenever its files change. Publishing refuses a
-version that's already here with different files.
+    go vet ./... && go test -race ./...
+    GOOS=wasip1 GOARCH=wasm go build ./plugins/...
+    scripts/check-versions.sh origin/main
+    go test ./sdk/bundle -update        # after changing the manifest type: rewrites the schema
