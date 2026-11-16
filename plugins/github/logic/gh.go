@@ -189,6 +189,19 @@ func (c *client) ahead(base, head string) (int, error) {
 	return cmp.AheadBy, err
 }
 
+// landed says whether head is already in base: everything on it was
+// merged, so comparing finds nothing ahead.
+func (c *client) landed(base, head string) (bool, error) {
+	var cmp struct {
+		Status string `json:"status"`
+	}
+	esc := func(s string) string { return strings.ReplaceAll(url.PathEscape(s), "%2F", "/") }
+	if err := c.getJSON("/repos/"+c.repo+"/compare/"+esc(base)+"..."+esc(head), &cmp); err != nil {
+		return false, err
+	}
+	return cmp.Status == "identical" || cmp.Status == "behind", nil
+}
+
 var (
 	reRepoURL  = regexp.MustCompile(`^(?:https?://)?(?:www\.)?github\.com[/:]([A-Za-z0-9-]+)/([A-Za-z0-9._-]+?)(?:\.git)?(?:/.*)?$`)
 	reRepoSSH  = regexp.MustCompile(`^git@github\.com:([A-Za-z0-9-]+)/([A-Za-z0-9._-]+?)(?:\.git)?$`)

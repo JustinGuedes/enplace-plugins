@@ -252,6 +252,16 @@ func (r *run) check(force bool) *Code {
 	}
 
 	head, err := gh.head(branch)
+	if err != nil && r.setting("branch") == "" && now.Sub(c.RepoAt) > 0 {
+		// The default branch it knew may be gone, deleted or renamed
+		// (ENP-124): look the repo up again rather than fail until tomorrow.
+		if info, ierr := gh.repoInfo(); ierr == nil && info.DefaultBranch != branch {
+			c.Repo, c.URL, c.DefaultBranch, c.Private, c.RepoAt = info.FullName, info.HTMLURL, info.DefaultBranch, info.Private, now
+			gh.repo, branch = c.Repo, info.DefaultBranch
+			c.Branch, c.SHA, c.Version, c.File = branch, "", "", ""
+			head, err = gh.head(branch)
+		}
+	}
 	if err != nil {
 		return fail(err)
 	}

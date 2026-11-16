@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -104,5 +105,91 @@ func TestStuckBrief(t *testing.T) {
 	req.Work = []plugin.Work{{Key: "ACM-4", StageKind: "review"}}
 	if out, _ := handle(req); out.Brief != nil {
 		t.Fatalf("brief with nothing stuck: %+v", out.Brief)
+	}
+}
+
+// Code already on the default branch never asks for a pull request
+// (ENP-124): a branch merged straight in, a merge commit that only names
+// another branch, and main itself are left out.
+func TestBranchAlreadyLanded(t *testing.T) {
+	f := newFake("abc")
+	now := time.Date(2026, 11, 12, 12, 0, 0, 0, time.UTC)
+	commit := func(msg string) string {
+		return `{"sha":"s","commit":{"message":"` + msg + `","committer":{"date":"2026-11-12T08:00:00Z"}}}`
+	}
+	f.bodies["/repos/Acme/app/branches?per_page=100"] = `[
+		{"name":"main","commit":{"sha":"abc"}},
+		{"name":"master","commit":{"sha":"m1"}},
+		{"name":"release","commit":{"sha":"r1"}},
+		{"name":"claude/acm-31-ios","commit":{"sha":"i1"}},
+		{"name":"claude/acm-32-web","commit":{"sha":"w1"}}]`
+	f.bodies["/repos/Acme/app/commits/m1"] = commit("ACM-33: on master")
+	f.bodies["/repos/Acme/app/commits/r1"] = commit(`Merge remote-tracking branch 'origin/claude/acm-30-ios'`)
+	f.bodies["/repos/Acme/app/commits/i1"] = commit("ACM-31: iPhone app")
+	f.bodies["/repos/Acme/app/commits/w1"] = commit("ACM-32: web app")
+	for _, b := range []string{"claude%2Facm-31-ios", "claude%2Facm-32-web"} {
+		f.bodies["/repos/Acme/app/pulls?state=all&per_page=1&head=Acme%3A"+b] = `[]`
+	}
+	f.bodies["/repos/Acme/app/compare/main...claude/acm-31-ios"] = `{"status":"behind"}`
+	f.bodies["/repos/Acme/app/compare/main...claude/acm-32-web"] = `{"status":"ahead"}`
+
+	res := runWith(f, request(plugin.State{}, map[string]any{"repo": "acme/app"}, now))
+	var ls Links
+	stateOf(res).GetProject("p1", keyLinks, &ls)
+	branches := func(k string) (out []string) {
+		for _, l := range ls[k] {
+			if l.Kind == "branch" {
+				out = append(out, l.Branch)
+			}
+		}
+		return out
+	}
+	for _, k := range []string{"ACM-30", "ACM-31", "ACM-33"} {
+		if b := branches(k); len(b) > 0 {
+			t.Fatalf("%s has branch links %v", k, b)
+		}
+	}
+	if b := branches("ACM-32"); len(b) != 1 || b[0] != "claude/acm-32-web" {
+		t.Fatalf("ACM-32: %v", b)
+	}
+
+	// Merged later, without its tip moving: the next run sees it landed.
+	f.bodies["/repos/Acme/app/compare/main...claude/acm-32-web"] = `{"status":"identical"}`
+	res = runWith(f, request(stateOf(res), map[string]any{"repo": "acme/app"}, now.Add(time.Hour)))
+	ls = nil
+	stateOf(res).GetProject("p1", keyLinks, &ls)
+	if b := branches("ACM-32"); len(b) > 0 {
+		t.Fatalf("ACM-32 still asks for a pull request: %v", b)
+	}
+
+	// Deleted: its link goes with it on the next run.
+	f.bodies["/repos/Acme/app/compare/main...claude/acm-32-web"] = `{"status":"ahead"}`
+	res = runWith(f, request(plugin.State{}, map[string]any{"repo": "acme/app"}, now))
+	f.bodies["/repos/Acme/app/branches?per_page=100"] = `[{"name":"main","commit":{"sha":"abc"}}]`
+	res = runWith(f, request(stateOf(res), map[string]any{"repo": "acme/app"}, now.Add(time.Hour)))
+	ls = nil
+	stateOf(res).GetProject("p1", keyLinks, &ls)
+	if b := branches("ACM-32"); len(b) > 0 {
+		t.Fatalf("deleted branch still linked: %v", b)
+	}
+}
+
+// When the default branch it knew is gone (deleted or renamed), the check
+// looks the repo up again instead of failing until the next day (ENP-124).
+func TestDefaultBranchGone(t *testing.T) {
+	f := newFake("abc")
+	f.bodies["/repos/Acme/app"] = f.bodies["/repos/acme/app"]
+	now := time.Date(2026, 11, 12, 12, 0, 0, 0, time.UTC)
+	res := runWith(f, request(plugin.State{}, map[string]any{"repo": "acme/app"}, now))
+	var c *Code
+	st := stateOf(res)
+	st.GetProject("p1", keyCode, &c)
+	c.DefaultBranch, c.Branch = "claude/first-push", "claude/first-push"
+	st.Projects["p1"][keyCode], _ = json.Marshal(c)
+	res = runWith(f, request(st, map[string]any{"repo": "acme/app"}, now.Add(time.Hour)))
+	c = nil
+	stateOf(res).GetProject("p1", keyCode, &c)
+	if c.Error != "" || c.Branch != "main" || c.DefaultBranch != "main" {
+		t.Fatalf("code: branch %q default %q error %q", c.Branch, c.DefaultBranch, c.Error)
 	}
 }
