@@ -24,6 +24,7 @@ type world struct {
 	now      time.Time
 	vault    map[string]string
 	since    int
+	v        int // the app's version, 1 when unset
 }
 
 func newWorld(t *testing.T) *world {
@@ -65,7 +66,7 @@ func (w *world) keep(res *plugin.Response) {
 // writes what comes back into the vault.
 func (w *world) call(changes []change, all bool) (*plugin.Response, answer) {
 	w.t.Helper()
-	in := call{V: 1, At: w.now, Since: w.since, Changes: changes}
+	in := call{V: max(w.v, 1), At: w.now, Since: w.since, Changes: changes}
 	if all {
 		in.All = []string{}
 		for p := range w.vault {
@@ -166,6 +167,17 @@ func (w *world) approve(res *plugin.Response) {
 		wk.StageKind = wk.Stage
 		if b, ok := in["body"].(string); ok {
 			wk.Body = b
+		}
+		if p, ok := in["priority"].(float64); ok {
+			wk.Priority = int(p)
+		}
+		if d, ok := in["due"].(string); ok {
+			wk.Due = d
+		}
+		if tags, ok := in["tags"].([]any); ok {
+			for _, x := range tags {
+				wk.Tags = append(wk.Tags, x.(string))
+			}
 		}
 		w.work = append(w.work, wk)
 	}

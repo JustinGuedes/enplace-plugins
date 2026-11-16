@@ -59,10 +59,16 @@ type vault struct {
 	// since is the revision the calling app already has (writes it has
 	// taken, so the full list it sends can tell deletes from new notes).
 	since int
+	// dir is the person's own folder of notes, when the project uses one
+	// ("use an existing folder"); empty when Enplace keeps the notes in
+	// its own folder. In their folder Enplace never adds a note or a key,
+	// and the note's own property names and values are kept.
+	dir string
+	tz  string
 }
 
 func loadVault(req *plugin.Request, res *plugin.Response, pid string) *vault {
-	v := &vault{pid: pid, res: res, notes: map[string]*copyOf{}, dirty: map[string]bool{}}
+	v := &vault{pid: pid, res: res, notes: map[string]*copyOf{}, dirty: map[string]bool{}, dir: ownFolder(req, pid), tz: req.Timezone}
 	for k, raw := range req.State.Projects[pid] {
 		if !strings.HasPrefix(k, keyNote) {
 			continue
@@ -114,17 +120,54 @@ func (v *vault) save() {
 
 func stem(p string) string { return strings.TrimSuffix(path.Base(p), ".md") }
 
+// ownFolder is the project's "folder" setting as a clean vault path, or
+// "" when it has none (or one that isn't a plain folder in the vault).
+func ownFolder(req *plugin.Request, pid string) string {
+	raw, _ := req.ProjectSettings[pid]["folder"].(string)
+	p := strings.Trim(strings.ReplaceAll(strings.TrimSpace(raw), "\\", "/"), "/")
+	if p == "" || len(p) > 200 || strings.ContainsRune(p, 0) {
+		return ""
+	}
+	c := path.Clean(p)
+	for _, part := range strings.Split(c, "/") {
+		if part == ".." || strings.HasPrefix(part, ".") {
+			return ""
+		}
+	}
+	return c
+}
+
+// stageProp is the property a note keeps its stage in: "stage", or
+// "status" as many vaults call it.
+func (v *vault) stageProp(n *note) string {
+	switch {
+	case n.find("stage") != nil:
+		return "stage"
+	case n.find("status") != nil || v.dir != "":
+		return "status"
+	}
+	return "stage"
+}
+
+// ref is what a note is called: its key, its own id, or its file name.
+func (v *vault) ref(n *note, p string) string {
+	if v.dir != "" {
+		return cmp.Or(n.value("id"), n.value("enplace_id"), stem(p))
+	}
+	return stem(p)
+}
+
 // item is a note in Enplace's terms.
 func (v *vault) item(s *worksync.Sync, c *copyOf) worksync.Item {
 	n := parseNote(c.Text)
-	it := worksync.Item{ID: c.Path, Ref: stem(c.Path), Title: cmp.Or(n.heading, stem(c.Path)), Body: n.body,
+	it := worksync.Item{ID: c.Path, Ref: v.ref(n, c.Path), Title: cmp.Or(n.heading, stem(c.Path)), Body: n.body,
 		Priority: n.priority(), Labels: n.list("tags"), Due: n.due(), UpdatedAt: c.Mod, Deleted: c.Gone}
 	if l := s.Links()[c.Path]; l != nil && l.Ref != "" {
 		it.Ref = l.Ref
 	}
-	raw := n.value("stage")
+	raw := n.value(v.stageProp(n))
 	it.Status = raw
-	if st := stageKey(s, raw); st != "" {
+	if st := stageKey(s, raw); st != "" && !s.Mapped(raw) {
 		it.Stage, it.StatusKind = st, s.StageKind(st)
 	}
 	return it
@@ -186,6 +229,9 @@ func (v *vault) List(s *worksync.Sync) ([]worksync.Item, bool, error) {
 // stamp writes each linked note's key into it when it doesn't have it
 // yet: a new note, once its work item exists.
 func (v *vault) stamp(s *worksync.Sync) {
+	if v.dir != "" {
+		return // the person's own notes keep their own ids
+	}
 	for p, c := range v.notes {
 		l := s.Links()[p]
 		if l == nil || l.State != worksync.Linked || c.Gone {
@@ -194,7 +240,7 @@ func (v *vault) stamp(s *worksync.Sync) {
 		if w := workByID(s.Req, l.Work); w != nil {
 			n := parseNote(c.Text)
 			if !strings.EqualFold(n.value("enplace_id"), w.Key) || n.find("enplace_id") == nil {
-				n.set("enplace_id", idLine(w.Key))
+				n.set("enplace_id", w.Key, false)
 				c.Text = n.String()
 				v.bump(c)
 			}
@@ -215,29 +261,54 @@ func (v *vault) Update(s *worksync.Sync, it worksync.Item, ch worksync.Change) (
 	if ch.Body != nil {
 		n.body = strings.Trim(strings.ReplaceAll(*ch.Body, "\r\n", "\n"), "\n")
 	}
+	keep := v.dir != "" // the person's notes keep their keys, empty
 	if ch.StatusKind != nil || ch.Status != nil {
 		if st := v.stageFor(s, it, ch); st != "" {
-			n.set("stage", "stage: "+yamlValue(st))
+			if v.dir != "" {
+				// Their own status: the mapped one, or the stage's name.
+				st = s.StageName(st)
+				if ch.Status != nil && *ch.Status != "" {
+					st = *ch.Status
+				}
+			}
+			n.set(v.stageProp(n), st, false)
 		}
 	}
 	if ch.Priority != nil {
-		n.set("priority", priorityLine(*ch.Priority))
+		n.set("priority", n.priorityValue(*ch.Priority), keep)
 	}
 	if ch.Labels != nil {
-		n.set("tags", tagsLine(*ch.Labels))
+		var tags any
+		if len(*ch.Labels) > 0 || keep {
+			tags = *ch.Labels
+		}
+		n.set("tags", tags, keep)
 	}
 	if ch.Due != nil {
-		due := ""
+		var due any
 		if *ch.Due != "" {
-			due = "due: " + *ch.Due
+			due = *ch.Due
 		}
-		n.set("due", due)
+		n.set("due", due, keep)
 	}
 	if text := n.String(); text != c.Text {
+		if v.dir != "" && n.find("updated") != nil {
+			n.set("updated", v.today(s), false)
+			text = n.String()
+		}
 		c.Text = text
 		v.bump(c)
 	}
 	return v.item(s, c), nil
+}
+
+// today is the date in the person's time zone.
+func (v *vault) today(s *worksync.Sync) string {
+	loc, err := time.LoadLocation(v.tz)
+	if err != nil {
+		loc = time.UTC
+	}
+	return s.Req.Now.In(loc).Format("2006-01-02")
 }
 
 // stageFor is the stage key to write: the linked work's own stage.
@@ -268,12 +339,16 @@ func (v *vault) stageFor(s *worksync.Sync, it worksync.Item, ch worksync.Change)
 func (v *vault) Create(s *worksync.Sync, w plugin.Work, _ worksync.Item) (worksync.Item, error) {
 	n := &note{hasFront: true, heading: strings.TrimSpace(cmp.Or(w.Title, w.Key)), hasHeading: true,
 		body: strings.Trim(strings.ReplaceAll(w.Body, "\r\n", "\n"), "\n")}
-	n.set("enplace_id", idLine(w.Key))
-	n.set("stage", "stage: "+yamlValue(w.Stage))
-	n.set("priority", priorityLine(w.Priority))
-	n.set("tags", tagsLine(w.Tags))
+	n.set("enplace_id", w.Key, false)
+	n.set("stage", w.Stage, false)
+	if w.Priority > 0 {
+		n.set("priority", w.Priority, false)
+	}
+	if len(w.Tags) > 0 {
+		n.set("tags", w.Tags, false)
+	}
 	if w.Due != "" {
-		n.set("due", "due: "+w.Due)
+		n.set("due", w.Due, false)
 	}
 	p := v.freePath(fileName(w.Key, w.Title))
 	c := &copyOf{Path: p, Text: n.String(), Mod: s.Req.Now}

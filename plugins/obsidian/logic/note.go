@@ -12,27 +12,29 @@ package main
 //	# Title
 //	Body in Markdown…
 //
-// Only the keys below are Enplace's. Every other line of the front matter
-// is the person's and is written back exactly as it was, in its place.
-// "key" (what Markdown export writes) is read as enplace_id, so exported
-// files can be linked as they are.
+// Only the keys Enplace syncs are Enplace's. Every other line of the front
+// matter is the person's and is written back exactly as it was, in its
+// place. "key" (what Markdown export writes) is read as enplace_id, so
+// exported files can be linked as they are. Keys may be quoted
+// ("status": "Done"), as some vaults write them; a quoted key is written
+// back quoted, with its value as JSON, so the note keeps its style.
 
 import (
 	"encoding/json"
-	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
 // Enplace's keys, in the order they're added to a note that lacks them.
-var ownKeys = []string{"enplace_id", "stage", "priority", "tags", "due"}
+var ownKeys = []string{"enplace_id", "id", "stage", "status", "priority", "tags", "due", "updated"}
 
 // entry is one top-level key of the front matter with its lines (the key's
 // own line and any indented or list lines under it), kept verbatim.
 type entry struct {
-	key   string // "" for a comment or blank line
-	lines []string
+	key    string // "" for a comment or blank line
+	quoted bool   // the key was written "in quotes"
+	lines  []string
 }
 
 // note is a parsed work note.
@@ -43,15 +45,19 @@ type note struct {
 	heading    string
 	hasHeading bool
 	body       string
+	// The blank lines around the heading and at the end, as the note had
+	// them, so a note Enplace changes keeps its layout.
+	laid             bool
+	lead, gap, trail string
 }
 
-var keyLine = regexp.MustCompile(`^([A-Za-z0-9_][A-Za-z0-9_ -]*):(\s.*)?$`)
+var keyLine = regexp.MustCompile(`^(?:"([^"]+)"|'([^']+)'|([A-Za-z0-9_][A-Za-z0-9_ -]*)):(\s.*)?$`)
 
 // parseNote reads a note. It never fails: text it can't read as front
 // matter is the body.
 func parseNote(text string) *note {
 	text = strings.ReplaceAll(text, "\r\n", "\n")
-	n := &note{}
+	n := &note{laid: true}
 	rest := text
 	if strings.HasPrefix(text, "---\n") {
 		lines := strings.Split(text[4:], "\n")
@@ -64,13 +70,19 @@ func parseNote(text string) *note {
 			}
 		}
 	}
-	rest = strings.TrimLeft(rest, "\n")
+	trimmed := strings.TrimLeft(rest, "\n")
+	n.lead, rest = rest[:len(rest)-len(trimmed)], trimmed
 	if strings.HasPrefix(rest, "# ") {
 		line, after, _ := strings.Cut(rest, "\n")
 		n.heading, n.hasHeading = strings.TrimSpace(line[2:]), true
-		rest = after
+		trimmed = strings.TrimLeft(after, "\n")
+		n.gap, rest = after[:len(after)-len(trimmed)], trimmed
 	}
-	n.body = strings.Trim(rest, "\n")
+	trimmed = strings.TrimRight(rest, "\n")
+	n.body, n.trail = trimmed, rest[len(trimmed):]
+	if n.body == "" {
+		n.gap, n.trail = "\n", "\n" // for a body added later
+	}
 	return n
 }
 
@@ -78,7 +90,8 @@ func parseFront(lines []string) []entry {
 	var out []entry
 	for _, l := range lines {
 		if m := keyLine.FindStringSubmatch(l); m != nil {
-			out = append(out, entry{key: strings.ToLower(strings.TrimSpace(m[1])), lines: []string{l}})
+			k := m[1] + m[2] + m[3]
+			out = append(out, entry{key: strings.ToLower(strings.TrimSpace(k)), quoted: m[3] == "", lines: []string{l}})
 			continue
 		}
 		cont := strings.HasPrefix(l, " ") || strings.HasPrefix(l, "\t") || strings.HasPrefix(l, "- ") || l == "-"
@@ -104,14 +117,30 @@ func (n *note) find(key string) *entry {
 	return nil
 }
 
-// value is a key's value as text, with quotes taken off.
+// value is a key's value as text, with quotes taken off. YAML's null is
+// no value.
 func (n *note) value(key string) string {
 	e := n.find(key)
 	if e == nil {
 		return ""
 	}
-	_, v, _ := strings.Cut(e.lines[0], ":")
-	return unquote(strings.TrimSpace(stripComment(v)))
+	_, v, _ := strings.Cut(e.lines[0][len(rawKey(e.lines[0])):], ":")
+	v = strings.TrimSpace(stripComment(v))
+	if v == "null" || v == "~" {
+		return ""
+	}
+	return unquote(v)
+}
+
+// rawKey is the key part of a key line, quotes and all.
+func rawKey(line string) string {
+	if line != "" && (line[0] == '"' || line[0] == '\'') {
+		if i := strings.IndexByte(line[1:], line[0]); i >= 0 {
+			return line[:i+2]
+		}
+	}
+	k, _, _ := strings.Cut(line, ":")
+	return k
 }
 
 // list is a key's value as a list: [a, b], a block of "- a" lines, or
@@ -127,9 +156,9 @@ func (n *note) list(key string) []string {
 			out = append(out, v)
 		}
 	}
-	_, v, _ := strings.Cut(e.lines[0], ":")
-	v = strings.TrimSpace(stripComment(v))
+	v := strings.TrimSpace(stripComment(n.rawValue(e)))
 	switch {
+	case v == "null" || v == "~":
 	case strings.HasPrefix(v, "[") && strings.HasSuffix(v, "]"):
 		for _, x := range splitFlow(v[1 : len(v)-1]) {
 			add(x)
@@ -145,6 +174,11 @@ func (n *note) list(key string) []string {
 		}
 	}
 	return out
+}
+
+func (n *note) rawValue(e *entry) string {
+	_, v, _ := strings.Cut(e.lines[0][len(rawKey(e.lines[0])):], ":")
+	return v
 }
 
 // splitFlow splits a YAML flow list's inside by commas outside quotes.
@@ -194,19 +228,29 @@ func unquote(v string) string {
 	return v
 }
 
-// set puts one of Enplace's keys: in its place when the note has it, else
-// after the other Enplace keys (or first). An empty value takes it out.
-func (n *note) set(key, line string) {
+// set puts one of Enplace's keys, in the note's own style: in its place
+// when the note has it, else after the other Enplace keys (or first).
+// The value is a string, a number or a list of strings. nil takes the key
+// out, unless keep is set: then it stays, empty.
+func (n *note) set(key string, v any, keep bool) {
 	n.hasFront = true
-	if e := n.find(key); e != nil {
-		if line == "" {
+	e := n.find(key)
+	quoted := n.quotes()
+	if e != nil {
+		quoted = e.quoted
+	}
+	if v == nil && !keep {
+		if e != nil {
 			n.remove(e)
-			return
 		}
-		e.key, e.lines = key, []string{line}
 		return
 	}
-	if line == "" {
+	line := render(key, v, quoted)
+	if e != nil {
+		if k := rawKey(e.lines[0]); k != "" {
+			line = k + line[len(rawKey(line)):] // the key as the note spells it
+		}
+		e.lines = []string{line}
 		return
 	}
 	at := 0
@@ -220,7 +264,58 @@ func (n *note) set(key, line string) {
 			}
 		}
 	}
-	n.front = append(n.front[:at], append([]entry{{key: key, lines: []string{line}}}, n.front[at:]...)...)
+	n.front = append(n.front[:at], append([]entry{{key: key, quoted: quoted, lines: []string{line}}}, n.front[at:]...)...)
+}
+
+// quotes says the note writes its keys in quotes, mostly.
+func (n *note) quotes() bool {
+	q, all := 0, 0
+	for _, e := range n.front {
+		if e.key != "" {
+			all++
+			if e.quoted {
+				q++
+			}
+		}
+	}
+	return all > 0 && q*2 > all
+}
+
+// render is one key line: plain YAML, or quoted key and JSON value.
+func render(key string, v any, quoted bool) string {
+	if quoted {
+		k, _ := json.Marshal(key)
+		var val []byte
+		switch x := v.(type) {
+		case nil:
+			val = []byte("null")
+		case []string:
+			if x == nil {
+				x = []string{}
+			}
+			val, _ = json.Marshal(x)
+		case int:
+			val = []byte(strconv.Itoa(x))
+		default:
+			val, _ = json.Marshal(v)
+		}
+		return string(k) + ": " + string(val)
+	}
+	switch x := v.(type) {
+	case nil:
+		return key + ":"
+	case []string:
+		parts := make([]string, len(x))
+		for i, t := range x {
+			parts[i] = yamlValue(t)
+		}
+		return key + ": [" + strings.Join(parts, ", ") + "]"
+	case int:
+		return key + ": " + strconv.Itoa(x)
+	case string:
+		return key + ": " + yamlValue(x)
+	}
+	return key + ":"
 }
 
 func (n *note) remove(e *entry) {
@@ -246,19 +341,12 @@ func yamlValue(v string) string {
 	return v
 }
 
-func tagsLine(tags []string) string {
-	if len(tags) == 0 {
-		return ""
-	}
-	parts := make([]string, len(tags))
-	for i, t := range tags {
-		parts[i] = yamlValue(t)
-	}
-	return "tags: [" + strings.Join(parts, ", ") + "]"
-}
-
-// String writes the note back.
+// String writes the note back, in the layout it was read with.
 func (n *note) String() string {
+	lead, gap, trail := n.lead, n.gap, n.trail
+	if !n.laid {
+		lead, gap, trail = "", "\n", "\n"
+	}
 	var b strings.Builder
 	if n.hasFront && len(n.front) > 0 {
 		b.WriteString("---\n")
@@ -268,41 +356,53 @@ func (n *note) String() string {
 			}
 		}
 		b.WriteString("---\n")
+	} else {
+		lead = ""
 	}
+	b.WriteString(lead)
 	if n.hasHeading {
 		b.WriteString("# " + n.heading + "\n")
-		if n.body != "" {
-			b.WriteString("\n")
+		if n.body == "" {
+			return b.String()
 		}
+		b.WriteString(gap)
 	}
 	if n.body != "" {
-		b.WriteString(n.body + "\n")
+		b.WriteString(n.body + trail)
 	}
 	return b.String()
 }
 
 var priorityWords = map[string]int{"none": 0, "low": 1, "medium": 2, "med": 2, "normal": 2, "high": 3, "urgent": 4}
 
-// priority reads 0 to 4, or a word like high.
+// pScale is a "P1" style priority: P0 urgent, P1 high, P2 medium, P3 low.
+var pScale = regexp.MustCompile(`^[Pp]([0-4])$`)
+
+// priority reads 0 to 4, a word like high, or P0 to P4.
 func (n *note) priority() int {
 	v := strings.ToLower(n.value("priority"))
 	if p, err := strconv.Atoi(v); err == nil && p >= 0 && p <= 4 {
 		return p
 	}
+	if m := pScale.FindStringSubmatch(v); m != nil {
+		return max(4-int(m[1][0]-'0'), 1)
+	}
 	return priorityWords[v]
+}
+
+// priorityValue is a priority to write, in the scale the note uses.
+func (n *note) priorityValue(p int) any {
+	if p <= 0 {
+		return nil
+	}
+	if pScale.MatchString(n.value("priority")) {
+		return "P" + strconv.Itoa(4-p)
+	}
+	return p
 }
 
 var dateRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}`)
 
 func (n *note) due() string {
 	return dateRe.FindString(n.value("due"))
-}
-
-func idLine(key string) string { return "enplace_id: " + key }
-
-func priorityLine(p int) string {
-	if p <= 0 {
-		return ""
-	}
-	return fmt.Sprintf("priority: %d", p)
 }
