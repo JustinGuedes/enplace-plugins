@@ -163,7 +163,10 @@ func (w *world) approve(res *plugin.Response) {
 	for _, in := range inputs {
 		n := len(w.work) + 1
 		wk := plugin.Work{ID: "w" + strconv.Itoa(n), Key: "ENP-" + strconv.Itoa(n), ProjectID: "p1", Title: in["title"].(string), Stage: in["stage"].(string), CreatedAt: w.now, UpdatedAt: w.now,
-			Fields: map[string]string{"obsidian.link": in["fields"].(map[string]any)["obsidian.link"].(string)}}
+			Fields: map[string]string{}}
+		for k, v := range in["fields"].(map[string]any) {
+			wk.Fields[k] = v.(string)
+		}
 		wk.StageKind = wk.Stage
 		if b, ok := in["body"].(string); ok {
 			wk.Body = b

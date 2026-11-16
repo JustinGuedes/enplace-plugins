@@ -165,6 +165,11 @@ func (v *vault) item(s *worksync.Sync, c *copyOf) worksync.Item {
 	if l := s.Links()[c.Path]; l != nil && l.Ref != "" {
 		it.Ref = l.Ref
 	}
+	if n.find("assignee") != nil {
+		// Who's on it, as the note says: shown on the card, never sent out.
+		it.Assignee = n.value("assignee")
+		it.Fields = map[string]string{"assignee": it.Assignee}
+	}
 	raw := n.value(v.stageProp(n))
 	it.Status = raw
 	if st := stageKey(s, raw); st != "" && !s.Mapped(raw) {

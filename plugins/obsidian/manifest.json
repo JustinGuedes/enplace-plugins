@@ -2,7 +2,7 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "obsidian",
   "name": "Obsidian vault",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "kind": "source",
   "author": "Enplace",
   "summary": "Keep a project's work as Markdown notes in your Obsidian vault.",
@@ -17,6 +17,7 @@
   "requires": [ { "id": "work-sync", "version": "^1.1.0" } ],
   "card_settings": ["direction"],
   "contributes": {
+    "work_fields": [ { "key": "assignee", "name": "Assignee", "type": "label", "icon": "user", "on_card": true } ],
     "webhook": {
       "signature_header": "X-Enplace-Signature",
       "signature_prefix": "sha256=",

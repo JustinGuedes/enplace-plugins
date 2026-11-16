@@ -103,7 +103,7 @@ func TestOwnFolderBringsNotesInAsTheyAre(t *testing.T) {
 	}
 	one := items[0].(map[string]any)
 	if one["title"] != "Confirm the MVP" || one["stage"] != "doing" || one["priority"] != float64(3) ||
-		one["fields"].(map[string]any)["obsidian.link"] != "CHAIN-001" || !strings.Contains(one["body"].(string), "## Work log") {
+		one["fields"].(map[string]any)["obsidian.link"] != "CHAIN-001" || one["fields"].(map[string]any)["obsidian.assignee"] != "Byron" || !strings.Contains(one["body"].(string), "## Work log") {
 		t.Fatalf("CHAIN-001 %+v", one)
 	}
 	two := items[1].(map[string]any)
@@ -202,6 +202,9 @@ func TestOwnFolderEditsReachWork(t *testing.T) {
 		s = strings.Replace(s, `"status": "In progress"`, `"status": "Done"`, 1)
 		return strings.Replace(s, "- 2026-10-30 — Seeded.", "- 2026-10-30 — Seeded.\n- 2026-11-16 — Shipped.", 1)
 	})
+	if f := ops(res, "work.fields"); len(f) != 0 {
+		t.Fatalf("assignee unchanged, no fields: %+v", f)
+	}
 	if mv := ops(res, "work.move"); len(mv) != 1 || mv[0]["stage"] != "done" {
 		t.Fatalf("move %+v", res.Ops)
 	}
@@ -250,5 +253,15 @@ func TestQuotedNoteRoundTrip(t *testing.T) {
 	n := parseNote(chainOne)
 	if n.value("status") != "In progress" || n.value("id") != "CHAIN-001" || n.priority() != 3 || n.due() != "" || len(n.list("tags")) != 2 {
 		t.Fatalf("read %q %q %d %v", n.value("status"), n.value("id"), n.priority(), n.list("tags"))
+	}
+}
+
+func TestOwnFolderAssigneeComesIn(t *testing.T) {
+	w := linkedOwnWorld(t)
+	p := "CHAIN-001 - Confirm the MVP.md"
+	w.at(2 * time.Minute)
+	res := w.edit(p, func(s string) string { return strings.Replace(s, `"assignee": "Byron"`, `"assignee": "Justin"`, 1) })
+	if f := ops(res, "work.fields"); len(f) != 1 || f[0]["fields"].(map[string]any)["obsidian.assignee"] != "Justin" {
+		t.Fatalf("fields %+v", res.Ops)
 	}
 }
