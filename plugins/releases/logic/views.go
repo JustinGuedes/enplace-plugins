@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -12,73 +11,62 @@ import (
 )
 
 func (c *cycleRun) href(p plugin.Project) string {
-	return "/p/" + strings.ToLower(p.Key) + "/x/" + c.req.Plugin.ID + "/releases"
+	h := "/p/" + strings.ToLower(p.Key) + "/x/" + c.req.Plugin.ID + "/releases"
+	if p.Product != "" {
+		h += "?product=" + p.Product
+	}
+	return h
 }
 
 func (c *cycleRun) render() {
 	today := c.today.Format(day)
-	type soon struct {
-		p plugin.Project
-		r cycle.Release
-	}
-	var all []soon
-	for _, x := range c.req.Projects {
-		if !x.On {
-			continue
-		}
-		var rels []cycle.Release
-		c.req.State.GetProject(x.ID, keyReleases, &rels)
-		cycle.Sort(rels)
-		for _, r := range rels {
-			if r.Open() && r.ShipDate >= today {
-				all = append(all, soon{x, r})
-				break
-			}
-		}
-	}
-	sort.SliceStable(all, func(i, j int) bool { return all[i].r.ShipDate < all[j].r.ShipDate })
+	// Releases of one project shipping on the same day show as one.
+	all := c.group(c.upcoming(1, true))
 	for _, slot := range c.req.Slots {
 		switch slot {
 		case plugin.SlotBrief:
-			for _, s := range all {
-				d, _ := time.Parse(day, s.r.ShipDate)
-				if s.r.Total == 0 || d.Sub(c.today) > 7*24*time.Hour {
+			for _, t := range all {
+				d, _ := time.Parse(day, t.date)
+				if d.Sub(c.today) > 7*24*time.Hour {
 					continue
 				}
-				text := fmt.Sprintf("%s %s ships %s with %d of %d done.", s.p.Name, s.r.Version, c.dayWord(s.r.ShipDate), s.r.Done, s.r.Total)
-				if s.r.Cutoff == today {
-					text = fmt.Sprintf("Cut-off for %s %s is today: %d of %d done.", s.p.Name, s.r.Version, s.r.Done, s.r.Total)
+				label := "Open " + t.rels[0].r.Version
+				if t.shared() {
+					label = "Open releases"
 				}
-				c.res.Brief = &plugin.Brief{Text: text, Button: &plugin.Button{Label: "Open " + s.r.Version, Href: c.href(s.p)}}
+				c.res.Brief = &plugin.Brief{Text: c.line(t), Button: &plugin.Button{Label: label, Href: c.link(t)}}
 				break
 			}
 		case "card:soon":
 			items := []plugin.Item{}
-			for _, s := range all {
-				if s.r.Total == 0 {
-					continue
+			for _, t := range all {
+				done, total := t.counts()
+				sub := "Ships " + c.dayWord(t.date) + " · " + cycle.VerdictLine(t.rels[0].r)
+				colour := t.rels[0].p.Colour
+				if t.shared() {
+					sub = "Ships " + c.dayWord(t.date) + " · " + c.versions(t)
+					colour = t.home.Colour
 				}
-				v := float64(s.r.Done) / float64(s.r.Total)
-				items = append(items, plugin.Item{Title: s.p.Name + " " + s.r.Version, Sub: "Ships " + c.dayWord(s.r.ShipDate) + " · " + cycle.VerdictLine(s.r),
-					Value: fmt.Sprintf("%d of %d", s.r.Done, s.r.Total), Colour: s.p.Colour, Progress: &v, Button: &plugin.Button{Label: "Open", Href: c.href(s.p)}})
+				items = append(items, plugin.Item{Title: t.name(), Sub: sub, Value: fmt.Sprintf("%d of %d", done, total), Colour: colour, Progress: t.progress(), Button: &plugin.Button{Label: "Open", Href: c.link(t)}})
 			}
 			if len(items) > 0 {
 				c.card(slot, []plugin.Block{{Type: plugin.BlockList, Items: items}})
 			}
 			// The nearest release with work in it sets how loud the card is:
 			// lifted in its last two days, resting when it's over a week off.
-			for _, s := range all {
-				if s.r.Total == 0 {
-					continue
+			for _, t := range all {
+				d, _ := time.Parse(day, t.date)
+				name := t.name()
+				short := t.rels[0].r.Version + " " + c.dayWord(t.date)
+				if t.shared() {
+					short = t.home.Name + " " + c.dayWord(t.date)
 				}
-				d, _ := time.Parse(day, s.r.ShipDate)
-				name := s.p.Name + " " + s.r.Version
-				c.res.Say(slot, fmt.Sprintf("%s ships %s with %d of %d done.", name, c.dayWord(s.r.ShipDate), s.r.Done, s.r.Total), fmt.Sprintf("%s %s", s.r.Version, c.dayWord(s.r.ShipDate)))
+				c.res.Say(slot, c.line(t), short)
 				switch away := d.Sub(c.today); {
-				case s.r.Cutoff == today:
+				case t.cutoffToday(today) != nil:
 					c.res.Signal(slot, plugin.LevelLoud, "Cut-off for "+name+" is today")
 				case away <= 2*24*time.Hour:
-					c.res.Signal(slot, plugin.LevelLoud, name+" ships "+c.dayWord(s.r.ShipDate))
+					c.res.Signal(slot, plugin.LevelLoud, name+" ships "+c.dayWord(t.date))
 				case away > 7*24*time.Hour:
 					c.res.Signal(slot, plugin.LevelQuiet, "")
 				}
@@ -388,6 +376,36 @@ func (c *cycleRun) projectPage(p *project) *plugin.Page {
 	}
 	var past, deployed []cycle.Release
 	first := true
+	// Products with cycles of their own ship beside the project's: a day
+	// they share shows as one section.
+	theirs := c.productReleases(p)
+	byDay := map[string][]coming{}
+	for _, x := range theirs {
+		byDay[x.r.ShipDate] = append(byDay[x.r.ShipDate], x)
+	}
+	// One shared day for each of their dates, in order with the project's.
+	shared := func(upTo string, own *cycle.Release) {
+		for len(theirs) > 0 && (theirs[0].r.ShipDate < upTo || (own != nil && theirs[0].r.ShipDate == upTo)) {
+			date := theirs[0].r.ShipDate
+			rels := byDay[date]
+			theirs = theirs[len(rels):]
+			var mine *cycle.Release
+			if own != nil && own.ShipDate == date {
+				mine = own
+				rels = append([]coming{{p.Project, *own}}, rels...)
+			}
+			t := c.group(rels)[0]
+			pg.Blocks = append(pg.Blocks, c.sharedSection(p, t, mine, !first))
+			first = false
+			if mine != nil {
+				own = nil
+			}
+		}
+		if own != nil {
+			pg.Blocks = append(pg.Blocks, c.section(p, *own, !first))
+			first = false
+		}
+	}
 	for _, r := range p.rels {
 		if r.Deploy {
 			deployed = append(deployed, r)
@@ -397,9 +415,9 @@ func (c *cycleRun) projectPage(p *project) *plugin.Page {
 			past = append(past, r)
 			continue
 		}
-		pg.Blocks = append(pg.Blocks, c.section(p, r, !first))
-		first = false
+		shared(r.ShipDate, &r)
 	}
+	shared("9999-12-31", nil)
 	if len(deployed) > 0 {
 		pg.Blocks = append(pg.Blocks, plugin.Block{Type: plugin.BlockHeading, Text: "Deploys"})
 		for i := len(deployed) - 1; i >= 0 && i >= len(deployed)-8; i-- {
@@ -462,28 +480,6 @@ func (c *cycleRun) deploySection(p *project, r cycle.Release, folded bool) plugi
 // allPage is every project's coming releases, soonest first.
 func (c *cycleRun) allPage() *plugin.Page {
 	pg := &plugin.Page{Title: "Releases", Blocks: []plugin.Block{{Type: plugin.BlockText, Text: "What ships next, across your projects."}}}
-	today := c.today.Format(day)
-	type row struct {
-		p plugin.Project
-		r cycle.Release
-	}
-	var rows []row
-	for _, x := range c.req.Projects {
-		if !x.On {
-			continue
-		}
-		var rels []cycle.Release
-		c.req.State.GetProject(x.ID, keyReleases, &rels)
-		n := 0
-		cycle.Sort(rels)
-		for _, r := range rels {
-			if r.Open() && r.ShipDate >= today && n < 2 {
-				rows = append(rows, row{x, r})
-				n++
-			}
-		}
-	}
-	sort.SliceStable(rows, func(i, j int) bool { return rows[i].r.ShipDate < rows[j].r.ShipDate })
 	items := []plugin.Item{}
 	// Projects whose work ships as it's done say how that's going.
 	for _, x := range c.req.Projects {
@@ -491,11 +487,14 @@ func (c *cycleRun) allPage() *plugin.Page {
 			items = append(items, plugin.Item{Title: x.Name, Colour: x.Colour, Sub: c.deployLine(p), Button: &plugin.Button{Label: "Open", Href: c.href(x)}})
 		}
 	}
-	for _, x := range rows {
-		it := plugin.Item{Title: x.p.Name + " " + x.r.Version, Colour: x.p.Colour, Sub: "Ships " + c.shortDate(x.r.ShipDate) + " · " + cycle.VerdictLine(x.r), Button: &plugin.Button{Label: "Open", Href: c.href(x.p)}}
-		if x.r.Total > 0 {
-			v := float64(x.r.Done) / float64(x.r.Total)
-			it.Value, it.Progress = fmt.Sprintf("%d of %d", x.r.Done, x.r.Total), &v
+	// Each one's next two releases, one row a day for each project.
+	for _, t := range c.group(c.upcoming(2, false)) {
+		it := plugin.Item{Title: t.name(), Colour: t.rels[0].p.Colour, Sub: "Ships " + c.shortDate(t.date) + " · " + cycle.VerdictLine(t.rels[0].r), Button: &plugin.Button{Label: "Open", Href: c.link(t)}}
+		if t.shared() {
+			it.Colour, it.Sub = t.home.Colour, "Ships "+c.shortDate(t.date)+" · "+c.versions(t)
+		}
+		if done, total := t.counts(); total > 0 {
+			it.Value, it.Progress = fmt.Sprintf("%d of %d", done, total), t.progress()
 		}
 		items = append(items, it)
 	}

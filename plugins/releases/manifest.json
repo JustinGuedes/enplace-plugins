@@ -2,7 +2,7 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "releases",
   "name": "Release cycle",
-  "version": "2.10.1",
+  "version": "2.11.0",
   "kind": "extension",
   "author": "Enplace",
   "summary": "Releases on a cadence, with ship rules at cut-off, or deploys as work is done.",
