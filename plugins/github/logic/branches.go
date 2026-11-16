@@ -34,6 +34,26 @@ type branchSeen struct {
 	// PR is set once GitHub says the branch had a pull request, even one
 	// too old to be among the latest read.
 	PR bool `json:"pr,omitempty"`
+	// Landed is set once the tip is already in the default branch: it was
+	// merged without a pull request (ENP-124), so there's nothing to open.
+	Landed bool `json:"landed,omitempty"`
+}
+
+// trunk names are never an item's work branch, even before the repo's
+// default branch is known again (ENP-124).
+func trunk(name string) bool { return name == "main" || name == "master" }
+
+// ownMessage is a commit message without what git writes for a merge: a
+// merge commit names the branches it joins, which mentions their keys
+// without being work on them (ENP-124).
+func ownMessage(msg string) string {
+	first, _, _ := strings.Cut(msg, "\n")
+	for _, p := range []string{"Merge branch ", "Merge remote-tracking branch ", "Merge pull request ", "Merge tag "} {
+		if strings.HasPrefix(first, p) {
+			return ""
+		}
+	}
+	return msg
 }
 
 // linkBranches drops last run's branch links and files a fresh one for
@@ -68,7 +88,7 @@ func (r *run) linkBranches(gh *client, c *Code, prs []pull, ls Links, re *regexp
 	kept := map[string]branchSeen{}
 	reads := 0
 	for _, b := range bs {
-		if b.Name == c.DefaultBranch || b.Name == c.Branch || withPR[b.Name] || b.Commit.SHA == "" {
+		if b.Name == c.DefaultBranch || b.Name == c.Branch || trunk(b.Name) || withPR[b.Name] || b.Commit.SHA == "" {
 			continue
 		}
 		s, ok := seen[b.Name]
@@ -83,7 +103,7 @@ func (r *run) linkBranches(gh *client, c *Code, prs []pull, ls Links, re *regexp
 			}
 			title, _, _ := strings.Cut(cm.Commit.Message, "\n")
 			s = branchSeen{SHA: b.Commit.SHA, Title: title, At: cm.Commit.Committer.Date,
-				Keys: mentions(re, b.Name, cm.Commit.Message), PR: s.PR}
+				Keys: mentions(re, b.Name, ownMessage(cm.Commit.Message)), PR: s.PR}
 			if len(s.Keys) > 0 && !s.PR && r.req.Now.Sub(s.At) <= branchFresh {
 				had, err := gh.hasPull(b.Name)
 				if err != nil {
@@ -92,8 +112,16 @@ func (r *run) linkBranches(gh *client, c *Code, prs []pull, ls Links, re *regexp
 				s.PR = had
 			}
 		}
+		if len(s.Keys) > 0 && !s.PR && !s.Landed && r.req.Now.Sub(s.At) <= branchFresh && c.DefaultBranch != "" && reads < branchReads {
+			// Merged straight into the default branch? Asked each run
+			// until it has, since the default branch moves on its own.
+			reads++
+			if landed, err := gh.landed(c.DefaultBranch, b.Name); err == nil {
+				s.Landed = landed
+			}
+		}
 		kept[b.Name] = s
-		if len(s.Keys) == 0 || s.PR || r.req.Now.Sub(s.At) > branchFresh {
+		if len(s.Keys) == 0 || s.PR || s.Landed || r.req.Now.Sub(s.At) > branchFresh {
 			continue
 		}
 		ls.add(s.Keys, Link{Kind: "branch", Title: s.Title, Branch: b.Name, SHA: s.SHA, At: s.At,
