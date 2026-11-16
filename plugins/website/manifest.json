@@ -1,0 +1,29 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "website",
+  "name": "Uptime",
+  "version": "3.1.0",
+  "kind": "service",
+  "author": "Enplace",
+  "summary": "Check a website is up every 15 minutes, with how fast it answered, its page title and its icon.",
+  "description": "Goes on a website product, for a web app, a landing page or a shop. Its card links to the site and shows whether it's up, how fast it answered and its page title, checked every 15 minutes. The product takes the site's own icon, and so does the project unless an app's icon comes first. Whether site work ships as each fix is done or in releases is set in Release cycle.",
+  "colour": "#5ee0c0",
+  "icon": "globe",
+  "glyph": [
+    { "d": "M6.5 4.5L17.5 4.5C19.43 4.5 21 6.07 21 8L21 16C21 17.93 19.43 19.5 17.5 19.5L6.5 19.5C4.57 19.5 3 17.93 3 16L3 8C3 6.07 4.57 4.5 6.5 4.5Z", "paint": "soft" },
+    { "d": "M6.5 4.5L17.5 4.5C19.43 4.5 21 6.07 21 8L21 16C21 17.93 19.43 19.5 17.5 19.5L6.5 19.5C4.57 19.5 3 17.93 3 16L3 8C3 6.07 4.57 4.5 6.5 4.5Z" },
+    { "d": "M3 9.5L21 9.5" },
+    { "d": "M6.5 14.75L9 14.75L10.75 12.25L13.25 17.25L15 14.75L17.5 14.75" }
+  ],
+  "card_settings": ["url"],
+  "suggest_for": ["website"],
+  "permissions": { "read": ["projects"], "ops": ["project.icon"] },
+  "settings": [
+    { "key": "url", "name": "Website address", "type": "url", "scope": "project", "fetch": true, "help": "Like example.com or https://app.example.com" }
+  ],
+  "contributes": {
+    "project_cards": [ { "key": "site", "name": "Uptime", "size": "wide", "together": { "how": "list" } } ],
+    "schedule": { "every": 15, "per": "project" },
+    "settings_panel": true
+  }
+}

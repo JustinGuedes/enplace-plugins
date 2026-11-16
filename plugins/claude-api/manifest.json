@@ -1,0 +1,37 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "claude-api",
+  "name": "Claude on your API key",
+  "version": "1.0.0",
+  "kind": "agent",
+  "author": "Enplace",
+  "summary": "Enplace runs Claude itself on your own Anthropic API key, up to the caps you set.",
+  "description": "Enplace's server runs Claude on your own Anthropic API key. It plans, breaks work down and writes notes on the item with Enplace's own tools; it can't touch code. Every change it makes goes through your permission rules and Approvals as the agent \"Claude (your API key)\". You pay Anthropic for what it uses, and Enplace stops a run before it could go over your monthly cap or the cap for one run. The key is checked with Anthropic (which costs nothing), kept encrypted, and never shown again.",
+  "colour": "#ffc069",
+  "icon": "key",
+  "glyph": [
+    { "d": "M8.5 9.5C10.71 9.5 12.5 11.29 12.5 13.5C12.5 15.71 10.71 17.5 8.5 17.5C6.29 17.5 4.5 15.71 4.5 13.5C4.5 11.29 6.29 9.5 8.5 9.5Z", "paint": "soft" },
+    { "d": "M8.5 9.5C10.71 9.5 12.5 11.29 12.5 13.5C12.5 15.71 10.71 17.5 8.5 17.5C6.29 17.5 4.5 15.71 4.5 13.5C4.5 11.29 6.29 9.5 8.5 9.5Z" },
+    { "d": "M11.5 10.5L19.5 2.5M16.5 5.5L19 8M14 8L16 10" }
+  ],
+  "permissions": { "hosts": ["api.anthropic.com"] },
+  "settings": [
+    { "key": "anthropic_api_key", "name": "Anthropic API key", "type": "secret", "scope": "workspace", "help": "From the Claude Console → API keys. It starts with sk-ant-." }
+  ],
+  "contributes": {
+    "runner": {
+      "agent": "Claude",
+      "where": "enplace",
+      "pays": "api",
+      "kind": "loop",
+      "hint": "Enplace runs it now: it plans and writes notes, no code. Message and Stop work.",
+      "api": "anthropic",
+      "key_secret": "anthropic_api_key",
+      "models": [
+        { "id": "claude-sonnet-5-5", "name": "Sonnet 5.5", "hint": "Good at most things, and the usual choice", "in": 2, "out": 10, "cache_read": 0.10, "fallback": true },
+        { "id": "claude-opus-5-5", "name": "Opus 5.5", "hint": "Best for hard planning, about twice the price", "in": 4, "out": 20, "cache_read": 0.20, "fallback": true },
+        { "id": "claude-haiku-5-5", "name": "Haiku 5.5", "hint": "Fast and very cheap, for small jobs", "in": 0.10, "out": 0.50, "cache_read": 0.01 }
+      ]
+    }
+  }
+}

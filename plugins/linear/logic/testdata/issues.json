@@ -1,0 +1,17 @@
+{"data":{"issues":{"nodes":[
+ {"id":"i-1","identifier":"ENG-1","title":"Offline mode drops edits","description":"Edits made offline vanish after **reconnect**.","url":"https://linear.app/acme/issue/ENG-1/offline-mode-drops-edits","priority":1,"dueDate":"2026-11-20","estimate":3,"updatedAt":"2026-11-12T09:00:00.000Z","archivedAt":null,"trashed":false,
+  "state":{"id":"s-progress","name":"In Progress","type":"started","position":2},"labels":{"nodes":[{"id":"l-bug","name":"Bug"}]},
+  "assignee":{"name":"Sam Rivera","displayName":"sam"},"creator":{"name":"Ada Byron","displayName":"ada"},"parent":null,"project":{"name":"Sync engine"},
+  "comments":{"nodes":[{"body":"Seen on iOS 26 too.","createdAt":"2026-11-12T08:30:00.000Z","user":{"name":"Ada Byron","displayName":"ada"}}]}},
+ {"id":"i-2","identifier":"ENG-2","title":"Review the retry policy","description":"","url":"https://linear.app/acme/issue/ENG-2/review-the-retry-policy","priority":3,"dueDate":null,"estimate":null,"updatedAt":"2026-11-12T09:05:00.000Z","archivedAt":null,"trashed":false,
+  "state":{"id":"s-review","name":"In Review","type":"started","position":3},"labels":{"nodes":[]},
+  "assignee":null,"creator":{"name":"Sam Rivera","displayName":"sam"},"parent":{"identifier":"ENG-1"},"project":null,
+  "comments":{"nodes":[]}},
+ {"id":"i-3","identifier":"ENG-3","title":"Sketch the import screen","description":"Low-fi first.","url":"https://linear.app/acme/issue/ENG-3/sketch-the-import-screen","priority":0,"dueDate":null,"estimate":1.5,"updatedAt":"2026-11-12T09:10:00.000Z","archivedAt":null,"trashed":false,
+  "state":{"id":"s-backlog","name":"Backlog","type":"backlog","position":0},"labels":{"nodes":[{"id":"l-feature","name":"Feature"}]},
+  "assignee":null,"creator":{"name":"Sam Rivera","displayName":"sam"},"parent":null,"project":null,
+  "comments":{"nodes":[]}},
+ {"id":"i-4","identifier":"ENG-4","title":"Ship 1.0","description":"","url":"https://linear.app/acme/issue/ENG-4/ship-10","priority":2,"dueDate":null,"estimate":null,"updatedAt":"2026-11-10T09:00:00.000Z","archivedAt":null,"trashed":false,
+  "state":{"id":"s-done","name":"Done","type":"completed","position":4},"labels":{"nodes":[]},
+  "assignee":null,"creator":null,"parent":null,"project":null,"comments":{"nodes":[]}}
+ ],"pageInfo":{"hasNextPage":false,"endCursor":"c4"}}}}

@@ -1,0 +1,731 @@
+{
+  "$id": "https://raw.githubusercontent.com/JustinGuedes/enplace-plugins/main/schema/manifest.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "agent"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "contributes": {
+            "propertyNames": {
+              "enum": [
+                "runner"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "service"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "contributes": {
+            "propertyNames": {
+              "enum": [
+                "brief",
+                "calendar",
+                "deadlines",
+                "events",
+                "pages",
+                "project_cards",
+                "project_status",
+                "schedule",
+                "settings_panel",
+                "skills",
+                "tools",
+                "webhook",
+                "work_fields",
+                "work_panel"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "skills"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "contributes": {
+            "propertyNames": {
+              "enum": [
+                "skills"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "source"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "contributes": {
+            "propertyNames": {
+              "enum": [
+                "brief",
+                "events",
+                "project_cards",
+                "project_status",
+                "schedule",
+                "settings_panel",
+                "skills",
+                "tools",
+                "webhook",
+                "work_fields",
+                "work_panel"
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "author": {
+      "type": "string"
+    },
+    "base": {
+      "type": "boolean"
+    },
+    "card_settings": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "colour": {
+      "type": "string"
+    },
+    "contributes": {
+      "additionalProperties": false,
+      "properties": {
+        "brief": {
+          "type": "boolean"
+        },
+        "calendar": {
+          "type": "boolean"
+        },
+        "dashboard": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "size": {
+                "type": "string"
+              },
+              "together": {
+                "additionalProperties": false,
+                "properties": {
+                  "how": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "where": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "deadlines": {
+          "type": "boolean"
+        },
+        "events": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "look": {
+          "additionalProperties": false,
+          "properties": {
+            "optional": {
+              "type": "boolean"
+            },
+            "tokens": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "pages": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "glyph": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "d": {
+                      "type": "string"
+                    },
+                    "paint": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "icon": {
+                "type": "string"
+              },
+              "key": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "nav": {
+                "type": "string"
+              },
+              "where": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "project_cards": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "size": {
+                "type": "string"
+              },
+              "together": {
+                "additionalProperties": false,
+                "properties": {
+                  "how": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "where": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "project_status": {
+          "type": "boolean"
+        },
+        "rail_chip": {
+          "type": "boolean"
+        },
+        "recall": {
+          "type": "boolean"
+        },
+        "runner": {
+          "additionalProperties": false,
+          "properties": {
+            "agent": {
+              "type": "string"
+            },
+            "api": {
+              "type": "string"
+            },
+            "connect": {
+              "type": "string"
+            },
+            "hint": {
+              "type": "string"
+            },
+            "key_secret": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string"
+            },
+            "max_per_hour": {
+              "type": "integer"
+            },
+            "message": {
+              "type": "string"
+            },
+            "models": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "cache_read": {
+                    "type": "number"
+                  },
+                  "cache_write": {
+                    "type": "number"
+                  },
+                  "fallback": {
+                    "type": "boolean"
+                  },
+                  "hint": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "in": {
+                    "type": "number"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "out": {
+                    "type": "number"
+                  }
+                },
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "name": {
+              "type": "string"
+            },
+            "pays": {
+              "type": "string"
+            },
+            "prompt": {
+              "type": "string"
+            },
+            "ready": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "start": {
+              "type": "string"
+            },
+            "stop": {
+              "type": "string"
+            },
+            "where": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "schedule": {
+          "additionalProperties": false,
+          "properties": {
+            "every": {
+              "type": "integer"
+            },
+            "per": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "settings_panel": {
+          "type": "boolean"
+        },
+        "skills": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "applies": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "tools": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "action": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "params": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "description": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "required": {
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "project": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "webhook": {
+          "additionalProperties": false,
+          "properties": {
+            "about": {
+              "type": "string"
+            },
+            "answers": {
+              "type": "boolean"
+            },
+            "connect": {
+              "type": "string"
+            },
+            "disconnect": {
+              "type": "string"
+            },
+            "event_header": {
+              "type": "string"
+            },
+            "service": {
+              "type": "string"
+            },
+            "signature_header": {
+              "type": "string"
+            },
+            "signature_prefix": {
+              "type": "string"
+            },
+            "steps": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "work_fields": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "goal_scope": {
+                "type": "string"
+              },
+              "icon": {
+                "type": "string"
+              },
+              "key": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "on_card": {
+                "type": "boolean"
+              },
+              "type": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "work_panel": {
+          "type": "boolean"
+        },
+        "work_views": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "icon": {
+                "type": "string"
+              },
+              "key": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "default": {
+      "type": "boolean"
+    },
+    "description": {
+      "type": "string"
+    },
+    "extends": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "glyph": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "d": {
+            "type": "string"
+          },
+          "paint": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "homepage": {
+      "type": "string"
+    },
+    "icon": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string"
+    },
+    "inherit": {
+      "enum": [
+        "down",
+        "offer",
+        "none"
+      ]
+    },
+    "kind": {
+      "enum": [
+        "agent",
+        "extension",
+        "service",
+        "skills",
+        "source"
+      ]
+    },
+    "levels": {
+      "items": {
+        "enum": [
+          "workspace",
+          "project",
+          "product"
+        ]
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "name": {
+      "type": "string"
+    },
+    "permissions": {
+      "additionalProperties": false,
+      "properties": {
+        "ai": {
+          "type": "boolean"
+        },
+        "fetch_links": {
+          "type": "boolean"
+        },
+        "hosts": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "ops": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "read": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "requires": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "optional": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "scope": {
+      "enum": [
+        "workspace",
+        "project",
+        "both"
+      ]
+    },
+    "settings": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "allows": {
+            "additionalProperties": false,
+            "properties": {
+              "action": {
+                "type": "string"
+              },
+              "when": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "default": {},
+          "fetch": {
+            "type": "boolean"
+          },
+          "help": {
+            "type": "string"
+          },
+          "hide_when": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string"
+          },
+          "multiline": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "suggest_for": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "version",
+    "kind"
+  ],
+  "title": "Enplace plugin manifest",
+  "type": "object"
+}
