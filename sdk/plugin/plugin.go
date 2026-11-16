@@ -308,6 +308,13 @@ type Response struct {
 	// Refresh, from the webhook hook, runs the schedule hook for the
 	// project right away (a burst of deliveries runs it once).
 	Refresh bool `json:"refresh,omitempty"`
+	// Blocks, from an action, are new versions of blocks on the screen the
+	// action was pressed on, matched by ID: each takes the place of the
+	// block with its ID and nothing else is drawn again, so typing,
+	// scrolling and folded sections elsewhere stay as they are. Blocks
+	// without an ID are ignored. Leave it empty to have the whole screen
+	// asked for again, as before.
+	Blocks []Block `json:"blocks,omitempty"`
 }
 
 // Webhook is a project's webhook (see Request.Webhook).
@@ -543,6 +550,18 @@ const (
 	// when (RFC 3339), Icon is optional and Button links to it; the
 	// button's Label is shown beside it as a fact ("4 of 4 checks").
 	BlockEvents = "events" // Items: Title, Sub, Value (time), Icon, Button
+	// BlockBoard is columns of cards that people drag between, like a
+	// kanban. Each item is a column: Title, Sub, Colour, and Value is its
+	// key. A column's Children are its cards: Title, Sub, Icon, Colour,
+	// Done, Value is the card's id, Button opens it and Locked keeps it
+	// where it is. Enplace moves a card the moment it's dropped and runs
+	// Move with the button's Args plus "card" (its id), "from" and "to"
+	// (column keys) and "index" (its place in the new column, from 0).
+	// Answer with Blocks holding the board again (give it an ID) to settle
+	// it; an error puts the card back. With Add, each column offers "Add a
+	// card", which runs Add with "column" and "title". Text is shown in
+	// an empty column.
+	BlockBoard = "board" // Items (columns) with Children (cards), Move, Add, Text
 )
 
 // Icons a block can name. Anything else falls back to a dot.
@@ -550,7 +569,11 @@ var Icons = []string{"star", "flame", "trophy", "bolt", "target", "check", "lock
 
 // Block is one piece of a card or page.
 type Block struct {
-	Type     string   `json:"type"`
+	Type string `json:"type"`
+	// ID names the block so an action's Response.Blocks can replace just
+	// this one. Keep it unique within the plugin, like "board" or
+	// "release:1.4".
+	ID       string   `json:"id,omitempty"`
 	Text     string   `json:"text,omitempty"`
 	Label    string   `json:"label,omitempty"`
 	Value    string   `json:"value,omitempty"`
@@ -574,6 +597,10 @@ type Block struct {
 	// Menu is a section's "more" menu. A menu button with a Key runs from
 	// the keyboard while the section is pointed at or has focus.
 	Menu []Button `json:"menu,omitempty"`
+	// Move and Add are a board's: run when a card is dropped in a column
+	// and when one is added (see BlockBoard).
+	Move *Button `json:"move,omitempty"`
+	Add  *Button `json:"add,omitempty"`
 }
 
 // Field is one input in a form block.
@@ -751,4 +778,19 @@ func mustRaw(v any) json.RawMessage {
 		return json.RawMessage("null")
 	}
 	return b
+}
+
+// BoardMove is what a board's Move action gets on top of its button's
+// Args: decode Action.Args into it (or a struct of your own that embeds it).
+type BoardMove struct {
+	Card  string `json:"card"`
+	From  string `json:"from"`
+	To    string `json:"to"`
+	Index int    `json:"index"`
+}
+
+// BoardAdd is what a board's Add action gets on top of its button's Args.
+type BoardAdd struct {
+	Column string `json:"column"`
+	Title  string `json:"title"`
 }

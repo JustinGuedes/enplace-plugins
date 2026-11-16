@@ -169,7 +169,9 @@ outside their folders mentions a release or an app.
 - **Project status** (`contributes.project_status`): the line under a
   project's name, and its progress ring (`Response.Status`).
 - **Section and work blocks**: a page can hold sections (with a ring, folded
-  or open) and lists of real work items, next to the other blocks.
+  or open) and lists of real work items, next to the other blocks. A board
+  block lays cards out in columns people drag between (see Interactive
+  pages below).
 - **Chart blocks**: a row of bars for a number over time, full size on a
   page or as a small spark on a card. App draws its downloads with it; any
   plugin can.
@@ -193,6 +195,79 @@ outside their folders mentions a release or an app.
   letting it edit anything else; GitHub moves work with its pull requests),
   `project.icon` to give a project its icon (with `"fallback": true`
   it gives way to any other plugin's icon, like Website's beside App's).
+
+## Interactive pages
+
+A plugin never ships code to the screen. Its logic stays in the sandbox and
+answers with blocks; Enplace draws them with its own components, on the web
+and in the Apple app, and sends what people do back as actions. A page can
+still be interactive.
+
+### Boards
+
+A board block (`plugin.BlockBoard`) is columns of cards that people drag
+between, like a kanban. Each item is a column (`Value` is its key) and its
+`Children` are the cards (`Value` is the card's id; `Button` opens it;
+`Locked` keeps it in place). Enplace moves a card the moment it's dropped,
+then runs the board's `Move` button with its `Args` plus the move:
+
+```go
+board := plugin.Block{
+	Type:  plugin.BlockBoard,
+	ID:    "board",
+	Items: columns, // each with Children
+	Move:  &plugin.Button{Action: "move"},
+	Add:   &plugin.Button{Action: "add"}, // optional: "Add a card" in each column
+	Text:  "Nothing here yet",            // shown in an empty column
+}
+
+case "move":
+	var m plugin.BoardMove // Card, From, To, Index
+	_ = json.Unmarshal(req.Action.Args, &m)
+	// ...store it...
+	res.Blocks = []plugin.Block{boardFrom(state)} // settles the board
+```
+
+An error from the action puts the card back where it was. `Add` gets a
+`plugin.BoardAdd` (`Column`, `Title`). Cards move with the mouse, with
+Alt+arrow keys, and on touch screens with a column picker on each card.
+
+### Changing part of a page
+
+Give a block an `ID` and an action can answer with a new version of just
+that block, in `Response.Blocks`. Enplace swaps it in where it is (inside a
+section too) and draws nothing else again, so what someone was typing,
+scrolling or had folded elsewhere on the page stays as it was. An action
+without `Blocks` still has the whole screen asked for again. Keep IDs unique
+within the plugin; Enplace only replaces a plugin's own blocks.
+
+### Your own web page (designed, not built yet)
+
+Some things blocks will never draw, like a game board or a custom
+visualisation. For those a plugin will be able to ship a web page of its
+own. This is the design, so plugins can plan for it; nothing below works
+yet.
+
+- The plugin ships a `web/` folder and says so in its manifest (a page
+  with `"web": "index.html"`). The store shows that it does, beside its
+  permissions.
+- Enplace shows it in `<iframe sandbox="allow-scripts">`: an opaque origin,
+  so it has no cookies, no storage of Enplace's and no way to call
+  Enplace's API. It's served with a strict Content-Security-Policy
+  (`default-src 'none'`, its own scripts and styles only, no network). In
+  the Apple app it shows in a WKWebView with the same rules.
+- It talks to its own logic, and nothing else, over a small `postMessage`
+  bridge: `enplace.call(action, args)` runs one of the plugin's actions and
+  resolves with its `Data`. The action runs exactly as a button press would,
+  so the plugin's permissions and the person's Approvals still apply.
+- Enplace passes its theme tokens (`enplace.theme`, the same `--…` values the
+  app uses) and tells the page when they change, so it can match the look in
+  light and dark.
+
+Enplace will never load a plugin's JavaScript into its own page (as a script
+tag or a web component): it would run as Enplace, with the person's
+session. Reach for blocks first; they work everywhere, including in the
+Apple app, where downloaded native code isn't allowed.
 
 ## Pieces on Today
 

@@ -96,3 +96,29 @@ func TestHostCallsNeedEnplace(t *testing.T) {
 		t.Errorf("Fetch outside Enplace: %v", err)
 	}
 }
+
+func TestBoardMoveReadsMergedArgs(t *testing.T) {
+	// Enplace adds the move to the button's own args.
+	raw := []byte(`{"board":"b1","card":"c7","from":"todo","to":"doing","index":2}`)
+	var m struct {
+		Board string `json:"board"`
+		BoardMove
+	}
+	if err := json.Unmarshal(raw, &m); err != nil {
+		t.Fatal(err)
+	}
+	if m.Board != "b1" || m.Card != "c7" || m.From != "todo" || m.To != "doing" || m.Index != 2 {
+		t.Errorf("move = %+v", m)
+	}
+}
+
+func TestBlocksReplaceByID(t *testing.T) {
+	r := Response{Blocks: []Block{{Type: BlockBoard, ID: "board", Move: &Button{Action: "move"}}}}
+	out, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(out); got != `{"blocks":[{"type":"board","id":"board","move":{"label":"","action":"move"}}]}` {
+		t.Errorf("response = %s", got)
+	}
+}
