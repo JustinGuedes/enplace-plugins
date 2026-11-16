@@ -42,6 +42,7 @@ One manifest format, with a `kind` that fills in the rest:
 - [Claude in the cloud](plugins/claude-cloud): Send work to your own Claude Code task on claude.ai, so it runs with your laptop closed.
 - [Claude Code](plugins/claude-code): Send work to Claude Code on your own computer, on your Claude plan.
 - [Codex CLI](plugins/codex-cli): Send work to the Codex CLI on your own computer, on your own plan.
+- [Codex in the cloud](plugins/codex-cloud): Send work to Codex on chatgpt.com, so it runs in the cloud on your ChatGPT plan.
 - [Gemini CLI](plugins/gemini-cli): Send work to the Gemini CLI on your own computer, on your own plan.
 
 ### Work sources

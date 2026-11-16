@@ -15,7 +15,9 @@ import (
 //
 //   - "prompt": the person runs the agent (Claude Code, Codex CLI, Gemini
 //     CLI…). Send copies Prompt; the agent works over MCP with its own key.
-//     Manifest only, no logic.
+//     Manifest only, no logic. With Open, Send also offers that link, for
+//     an agent in a browser or app (Codex on chatgpt.com) that can't reach
+//     Enplace: Enplace then marks the item as the agent's when it's sent.
 //   - "start": Enplace starts the agent somewhere else. The logic's Start
 //     action calls the outside service (only on the plugin's hosts, with its
 //     own secrets) and answers Data {"link": "https://…"}, the session to
@@ -39,13 +41,17 @@ type Runner struct {
 	Kind string `json:"kind"`
 	// Hint is a line on what it does, shown where Send offers it.
 	Hint string `json:"hint,omitempty"`
-	// Prompt is what Send hands the agent, with {key} and {title} filled in.
+	// Prompt is what Send hands the agent, with {key}, {title} and
+	// {details} (the item's description) filled in.
 	// Every kind may set it; prompt runners must.
 	Prompt string `json:"prompt,omitempty"`
 	// Connect names how the agent connects to Enplace's MCP, from the
 	// connect screen's list (claude_code, codex, gemini, cursor…), so
 	// Enplace can say whether one is connected and show the steps.
 	Connect string `json:"connect,omitempty"`
+	// Open is the https link Send offers after copying a prompt runner's
+	// prompt, where the person pastes it (like https://chatgpt.com/codex).
+	Open string `json:"open,omitempty"`
 	// Start, Stop and Message are the logic's actions for a start runner.
 	// Only Enplace calls them; they can't be pressed as buttons. Without
 	// Message, messages ride along on the agent's next Enplace tool call.
@@ -91,6 +97,8 @@ const (
 // RunnerAPIs are the wire formats Enplace can drive for a loop runner.
 var RunnerAPIs = []string{"anthropic"}
 
+var openRe = regexp.MustCompile(`^https://[a-z0-9.-]+\.[a-z]{2,}(/[A-Za-z0-9._~/-]*)?$`)
+
 var modelRe = regexp.MustCompile(`^[a-z0-9][a-z0-9._:-]{0,79}$`)
 
 func (m *Manifest) checkRunner() error {
@@ -116,6 +124,9 @@ func (m *Manifest) checkRunner() error {
 	}
 	if r.MaxPerHour < 0 || r.MaxPerHour > 10000 {
 		return bad("max_per_hour is 0 to 10000")
+	}
+	if r.Open != "" && (r.Kind != RunnerPrompt || len(r.Open) > 200 || !openRe.MatchString(r.Open)) {
+		return bad("open is an https link, up to 200 characters, for a prompt runner")
 	}
 	for _, k := range r.Ready {
 		if !slices.ContainsFunc(m.Settings, func(s Setting) bool { return s.Key == k && s.Scope == "workspace" }) {
@@ -204,11 +215,14 @@ func (r *Runner) Title(pluginName string) string {
 	return pluginName
 }
 
-// FillPrompt is the prompt for one work item.
-func (r *Runner) FillPrompt(key, title string) string {
+// FillPrompt is the prompt for one work item; details is its description.
+func (r *Runner) FillPrompt(key, title, details string) string {
 	p := r.Prompt
 	if strings.TrimSpace(p) == "" {
 		p = "Enplace work item {key}: {title}\n\nUse the Enplace MCP: call start_work for {key}, do the work, post progress with add_note, then submit_for_review with a short report and any pull request link. When you change code, open a pull request titled \"{key}: what it does\" so Enplace links it. Pass your session link as session_url to start_work and submit_for_review."
 	}
-	return strings.NewReplacer("{key}", key, "{title}", title).Replace(p)
+	if strings.TrimSpace(details) == "" {
+		details = "(no description)"
+	}
+	return strings.NewReplacer("{key}", key, "{title}", title, "{details}", details).Replace(p)
 }

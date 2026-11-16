@@ -1,0 +1,23 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "codex-cloud",
+  "name": "Codex in the cloud",
+  "version": "1.0.0",
+  "kind": "agent",
+  "author": "Enplace",
+  "summary": "Send work to Codex on chatgpt.com, so it runs in the cloud on your ChatGPT plan.",
+  "description": "Send copies a prompt that holds the whole work item and offers to open Codex on chatgpt.com (or the ChatGPT app). Paste it, pick the repository's environment and start the task. Codex can't reach Enplace from there, so Enplace marks the item as Codex's when you send it, and the prompt asks Codex to title its pull request with the item's key: when you press Create PR in Codex, the GitHub plugin links it and moves the item on. OpenAI has no way for other apps to start a Codex task on your plan, which is why it takes a paste. Needs a ChatGPT plan that includes Codex and a Codex environment for the repository.",
+  "colour": "#10a37f",
+  "icon": "cloud",
+  "contributes": {
+    "runner": {
+      "agent": "Codex",
+      "where": "cloud",
+      "pays": "plan",
+      "kind": "prompt",
+      "hint": "Copies the prompt and opens Codex on chatgpt.com. Paste it and start the task.",
+      "open": "https://chatgpt.com/codex",
+      "prompt": "Work on {key}: {title}\n\n{details}\n\nWhen you change code, keep to what this asks for and make the pull request's title start with \"{key}: \" (like \"{key}: what it does\"), so Enplace links it to the work item."
+    }
+  }
+}
