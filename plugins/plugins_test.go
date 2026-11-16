@@ -53,6 +53,9 @@ func TestEveryPluginPacks(t *testing.T) {
 			}
 
 			files := map[string][]byte{"manifest.json": raw}
+			for name, body := range iconFiles(t, id) {
+				files[name] = body
+			}
 			skills := skillFiles(t, id)
 			for name, body := range skills {
 				files["skills/"+name+".md"] = body
@@ -73,6 +76,9 @@ func TestEveryPluginPacks(t *testing.T) {
 			if b.Manifest.ID != id || b.Manifest.Version != m.Version {
 				t.Errorf("bundle reads back as %s %s", b.Manifest.ID, b.Manifest.Version)
 			}
+			if len(b.Manifest.Glyph) == 0 && len(m.Extends) == 0 {
+				t.Error("draw the plugin's icon in icon.svg")
+			}
 			// Every skill file is one the server installs: listed in the
 			// manifest, or describing itself in its front matter.
 			var listed []string
@@ -86,6 +92,24 @@ func TestEveryPluginPacks(t *testing.T) {
 			}
 		})
 	}
+}
+
+// iconFiles are the plugin's icon.svg and icons/<page>.svg.
+func iconFiles(t *testing.T, id string) map[string][]byte {
+	t.Helper()
+	out := map[string][]byte{}
+	if b, err := os.ReadFile(filepath.Join(id, "icon.svg")); err == nil {
+		out["icon.svg"] = b
+	}
+	pages, _ := os.ReadDir(filepath.Join(id, "icons"))
+	for _, f := range pages {
+		b, err := os.ReadFile(filepath.Join(id, "icons", f.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		out["icons/"+f.Name()] = b
+	}
+	return out
 }
 
 func skillFiles(t *testing.T, id string) map[string][]byte {
