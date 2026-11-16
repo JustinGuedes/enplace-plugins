@@ -225,7 +225,7 @@ func (c *cycleRun) productReleases(p *project) []coming {
 // the project's own cycle ships: each product's release as a row, and the
 // project's own release, if it has one that day, in full under them.
 func (c *cycleRun) sharedSection(p *project, t together, own *cycle.Release, folded bool) plugin.Block {
-	s := plugin.Block{Type: plugin.BlockSection, Text: c.shortDate(t.date), Sub: c.versions(t), Label: "Ships " + c.dayWord(t.date), Collapsed: folded}
+	s := plugin.Block{Type: plugin.BlockSection, Text: c.shortDate(t.date), Sub: c.versions(t), Collapsed: folded}
 	if done, total := t.counts(); total > 0 {
 		s.Value = fmt.Sprintf("%d/%d", done, total)
 		s.Progress = float64(done) / float64(total)
