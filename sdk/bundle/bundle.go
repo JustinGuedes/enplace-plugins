@@ -158,8 +158,12 @@ func Read(data []byte, trusted []string) (*Bundle, error) {
 }
 
 // checkFiles checks the files against the manifest and fills in what they
-// describe: skills from their front matter (which comes off the files).
+// describe: icons from their SVG files, and skills from their front matter
+// (which comes off the files).
 func checkFiles(m *Manifest, files map[string][]byte) error {
+	if err := iconsFromFiles(m, files); err != nil {
+		return err
+	}
 	if err := skillsFromFiles(m, files); err != nil {
 		return err
 	}

@@ -36,8 +36,7 @@ func TestGlyphCheck(t *testing.T) {
 	}
 }
 
-// Every plugin that comes with Enplace draws its own icon, and no two are
-// the same.
+// Every plugin in this repo draws its own icon, and no two are the same.
 func TestShippedPluginsHaveTheirOwnGlyph(t *testing.T) {
 	dirs, _ := filepath.Glob("../../plugins/*/manifest.json")
 	if len(dirs) == 0 {
@@ -45,26 +44,26 @@ func TestShippedPluginsHaveTheirOwnGlyph(t *testing.T) {
 	}
 	seen := map[string]string{}
 	for _, p := range dirs {
-		raw, err := os.ReadFile(p)
+		id := filepath.Base(filepath.Dir(p))
+		svg, err := os.ReadFile(filepath.Join(filepath.Dir(p), IconFile))
 		if err != nil {
-			t.Fatal(err)
+			t.Errorf("%s has no %s", id, IconFile)
+			continue
 		}
-		m, err := ParseManifest(raw)
+		g, err := ParseIcon(svg)
 		if err != nil {
-			t.Fatalf("%s: %v", p, err)
-		}
-		if len(m.Glyph) == 0 {
-			t.Errorf("%s has no glyph", m.ID)
+			t.Errorf("%s: %v", id, err)
+			continue
 		}
 		var all []string
-		for _, l := range m.Glyph {
+		for _, l := range g {
 			all = append(all, l.D)
 		}
 		key := strings.Join(all, "|")
 		if other, dup := seen[key]; dup {
-			t.Errorf("%s and %s share a glyph", m.ID, other)
+			t.Errorf("%s and %s share a glyph", id, other)
 		}
-		seen[key] = m.ID
+		seen[key] = id
 	}
 }
 

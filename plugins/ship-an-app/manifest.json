@@ -2,16 +2,10 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "ship-an-app",
   "name": "Ship an app",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "kind": "skills",
   "author": "Enplace",
   "summary": "Skills for getting an iPhone or Android app out: TestFlight builds, store screenshots and review notes.",
   "colour": "#c6f36b",
-  "icon": "phone",
-  "glyph": [
-    { "d": "M8.5 2.5L15.5 2.5C16.88 2.5 18 3.62 18 5L18 19C18 20.38 16.88 21.5 15.5 21.5L8.5 21.5C7.12 21.5 6 20.38 6 19L6 5C6 3.62 7.12 2.5 8.5 2.5Z", "paint": "soft" },
-    { "d": "M8.5 2.5L15.5 2.5C16.88 2.5 18 3.62 18 5L18 19C18 20.38 16.88 21.5 15.5 21.5L8.5 21.5C7.12 21.5 6 20.38 6 19L6 5C6 3.62 7.12 2.5 8.5 2.5Z" },
-    { "d": "M12 15.5L12 8" },
-    { "d": "M9 11L12 8L15 11" }
-  ]
+  "icon": "phone"
 }

@@ -126,12 +126,12 @@ func collect(dir string) (map[string][]byte, error) {
 		return nil, fmt.Errorf("%s: name its kind, one of %s", filepath.Join(dir, "manifest.json"), strings.Join(bundle.KindNames(), ", "))
 	}
 	files["manifest.json"] = m
-	for _, extra := range []string{"README.md", "icon.png", "icon.svg"} {
+	for _, extra := range []string{"README.md", "icon.svg"} {
 		if b, err := os.ReadFile(filepath.Join(dir, extra)); err == nil {
 			files[extra] = b
 		}
 	}
-	for _, sub := range []string{"assets", "skills"} {
+	for _, sub := range []string{"assets", "icons", "skills"} {
 		root := filepath.Join(dir, sub)
 		if _, err := os.Stat(root); err != nil {
 			continue

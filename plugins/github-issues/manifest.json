@@ -2,17 +2,13 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "github-issues",
   "name": "GitHub Issues",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "kind": "source",
   "author": "Enplace",
   "summary": "Use a repository's issues as a project's work.",
   "description": "Keeps a project's work in step with a GitHub repository's issues. Open issues come in as work (the first time as one batch, so it's one approval), and titles, descriptions, labels and stages stay in step both ways: closing an issue on GitHub marks the work done, and marking the work done here closes the issue. Pull requests never come in as work; the GitHub plugin already shows them on the items they mention. With GitHub on the project, it uses that repo and token, so there's nothing to set up. New work you add here becomes an issue only if you switch that on, so private planning stays off a public repo.",
   "colour": "#f2f2f0",
   "icon": "link",
-  "glyph": [
-    { "d": "M12 3.5C16.69 3.5 20.5 7.31 20.5 12C20.5 16.69 16.69 20.5 12 20.5C7.31 20.5 3.5 16.69 3.5 12C3.5 7.31 7.31 3.5 12 3.5Z", "paint": "soft" },
-    { "d": "M12 9C13.66 9 15 10.34 15 12C15 13.66 13.66 15 12 15C10.34 15 9 13.66 9 12C9 10.34 10.34 9 12 9Z", "paint": "solid" }
-  ],
   "suggest_for": [],
   "requires": [ { "id": "work-sync", "version": "^1.1.0" }, { "id": "github", "version": "^1.0.0", "optional": true } ],
   "card_settings": ["repo", "direction"],

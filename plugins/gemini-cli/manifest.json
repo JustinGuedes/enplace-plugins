@@ -2,17 +2,13 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "gemini-cli",
   "name": "Gemini CLI",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "kind": "agent",
   "author": "Enplace",
   "summary": "Send work to the Gemini CLI on your own computer, on your own plan.",
   "description": "Send copies a prompt for the work item. Paste it into the Gemini CLI on your computer: with Enplace added as an MCP server (Settings → Agents and MCP → Connect an agent shows the command), it picks the item up, reports progress and hands it back for review. Messages you leave on the item reach it on its next Enplace call.",
   "colour": "#ff9fd0",
   "icon": "agent",
-  "glyph": [
-    { "d": "M12 3C12.9 8 16 11.1 21 12C16 12.9 12.9 16 12 21C11.1 16 8 12.9 3 12C8 11.1 11.1 8 12 3Z", "paint": "soft" },
-    { "d": "M12 3C12.9 8 16 11.1 21 12C16 12.9 12.9 16 12 21C11.1 16 8 12.9 3 12C8 11.1 11.1 8 12 3Z" }
-  ],
   "contributes": {
     "runner": {
       "agent": "Gemini",
