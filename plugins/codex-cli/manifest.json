@@ -2,11 +2,11 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "codex-cli",
   "name": "Codex CLI",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "kind": "agent",
   "author": "Enplace",
   "summary": "Send work to the Codex CLI on your own computer, on your own plan.",
-  "description": "Send copies a prompt for the work item. Paste it into Codex on your computer: with Enplace added as an MCP server in ~/.codex/config.toml (Settings → Agents and MCP → Connect an agent shows how), it picks the item up, reports progress and hands it back for review. Messages you leave on the item reach it on its next Enplace call.",
+  "description": "Send copies a prompt for the work item. Paste it into Codex on your computer: with Enplace added as an MCP server in ~/.codex/config.toml (Settings → Agents → Other agents shows how), it picks the item up, reports progress and hands it back for review. Messages you leave on the item reach it on its next Enplace call.",
   "colour": "#7cc4ff",
   "icon": "agent",
   "contributes": {
