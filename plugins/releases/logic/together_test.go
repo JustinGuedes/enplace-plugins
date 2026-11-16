@@ -42,7 +42,7 @@ func TestBriefSaysOneLineForADayProductsShare(t *testing.T) {
 	if res.Brief == nil {
 		t.Fatal("no brief")
 	}
-	want := "Enplace ships Thu: Apple 1.4 has 2 of 4 done and Web 1.6 has 3 of 5 done."
+	want := "Enplace ships Thu: Apple 1.4 and Web 1.6, with 5 of 9 done."
 	if res.Brief.Text != want {
 		t.Fatalf("brief = %q, want %q", res.Brief.Text, want)
 	}

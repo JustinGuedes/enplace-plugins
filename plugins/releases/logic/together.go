@@ -170,12 +170,11 @@ func (c *cycleRun) link(t together) string {
 	return c.href(t.rels[0].p)
 }
 
-// each says how each release in a day's is going: "Web 1.6 has 3 of 5
-// done and Apple 1.4 has 2 of 4".
-func (c *cycleRun) each(t together) string {
+// names lists a day's releases: "Apple 1.4, Enplace 1.0 and Web 1.6".
+func (c *cycleRun) names(t together) string {
 	var parts []string
 	for _, x := range t.rels {
-		parts = append(parts, fmt.Sprintf("%s %s has %d of %d done", c.short(x.p), x.r.Version, x.r.Done, x.r.Total))
+		parts = append(parts, c.short(x.p)+" "+x.r.Version)
 	}
 	return andList(parts)
 }
@@ -200,10 +199,11 @@ func (c *cycleRun) line(t together) string {
 		}
 		return fmt.Sprintf("%s %s ships %s with %d of %d done.", x.p.Name, x.r.Version, c.dayWord(x.r.ShipDate), x.r.Done, x.r.Total)
 	}
+	done, total := t.counts()
 	if t.cutoffToday(today) != nil {
-		return fmt.Sprintf("Cut-off for %s's release %s is today: %s.", t.home.Name, c.dayWord(t.date), c.each(t))
+		return fmt.Sprintf("Cut-off for %s is today: %s, with %d of %d done.", t.home.Name, c.names(t), done, total)
 	}
-	return fmt.Sprintf("%s ships %s: %s.", t.home.Name, c.dayWord(t.date), c.each(t))
+	return fmt.Sprintf("%s ships %s: %s, with %d of %d done.", t.home.Name, c.dayWord(t.date), c.names(t), done, total)
 }
 
 // productReleases are a project's products with cycles of their own, and
