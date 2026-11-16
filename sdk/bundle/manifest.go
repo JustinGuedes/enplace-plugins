@@ -43,8 +43,10 @@ type Manifest struct {
 	Colour string `json:"colour,omitempty"`
 	// Icon names a symbol from Enplace's shared set, used when the plugin
 	// has no Glyph of its own.
-	Icon  string `json:"icon,omitempty"`
-	Glyph Glyph  `json:"glyph,omitempty"`
+	Icon string `json:"icon,omitempty"`
+	// Glyph is the plugin's own icon. Packing fills it in from icon.svg;
+	// older bundles give it here.
+	Glyph Glyph `json:"glyph,omitempty"`
 
 	// Where it goes.
 
@@ -414,7 +416,8 @@ type Page struct {
 	Key  string `json:"key"`
 	Name string `json:"name"`
 	Icon string `json:"icon,omitempty"`
-	// Glyph is this page's own icon; without one it uses the plugin's.
+	// Glyph is this page's own icon, from icons/<key>.svg; without one it
+	// uses the plugin's.
 	Glyph Glyph  `json:"glyph,omitempty"`
 	Where string `json:"where"` // workspace or project
 	// Nav "main" puts a workspace page beside Today, Calendar and All work.

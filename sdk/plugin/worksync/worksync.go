@@ -157,6 +157,10 @@ type Config struct {
 	// the "create outside" setting says: for a source that is a copy of
 	// the project, like a folder of notes.
 	Mirror bool
+	// Done brings in outside items that are already done too, in a done
+	// stage, for a source that is the person's whole record of the work
+	// (like their own folder of notes). Otherwise finished items stay out.
+	Done bool
 }
 
 func (s *Sync) skips(field string) bool { return slices.Contains(s.cfg.Skip, field) }
@@ -621,7 +625,7 @@ func (s *Sync) Run() {
 			s.touch(l)
 			continue
 		}
-		if s.kind(it) == "done" {
+		if s.kind(it) == "done" && !s.cfg.Done {
 			continue // finished before it was ever linked
 		}
 		if s.pulls() && s.holds(it) {

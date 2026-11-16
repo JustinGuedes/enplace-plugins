@@ -16,8 +16,8 @@ A plugin folder has:
   and what it contributes. `extends` and `requires` let it build on other
   plugins. [`schema/manifest.schema.json`](../schema/manifest.schema.json)
   describes every field, so editors complete and check it as you type.
-- Its own icon, as `glyph` in the manifest (see below). Enplace holds no
-  plugin's icon: it draws whatever the plugin ships.
+- `icon.svg`: its own icon (see below). Enplace holds no plugin's icon: it
+  draws whatever the plugin ships. `icons/<page>.svg` gives a page its own.
 - `logic/` (optional): a Go `main` package built for WASI. It runs in
   Enplace's sandbox (no files, 128 MB, a time limit) and answers each
   request with blocks, the shared UI vocabulary that the web app and the
@@ -29,7 +29,7 @@ A plugin folder has:
   calendar.
 - `skills/` (optional): Markdown skills the plugin gives agents, one file
   each. A skill's front matter describes it (see Skills plugins below).
-- `assets/`, `README.md`, `icon.*` (optional).
+- `assets/`, `README.md` (optional).
 
 ## Kinds
 
@@ -110,30 +110,40 @@ setting that has a value.
 ## The plugin's icon
 
 Every plugin draws its own icon, so each one is recognisable across
-Enplace. It lives in the manifest as `glyph`: up to 8 layers on a 24 by 24
-grid, which the web app and the Apple app each draw natively.
+Enplace. Draw it in any tool and export it as `icon.svg` in the plugin's
+folder. A page can have its own as `icons/<page key>.svg`; without one it
+uses the plugin's, and a plugin that extends another and has no icon uses
+that plugin's.
 
-```json
-"glyph": [
-  { "d": "M12 2.5L20 7L20 17L12 21.5L4 17L4 7Z", "paint": "soft" },
-  { "d": "M12 2.5L20 7L20 17L12 21.5L4 17L4 7Z" },
-  { "d": "M8.5 12L12 8.5L15.5 12M8.5 16L12 12.5L15.5 16" }
-]
+```svg
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path class="soft" fill="currentColor" fill-opacity="0.34" stroke="none"
+        d="M12 2.5L20 7L20 17L12 21.5L4 17L4 7Z"/>
+  <path d="M12 2.5L20 7L20 17L12 21.5L4 17L4 7Z"/>
+  <path d="M8.5 12L12 8.5L15.5 12M8.5 16L12 12.5L15.5 16"/>
+</svg>
 ```
 
-- `d` is SVG path data, kept to five absolute commands so it is a few lines
-  to draw anywhere: `M`, `L`, `C`, `Q` and `Z`, with numbers from 0 to 24.
-  (Export from a drawing tool, then convert arcs and relative commands.)
-- `paint` is how the layer is drawn. A glyph has no colours of its own, so it
-  follows the theme: `line` (the default) is a 2 wide stroke with round caps
-  and joins in the text colour around it, `solid` is filled in that colour,
-  and `soft` is a see-through fill in the plugin's `colour` (or the text
-  colour when the icon already sits on a tile of the plugin's colour).
-- A page can have a `glyph` of its own; without one it uses the plugin's.
-  A plugin that extends another and has no glyph uses that plugin's.
+- The canvas is `viewBox="0 0 24 24"`, with up to 8 shapes: `path`,
+  `circle`, `ellipse`, `rect`, `line`, `polyline` or `polygon`. Flatten
+  transforms and groups' transforms before exporting.
+- An icon has no colours of its own, so it follows the theme. Each shape is
+  painted one of three ways, named by its `class` or else read from how
+  it's drawn:
+  - `line`, any stroked shape: a 2 wide stroke with round caps and joins,
+    in the colour of the text around it.
+  - `solid`, a filled shape: filled in that same colour.
+  - `soft`, a see-through fill: the plugin's `colour`, behind the rest (or
+    the text colour when the icon sits on a tile of the plugin's colour).
+- Packing turns the file into the plugin's `glyph`: the same shapes as path
+  data with five absolute commands (`M`, `L`, `C`, `Q`, `Z`, arcs become
+  curves), which the web app and the Apple app each draw natively. The SVG
+  itself is never shown, so an icon can't carry scripts, links or pictures.
+  An older bundle may still give `glyph` in its manifest.
 - `icon` (a name from Enplace's shared symbols) is only the stand-in for a
-  plugin with no glyph. Names still pick the small symbols inside blocks
-  and on work fields.
+  plugin with no icon. Names still pick the small symbols inside blocks and
+  on work fields.
 
 Each page and card a plugin draws also gets a settings button that opens
 that plugin's settings: its project settings inside a project, its

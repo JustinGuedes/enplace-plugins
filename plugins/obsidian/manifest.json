@@ -2,19 +2,13 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "obsidian",
   "name": "Obsidian vault",
-  "version": "1.0.1",
+  "version": "1.1.1",
   "kind": "source",
   "author": "Enplace",
   "summary": "Keep a project's work as Markdown notes in your Obsidian vault.",
-  "description": "Each work item is a note in your vault, in an Enplace folder with one folder per project, and the two stay in step both ways while Obsidian is open. The note's properties hold its stage, priority, tags and due date, and its first heading is the title. Change the stage in Obsidian and the work moves; edit the work here and the note is rewritten, keeping any properties of your own. A new note in the folder becomes work (through Approvals) and gets its key written in. Deleting a note marks the work done; nothing is ever deleted. It works through the Enplace plugin for Obsidian, which you connect with this project's address and secret, so it syncs on any device that runs Obsidian.",
+  "description": "Each work item is a note in your vault, in an Enplace folder with one folder per project, and the two stay in step both ways while Obsidian is open. The note's properties hold its stage, priority, tags and due date, and its first heading is the title. Change the stage in Obsidian and the work moves; edit the work here and the note is rewritten, keeping any properties of your own. A new note in the folder becomes work (through Approvals) and gets its key written in. Deleting a note marks the work done; nothing is ever deleted. To use a folder of notes you already keep instead, name it under \"Use an existing folder\": its notes come in as work and stay in step both ways, read in their own properties (status, id, P1-style priorities, quoted keys too), and Enplace never adds, moves or deletes a note there. It works through the Enplace plugin for Obsidian, which you connect with this project's address and secret, so it syncs on any device that runs Obsidian.",
   "colour": "#b79cff",
   "icon": "doc",
-  "glyph": [
-    { "d": "M3 6.5L9.5 6.5L11.5 9L21 9L21 19L3 19Z", "paint": "soft" },
-    { "d": "M3 6.5L9.5 6.5L11.5 9L21 9L21 19L3 19Z" },
-    { "d": "M7 13L17 13" },
-    { "d": "M7 16L13 16" }
-  ],
   "scope": "project",
   "inherit": "none",
   "levels": ["project"],
@@ -30,14 +24,15 @@
       "service": "Obsidian",
       "about": "The Enplace plugin for Obsidian sends your notes here and writes back what changed, every few seconds while Obsidian is open.",
       "steps": [
-        "In Obsidian: Settings › Community plugins, install Enplace and switch it on.",
+        "Put the Enplace plugin for Obsidian in the vault (.obsidian/plugins/enplace), then switch it on under Settings › Community plugins.",
         "In its settings, press Connect a project and paste both.",
-        "Your notes appear in Enplace/<project>/Work in the vault."
+        "Your notes appear in Enplace/<project>/Work in the vault. To sync a folder you already keep instead, set Use an existing folder below before you connect."
       ]
     }
   },
   "permissions": { "read": ["projects", "work"] },
   "settings": [
-    { "key": "create_outside", "name": "Write all work as notes", "type": "toggle", "scope": "project", "default": true, "help": "Every open work item in the project gets a note, the ones there before you connected too. Off: only new notes from the vault come in." }
+    { "key": "folder", "name": "Use an existing folder", "type": "text", "scope": "project", "help": "A folder of notes you already keep, from the top of the vault, like Tasks. Each note there becomes work, finished ones too, and stays in step, in the note's own properties and style; Enplace only changes notes already there. Map their statuses under Statuses to stages. Choose it before you connect. Empty: Enplace keeps its own folder." },
+    { "key": "create_outside", "name": "Write all work as notes", "type": "toggle", "scope": "project", "default": true, "help": "Every open work item in the project gets a note, the ones there before you connected too. Off: only new notes from the vault come in. Not used with an existing folder." }
   ]
 }

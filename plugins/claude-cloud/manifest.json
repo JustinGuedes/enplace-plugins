@@ -2,18 +2,13 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "claude-cloud",
   "name": "Claude in the cloud",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "kind": "agent",
   "author": "Enplace",
   "summary": "Send work to your own Claude Code task on claude.ai, so it runs with your laptop closed.",
   "description": "On claude.ai, make a scheduled task (a routine) with the Enplace connector and your repositories, add an API trigger, and paste its link and token here. Send then starts the task on the work item and shows the session to follow. It runs on your own Claude plan; Enplace only keeps the task's token, encrypted, and never sees your Claude login. A task can start up to 30 runs an hour.",
   "colour": "#b79cff",
   "icon": "cloud",
-  "glyph": [
-    { "d": "M7 18.5C4.51 18.5 2.5 16.49 2.5 14C2.5 11.69 4.24 9.79 6.48 9.53C7.28 6.9 9.71 5 12.5 5C15.98 5 18.8 7.75 18.99 11.18C20.48 11.73 21.5 13.16 21.5 14.75C21.5 16.82 19.82 18.5 17.75 18.5Z", "paint": "soft" },
-    { "d": "M7 18.5C4.51 18.5 2.5 16.49 2.5 14C2.5 11.69 4.24 9.79 6.48 9.53C7.28 6.9 9.71 5 12.5 5C15.98 5 18.8 7.75 18.99 11.18C20.48 11.73 21.5 13.16 21.5 14.75C21.5 16.82 19.82 18.5 17.75 18.5Z" },
-    { "d": "M10 12L12.5 14.5L10 17" }
-  ],
   "permissions": { "hosts": ["api.anthropic.com"] },
   "settings": [
     { "key": "claude_cloud_url", "name": "Task link", "type": "url", "scope": "workspace", "help": "The task's API trigger link from claude.ai, like https://api.anthropic.com/v1/claude_code/routines/trig_…/fire" },

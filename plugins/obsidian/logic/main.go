@@ -36,13 +36,29 @@ const (
 	poll = 10
 	// Writes sent in one answer, at most; the rest come next call.
 	maxWrites = 200
-	version   = 1
+	// version 2 apps know the "path" answer (an existing folder); a
+	// version 1 app is still served Enplace's own folder.
+	version = 2
 )
 
 func config(req *plugin.Request, v *vault) worksync.Config {
+	if v.dir != "" {
+		// The person's own folder: Enplace never adds a note to it.
+		// Their folder is their whole record, so finished notes come in too.
+		return worksync.Config{Name: name, Noun: "note", Source: ownNotes{v}, Done: true}
+	}
 	// Every open work item gets a note unless the person said not to.
 	mirror := req.ProjectSettings[v.pid]["create_outside"] != false
 	return worksync.Config{Name: name, Noun: "note", Source: v, Mirror: mirror}
+}
+
+// ownNotes is the vault without Create, for a folder of the person's
+// own notes.
+type ownNotes struct{ v *vault }
+
+func (o ownNotes) List(s *worksync.Sync) ([]worksync.Item, bool, error) { return o.v.List(s) }
+func (o ownNotes) Update(s *worksync.Sync, it worksync.Item, ch worksync.Change) (worksync.Item, error) {
+	return o.v.Update(s, it, ch)
 }
 
 func handle(req *plugin.Request) (*plugin.Response, error) {
@@ -81,7 +97,16 @@ func handle(req *plugin.Request) (*plugin.Response, error) {
 		v.save()
 	}
 	waitingLine(req, out, pid)
+	folderLine(out, pid, v.dir)
 	return out, nil
+}
+
+// folderLine names the person's own folder on the status line, so it's
+// plain which folder of the vault syncs.
+func folderLine(res *plugin.Response, pid, dir string) {
+	if st := res.Status[pid]; st != nil && dir != "" && !strings.Contains(st.Text, "stopped") {
+		st.Text += " · " + dir + " folder"
+	}
 }
 
 // waitingLine says when Obsidian isn't calling, instead of "Synced".
@@ -140,9 +165,14 @@ type change struct {
 type answer struct {
 	V       int     `json:"v"`
 	Project project `json:"project"`
-	// Folder is the project's folder name in the vault.
+	// Folder is the project's folder name in the vault, under the app's
+	// root, with the notes in its Work folder.
 	Folder string `json:"folder"`
-	Rev    int    `json:"rev"`
+	// Path, when set, is the person's own folder of notes, from the
+	// vault's top, used as it is: the app only changes notes already
+	// there, and never adds one.
+	Path string `json:"path,omitempty"`
+	Rev  int    `json:"rev"`
 	// Writes are the notes to write (or rename) in the vault.
 	Writes []write  `json:"writes"`
 	More   bool     `json:"more,omitempty"`
@@ -190,7 +220,8 @@ func exchange(req *plugin.Request) *plugin.Response {
 		res.Data = a
 		return res
 	}
-	if in.V != version {
+	a.Path = ownFolder(req, pid)
+	if in.V < 1 || in.V > version || (a.Path != "" && in.V < 2) {
 		a.Error = "Update the Enplace plugin in Obsidian to keep syncing."
 		res.Data = a
 		return res
@@ -233,6 +264,7 @@ func exchange(req *plugin.Request) *plugin.Response {
 	}
 	v.save()
 	res.SetProject(pid, keySeen, seen{At: req.Now, Client: clip(in.Client, 80), Since: in.Since})
+	folderLine(res, pid, v.dir)
 	if st := res.Status[pid]; st != nil {
 		a.Status = st.Text
 	}
@@ -256,6 +288,22 @@ func (v *vault) take(s *worksync.Sync, in call) []string {
 		}
 		return 0
 	})
+	if in.All != nil {
+		// Deleted while Obsidian was closed: in the copy (and already
+		// written to the vault) but no longer in the folder.
+		all := map[string]bool{}
+		for _, p := range in.All {
+			if c, ok := cleanPath(p); ok {
+				all[c] = true
+			}
+		}
+		for p, c := range v.notes {
+			if !all[p] && !c.Gone && c.Rev <= in.Since {
+				c.Gone, c.Mod = true, now
+				v.put(c)
+			}
+		}
+	}
 	for _, ch := range in.Changes {
 		p, ok := cleanPath(ch.Path)
 		if !ok {
@@ -299,22 +347,6 @@ func (v *vault) take(s *worksync.Sync, in call) []string {
 			v.claim(s, c)
 		}
 	}
-	if in.All != nil {
-		// Deleted while Obsidian was closed: in the copy (and already
-		// written to the vault) but no longer in the folder.
-		all := map[string]bool{}
-		for _, p := range in.All {
-			if c, ok := cleanPath(p); ok {
-				all[c] = true
-			}
-		}
-		for p, c := range v.notes {
-			if !all[p] && !c.Gone && c.Rev <= in.Since {
-				c.Gone, c.Mod = true, now
-				v.put(c)
-			}
-		}
-	}
 	return skipped
 }
 
@@ -323,6 +355,10 @@ func (v *vault) take(s *worksync.Sync, in call) []string {
 // closed), or to the item itself (a restored or exported note). Any other
 // new note becomes new work.
 func (v *vault) claim(s *worksync.Sync, c *copyOf) {
+	if v.dir != "" {
+		v.claimOwn(s, c)
+		return
+	}
 	key := parseNote(c.Text).value("enplace_id")
 	if key == "" {
 		return
@@ -346,6 +382,23 @@ func (v *vault) claim(s *worksync.Sync, c *copyOf) {
 	it := v.item(s, c)
 	it.Ref = w.Key
 	s.Adopt(it, w.ID)
+}
+
+// claimOwn links a new note in the person's own folder to the link of a
+// gone note with the same id: the same note, moved while Obsidian was
+// closed. Any other new note becomes new work.
+func (v *vault) claimOwn(s *worksync.Sync, c *copyOf) {
+	ref := v.ref(parseNote(c.Text), c.Path)
+	for id, l := range s.Links() {
+		if l.State != worksync.Linked || !strings.EqualFold(l.Ref, ref) {
+			continue
+		}
+		if old := v.notes[id]; old == nil || old.Gone {
+			v.drop(id)
+			s.Relink(id, c.Path)
+		}
+		return
+	}
 }
 
 // folderName is the project's folder in the vault: "Enplace (ENP)".
