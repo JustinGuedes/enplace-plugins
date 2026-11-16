@@ -2,7 +2,7 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "obsidian",
   "name": "Obsidian vault",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "kind": "source",
   "author": "Enplace",
   "summary": "Keep a project's work as Markdown notes in your Obsidian vault.",
@@ -24,15 +24,15 @@
       "service": "Obsidian",
       "about": "The Enplace plugin for Obsidian sends your notes here and writes back what changed, every few seconds while Obsidian is open.",
       "steps": [
-        "In Obsidian: Settings › Community plugins, install Enplace and switch it on.",
+        "Put the Enplace plugin for Obsidian in the vault (.obsidian/plugins/enplace), then switch it on under Settings › Community plugins.",
         "In its settings, press Connect a project and paste both.",
-        "Your notes appear in Enplace/<project>/Work in the vault."
+        "Your notes appear in Enplace/<project>/Work in the vault. To sync a folder you already keep instead, set Use an existing folder below before you connect."
       ]
     }
   },
   "permissions": { "read": ["projects", "work"] },
   "settings": [
-    { "key": "folder", "name": "Use an existing folder", "type": "text", "scope": "project", "help": "A folder of notes you already keep, from the top of the vault, like Tasks. Each note there becomes work and stays in step, in the note's own properties and style; Enplace only changes notes already there. Map their statuses under Statuses to stages. Choose it before you connect. Empty: Enplace keeps its own folder." },
+    { "key": "folder", "name": "Use an existing folder", "type": "text", "scope": "project", "help": "A folder of notes you already keep, from the top of the vault, like Tasks. Each note there becomes work, finished ones too, and stays in step, in the note's own properties and style; Enplace only changes notes already there. Map their statuses under Statuses to stages. Choose it before you connect. Empty: Enplace keeps its own folder." },
     { "key": "create_outside", "name": "Write all work as notes", "type": "toggle", "scope": "project", "default": true, "help": "Every open work item in the project gets a note, the ones there before you connected too. Off: only new notes from the vault come in. Not used with an existing folder." }
   ]
 }

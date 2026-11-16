@@ -44,7 +44,8 @@ const (
 func config(req *plugin.Request, v *vault) worksync.Config {
 	if v.dir != "" {
 		// The person's own folder: Enplace never adds a note to it.
-		return worksync.Config{Name: name, Noun: "note", Source: ownNotes{v}}
+		// Their folder is their whole record, so finished notes come in too.
+		return worksync.Config{Name: name, Noun: "note", Source: ownNotes{v}, Done: true}
 	}
 	// Every open work item gets a note unless the person said not to.
 	mirror := req.ProjectSettings[v.pid]["create_outside"] != false
@@ -96,7 +97,16 @@ func handle(req *plugin.Request) (*plugin.Response, error) {
 		v.save()
 	}
 	waitingLine(req, out, pid)
+	folderLine(out, pid, v.dir)
 	return out, nil
+}
+
+// folderLine names the person's own folder on the status line, so it's
+// plain which folder of the vault syncs.
+func folderLine(res *plugin.Response, pid, dir string) {
+	if st := res.Status[pid]; st != nil && dir != "" && !strings.Contains(st.Text, "stopped") {
+		st.Text += " · " + dir + " folder"
+	}
 }
 
 // waitingLine says when Obsidian isn't calling, instead of "Synced".
@@ -254,6 +264,7 @@ func exchange(req *plugin.Request) *plugin.Response {
 	}
 	v.save()
 	res.SetProject(pid, keySeen, seen{At: req.Now, Client: clip(in.Client, 80), Since: in.Since})
+	folderLine(res, pid, v.dir)
 	if st := res.Status[pid]; st != nil {
 		a.Status = st.Text
 	}

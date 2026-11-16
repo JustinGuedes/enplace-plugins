@@ -92,8 +92,14 @@ func TestOwnFolderBringsNotesInAsTheyAre(t *testing.T) {
 		t.Fatalf("ops %+v", res.Ops)
 	}
 	items := imp[0]["items"].([]any)
-	if len(items) != 2 { // done work stays out
+	if len(items) != 3 { // finished notes come in too
 		t.Fatalf("items %+v", items)
+	}
+	if done := items[2].(map[string]any); done["stage"] != "done" || done["title"] != "Old work" {
+		t.Fatalf("CHAIN-003 %+v", done)
+	}
+	if st := res.Status["p1"]; st == nil || !strings.HasSuffix(st.Text, " · Tasks folder") || !strings.HasSuffix(a.Status, " · Tasks folder") {
+		t.Fatalf("status %+v %q", res.Status["p1"], a.Status)
 	}
 	one := items[0].(map[string]any)
 	if one["title"] != "Confirm the MVP" || one["stage"] != "doing" || one["priority"] != float64(3) ||
@@ -125,7 +131,7 @@ func linkedOwnWorld(t *testing.T) *world {
 
 func TestOwnFolderTakesEnplaceEditsInTheirStyle(t *testing.T) {
 	w := linkedOwnWorld(t)
-	i := len(w.work) - 2 // CHAIN-001
+	i := len(w.work) - 3 // CHAIN-001
 	w.at(2 * time.Minute)
 	wk := &w.work[i]
 	wk.Title, wk.Stage, wk.StageKind, wk.Priority, wk.Due, wk.UpdatedAt = "Confirm the MVP with Byron", "review", "review", 2, "2026-11-30", w.now
@@ -169,7 +175,7 @@ Agree one end-to-end outcome.
 
 func TestOwnFolderKeepsAStatusTheStageStillFits(t *testing.T) {
 	w := linkedOwnWorld(t)
-	i := len(w.work) - 1 // CHAIN-002, Blocked, in Doing
+	i := len(w.work) - 2 // CHAIN-002, Blocked, in Doing
 	w.at(2 * time.Minute)
 	w.work[i].Title, w.work[i].UpdatedAt = "Verify the repo baseline", w.now
 	w.event(i)
