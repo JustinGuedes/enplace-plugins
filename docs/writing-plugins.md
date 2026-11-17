@@ -165,6 +165,15 @@ card in Settings, like `["repo", "branch"]` for
 `justinguedes/enplace-server · main`. Without it the card shows the first
 setting that has a value.
 
+A text setting can offer a list to pick from with `"choices": "<action>"`,
+like GitHub's repos. Enplace runs that action when the person opens the
+list, with `plugin.ChoicesArgs` (the setting's key and the values on
+screen, saved or not), and the action answers with `plugin.Choices` as
+`Data`. The person searches and picks, or types something that isn't
+there. The call only reads: anything else the action answers is ignored.
+A card button with `"pick": "<setting>"` opens the same list in place, so
+a card like "No repo linked yet" can be set up without leaving it.
+
 ## The plugin's icon
 
 Every plugin draws its own icon, so each one is recognisable across

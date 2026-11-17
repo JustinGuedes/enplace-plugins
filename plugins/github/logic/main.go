@@ -120,6 +120,8 @@ func handle(req *plugin.Request) (*plugin.Response, error) {
 			r.disconnect()
 		case actMerge:
 			r.merge()
+		case actRepos, actBranches:
+			r.choices(req.Action.Name)
 		case "tool_code":
 			var args struct {
 				Work string `json:"work"`
@@ -381,15 +383,6 @@ func (r *run) setCard(slot string, blocks []plugin.Block) {
 	r.res.Cards[slot] = blocks
 }
 
-func (r *run) settingsHref() string {
-	for _, p := range r.req.Projects {
-		if p.ID == r.pid {
-			return "/p/" + strings.ToLower(p.Key) + "/settings/github"
-		}
-	}
-	return ""
-}
-
 // where says where the version came from, like "project.yml · main · 12 commits since v1.4".
 func where(c *Code) string {
 	var parts []string
@@ -415,7 +408,7 @@ func (r *run) card(slot string, c *Code) {
 	if r.setting("repo") == "" {
 		r.setCard(slot, []plugin.Block{
 			{Type: plugin.BlockText, Text: "No repo linked yet. Link one to see the version in the code.", Tone: "muted"},
-			{Type: plugin.BlockButtons, Buttons: []plugin.Button{{Label: "Link repo", Href: r.settingsHref()}}},
+			{Type: plugin.BlockButtons, Buttons: []plugin.Button{{Label: "Link repo", Pick: "repo"}}},
 		})
 		r.res.Signal(slot, plugin.LevelQuiet, "")
 		return

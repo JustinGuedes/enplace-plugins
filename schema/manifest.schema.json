@@ -696,6 +696,9 @@
             },
             "type": "object"
           },
+          "choices": {
+            "type": "string"
+          },
           "default": {},
           "fetch": {
             "type": "boolean"
