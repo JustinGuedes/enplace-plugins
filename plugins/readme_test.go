@@ -49,6 +49,9 @@ func TestReadmeListsEveryPlugin(t *testing.T) {
 		}
 		fmt.Fprintf(&list, "### %s\n\n", k.heading)
 		for _, m := range byKind[k.kind] {
+			if m.ReplacedBy != "" {
+				continue // the store no longer offers it
+			}
 			fmt.Fprintf(&list, "- [%s](plugins/%s): %s\n", m.Name, m.ID, m.Summary)
 		}
 		delete(byKind, k.kind)

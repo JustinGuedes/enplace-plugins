@@ -1,0 +1,38 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "codex",
+  "name": "Codex",
+  "version": "1.0.0",
+  "kind": "agent",
+  "author": "Enplace",
+  "summary": "Send work to Codex: on your Mac with the Codex CLI, or in the cloud on chatgpt.com.",
+  "description": "Add Codex once for each way you use it, and name it. On your Mac, Send copies a prompt for the Codex CLI: with Enplace added as an MCP server in ~/.codex/config.toml (Settings → Agents → Connect an agent shows how), it picks the item up, reports progress and hands it back for review. In the cloud, Send copies a prompt that holds the whole work item and opens Codex on chatgpt.com: paste it, pick the repository's environment and start the task. Codex there can't reach Enplace, so Enplace marks the item as Codex's when you send it, and the prompt asks for a pull request titled with the item's key so the GitHub plugin links it. Both run on your own ChatGPT plan.",
+  "colour": "#7cc4ff",
+  "icon": "agent",
+  "contributes": {
+    "ways": [
+      {
+        "key": "mac",
+        "name": "On your Mac",
+        "agent": "Codex",
+        "where": "computer",
+        "pays": "plan",
+        "kind": "prompt",
+        "hint": "Copies a prompt for Codex on your computer, which picks it up over MCP.",
+        "connect": "codex",
+        "prompt": "Work on Enplace work item {key}: {title}\n\nUse the enplace MCP server's tools: call start_work with key {key} first and follow what it returns, post progress with add_note, and finish with submit_for_review (a short report and any pull request link)."
+      },
+      {
+        "key": "cloud",
+        "name": "In the cloud",
+        "agent": "Codex",
+        "where": "cloud",
+        "pays": "plan",
+        "kind": "prompt",
+        "hint": "Copies the prompt and opens Codex on chatgpt.com. Paste it and start the task.",
+        "open": "https://chatgpt.com/codex",
+        "prompt": "Work on {key}: {title}\n\n{details}\n\nWhen you change code, keep to what this asks for and make the pull request's title start with \"{key}: \" (like \"{key}: what it does\"), so Enplace links it to the work item."
+      }
+    ]
+  }
+}
