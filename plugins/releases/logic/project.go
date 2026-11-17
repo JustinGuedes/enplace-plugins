@@ -24,6 +24,7 @@ func (c *cycleRun) load(pid string) *project {
 		return nil
 	}
 	p.set = settings(c.req.ProjectSettings[pid])
+	c.numberBy(p)
 	p.follows = c.follow(p)
 	c.req.State.GetProject(pid, keyReleases, &p.rels)
 	cycle.Sort(p.rels)

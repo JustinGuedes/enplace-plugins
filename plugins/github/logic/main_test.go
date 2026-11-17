@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -14,11 +15,22 @@ type fakeGitHub struct {
 	bodies map[string]string
 	status map[string]int
 	calls  []string
+	// sent is what was sent to each path that changes something.
+	sent map[string]string
 }
 
 func (f *fakeGitHub) fetch(r plugin.FetchRequest) (*plugin.FetchResponse, error) {
 	p := strings.TrimPrefix(r.URL, api)
 	f.calls = append(f.calls, p)
+	if r.Method != "" && r.Method != "GET" {
+		if f.sent == nil {
+			f.sent = map[string]string{}
+		}
+		f.sent[r.Method+" "+p] = string(r.Body)
+		if _, ok := f.bodies[r.Method+" "+p]; ok {
+			p = r.Method + " " + p
+		}
+	}
 	if s, ok := f.status[p]; ok {
 		return &plugin.FetchResponse{Status: s}, nil
 	}
@@ -62,50 +74,155 @@ func stateOf(res *plugin.Response) plugin.State {
 	return plugin.State{Projects: res.State.Projects}
 }
 
-func TestCheckFindsVersionAndTag(t *testing.T) {
+// withVersions is a request with the Versions plugin asking for files.
+func withVersions(req *plugin.Request, w want, b *bumpAsk) *plugin.Request {
+	st := plugin.State{}
+	st.PutProject("p1", keyWant, w)
+	if b != nil {
+		st.PutProject("p1", keyBumpAsk, b)
+	}
+	st.PutProject("p1", keyVersions, versionInfo{Version: "1.5", File: "ios/project.yml"})
+	req.Peers = map[string]plugin.State{"versions": st}
+	return req
+}
+
+var versionsWant = want{Patterns: []string{"project.yml", "package.json", "info.plist"}, Skip: []string{"node_modules"}, MaxDepth: 4, Read: 1, Grep: []string{"version"}}
+
+func TestCheckSharesFilesAndTags(t *testing.T) {
 	f := newFake("abc")
 	now := time.Date(2026, 11, 12, 12, 0, 0, 0, time.UTC)
-	res := runWith(f, request(plugin.State{}, map[string]any{"repo": "https://github.com/acme/app.git"}, now))
+	settings := map[string]any{"repo": "https://github.com/acme/app.git"}
+	res := runWith(f, withVersions(request(plugin.State{}, settings, now), versionsWant, nil))
 	var c Code
 	if !stateOf(res).GetProject("p1", keyCode, &c) {
 		t.Fatal("nothing saved")
 	}
-	if c.Error != "" || c.Version != "1.5" || c.File != "ios/project.yml" || !c.Auto || c.Tag != "v1.10.0" || c.Ahead != 12 || c.Message != "Fix login" {
+	if c.Error != "" || c.Tag != "v1.10.0" || c.Ahead != 12 || c.Message != "Fix login" {
 		t.Fatalf("got %+v", c)
 	}
 	var pub Public
-	if !stateOf(res).GetProject("p1", keyPublic, &pub) || pub.Version != "1.5" || pub.TagVersion != "1.10.0" || pub.Provider != "github" {
+	if !stateOf(res).GetProject("p1", keyPublic, &pub) || pub.TagVersion != "1.10.0" || pub.Provider != "github" || pub.SHA != "abc" {
 		t.Fatalf("public %+v", pub)
+	}
+	var sh Shared
+	if !stateOf(res).GetProject("p1", keyFilesOut, &sh) || sh.SHA != "abc" || strings.Join(sh.Matched, ",") != "ios/project.yml,web/package.json,ios/Info.plist" ||
+		len(sh.Files) != 1 || sh.Files[0].Path != "ios/project.yml" || !strings.Contains(sh.Files[0].Text, "MARKETING_VERSION: 1.5") {
+		t.Fatalf("shared %+v", sh)
 	}
 
 	// Nothing moved: only the head, pull requests (with the open one that
 	// mentions work), the branches and the tags are asked for.
 	f.calls = nil
-	res = runWith(f, request(stateOf(res), map[string]any{"repo": "https://github.com/acme/app.git"}, now.Add(15*time.Minute)))
+	res = runWith(f, withVersions(request(stateOf(res), settings, now.Add(15*time.Minute)), versionsWant, nil))
 	if len(f.calls) != 5 {
 		t.Fatalf("calls %v", f.calls)
 	}
-	stateOf(res).GetProject("p1", keyCode, &c)
-	if c.Version != "1.5" || c.Ahead != 12 {
-		t.Fatalf("lost what it knew: %+v", c)
+	if raw := res.State.Projects["p1"][keyFilesOut]; raw != nil {
+		t.Fatalf("shared again: %s", raw)
+	}
+
+	// Versions names a file: it's read at once, even one that isn't there.
+	named := versionsWant
+	named.Paths = []string{"web/package.json", "VERSION"}
+	f.calls = nil
+	res = runWith(f, withVersions(request(stateOf(res), settings, now.Add(30*time.Minute)), named, nil))
+	stateOf(res).GetProject("p1", keyFilesOut, &sh)
+	if len(sh.Files) != 3 || sh.Files[0].Text != `{"version":"0.0.1"}` || !sh.Files[1].Missing || sh.Files[2].Path != "ios/project.yml" {
+		t.Fatalf("named %+v", sh.Files)
+	}
+
+	// Without Versions nothing is read or shared.
+	f.calls = nil
+	res = runWith(f, request(plugin.State{}, settings, now))
+	for _, call := range f.calls {
+		if strings.Contains(call, "/contents/") || strings.Contains(call, "/git/trees/") {
+			t.Fatalf("read files nobody asked for: %v", f.calls)
+		}
 	}
 }
 
-func TestNamedFileAndErrors(t *testing.T) {
+func TestExcerpt(t *testing.T) {
+	big := strings.Repeat("\t\tSOMETHING = x;\n", 4000) + "\t\tMARKETING_VERSION = 1.4;\n"
+	f := excerpt("App.xcodeproj/project.pbxproj", []byte(big), []string{"MARKETING_VERSION"})
+	if !f.Partial || f.Text != "\t\tMARKETING_VERSION = 1.4;" {
+		t.Fatalf("excerpt %+v", f)
+	}
+}
+
+func TestBumpOpensAPullRequest(t *testing.T) {
 	f := newFake("abc")
 	now := time.Date(2026, 11, 12, 12, 0, 0, 0, time.UTC)
-	res := runWith(f, request(plugin.State{}, map[string]any{"repo": "acme/app", "version_file": "web/package.json"}, now))
-	var c Code
-	stateOf(res).GetProject("p1", keyCode, &c)
-	if c.Version != "0.0.1" || c.Auto || c.File != "web/package.json" {
-		t.Fatalf("got %+v", c)
+	settings := map[string]any{"repo": "acme/app"}
+	b := &bumpAsk{ID: "b1", Title: "Bump the version to 1.6", Body: "Sets it.", Branch: "enplace/version-1.6",
+		Edits: []edit{{Path: "ios/project.yml", Old: "MARKETING_VERSION: 1.5", New: "MARKETING_VERSION: 1.6", All: true}}}
+
+	// No token: it says what the token needs.
+	res := runWith(f, withVersions(request(plugin.State{}, settings, now), versionsWant, b))
+	var done map[string]Bumped
+	stateOf(res).GetProject("p1", keyBumpsOut, &done)
+	if done["b1"].State != "failed" || !strings.Contains(done["b1"].Error, "Contents and Pull requests") {
+		t.Fatalf("no token: %+v", done)
 	}
 
-	// The token stops working: the error shows, the version stays.
+	f.bodies["POST /repos/Acme/app/git/refs"] = `{}`
+	f.bodies["/repos/Acme/app/contents/ios/project.yml?ref=enplace%2Fversion-1.6"] = `{"sha":"blob1","content":"c2V0dGluZ3M6CiAgTUFSS0VUSU5HX1ZFUlNJT046IDEuNQo=\n"}`
+	f.bodies["PUT /repos/Acme/app/contents/ios/project.yml"] = `{}`
+	f.bodies["POST /repos/Acme/app/pulls"] = `{"number":31,"html_url":"https://github.com/Acme/app/pull/31"}`
+	b.ID = "b2"
+	req := withVersions(request(stateOf(res), settings, now.Add(time.Minute)), versionsWant, b)
+	req.Secrets = map[string]string{"token": "t"}
+	res = runWith(f, req)
+	stateOf(res).GetProject("p1", keyBumpsOut, &done)
+	if done["b2"].State != "opened" || done["b2"].Number != 31 || done["b1"].State != "failed" {
+		t.Fatalf("bumps %+v", done)
+	}
+	if !strings.Contains(f.sent["POST /repos/Acme/app/git/refs"], `"sha":"abc"`) || !strings.Contains(f.sent["POST /repos/Acme/app/pulls"], `"base":"main"`) {
+		t.Fatalf("sent %v", f.sent)
+	}
+	var put struct {
+		Content, SHA, Branch string
+	}
+	_ = json.Unmarshal([]byte(f.sent["PUT /repos/Acme/app/contents/ios/project.yml"]), &put)
+	text, _ := base64.StdEncoding.DecodeString(put.Content)
+	if string(text) != "settings:\n  MARKETING_VERSION: 1.6\n" || put.SHA != "blob1" || put.Branch != "enplace/version-1.6" {
+		t.Fatalf("put %+v (%q)", put, text)
+	}
+
+	// It's done once: the next check opens nothing more.
+	f.sent = nil
+	res = runWith(f, withVersions(request(stateOf(res), settings, now.Add(20*time.Minute)), versionsWant, b))
+	if len(f.sent) != 0 {
+		t.Fatalf("opened it twice: %v", f.sent)
+	}
+
+	// The file changed since Versions read it.
+	f.bodies["/repos/Acme/app/contents/ios/project.yml?ref=enplace%2Fversion-1.6"] = `{"sha":"blob2","content":"` + base64.StdEncoding.EncodeToString([]byte("MARKETING_VERSION: 1.7\n")) + `"}`
+	b.ID = "b3"
+	req = withVersions(request(stateOf(res), settings, now.Add(40*time.Minute)), versionsWant, b)
+	req.Secrets = map[string]string{"token": "t"}
+	res = runWith(f, req)
+	stateOf(res).GetProject("p1", keyBumpsOut, &done)
+	if done["b3"].State != "failed" || !strings.Contains(done["b3"].Error, "changed since Versions read it") {
+		t.Fatalf("changed file: %+v", done["b3"])
+	}
+}
+
+func TestErrorsAndTheOldFileSetting(t *testing.T) {
+	f := newFake("abc")
+	now := time.Date(2026, 11, 12, 12, 0, 0, 0, time.UTC)
+	settings := map[string]any{"repo": "acme/app", "version_file": "web/package.json"}
+	res := runWith(f, request(plugin.State{}, settings, now))
+	var pub Public
+	if !stateOf(res).GetProject("p1", keyPublic, &pub) || pub.VersionFile != "web/package.json" {
+		t.Fatalf("Versions should be told the old file setting: %+v", pub)
+	}
+
+	// The token stops working: the error shows, what was known stays.
 	f.status["/repos/Acme/app/commits/main"] = 401
-	res = runWith(f, request(stateOf(res), map[string]any{"repo": "acme/app", "version_file": "web/package.json"}, now.Add(time.Hour)))
+	res = runWith(f, request(stateOf(res), settings, now.Add(time.Hour)))
+	var c Code
 	stateOf(res).GetProject("p1", keyCode, &c)
-	if !strings.Contains(c.Error, "token") || c.Version != "0.0.1" {
+	if !strings.Contains(c.Error, "token") || c.SHA != "abc" {
 		t.Fatalf("got %+v", c)
 	}
 
@@ -138,12 +255,17 @@ func TestParseRepo(t *testing.T) {
 
 func TestRenderCard(t *testing.T) {
 	now := time.Date(2026, 11, 12, 12, 0, 0, 0, time.UTC)
-	c := Code{Repo: "Acme/app", Typed: "acme/app", URL: "https://github.com/Acme/app", Branch: "main", File: "ios/project.yml", Version: "1.5", Tag: "v1.4", Ahead: 3, Message: "Fix", CommitAt: now.Add(-2 * time.Hour), CheckedAt: now}
+	c := Code{Repo: "Acme/app", Typed: "acme/app", URL: "https://github.com/Acme/app", Branch: "main", SHA: "abc", Tag: "v1.4", Ahead: 3, Message: "Fix", CommitAt: now.Add(-2 * time.Hour), CheckedAt: now}
 	raw, _ := json.Marshal(c)
 	req := request(plugin.State{Projects: map[string]map[string]json.RawMessage{"p1": {keyCode: raw}}}, map[string]any{"repo": "acme/app"}, now)
 	req.Hook, req.Slots = plugin.HookRender, []string{"project_card:code", plugin.SlotSettingsPanel}
 	res, _ := handle(req)
 	card := res.Cards["project_card:code"]
+	if len(card) == 0 || card[0].Label != "Branch" || card[0].Value != "main" || card[0].Sub != "3 commits since v1.4" {
+		t.Fatalf("card without Versions %+v", card)
+	}
+	res, _ = handle(withVersions(req, versionsWant, nil))
+	card = res.Cards["project_card:code"]
 	if len(card) == 0 || card[0].Value != "1.5" || card[0].Sub != "ios/project.yml · main · 3 commits since v1.4" {
 		t.Fatalf("card %+v", card)
 	}

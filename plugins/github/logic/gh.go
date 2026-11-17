@@ -154,19 +154,6 @@ func (c *client) files(sha string) ([]string, error) {
 	return out, nil
 }
 
-// file reads one file at a commit.
-func (c *client) file(p, sha string) ([]byte, error) {
-	parts := strings.Split(strings.Trim(p, "/"), "/")
-	for i, s := range parts {
-		parts[i] = url.PathEscape(s)
-	}
-	b, err := c.get("/repos/"+c.repo+"/contents/"+strings.Join(parts, "/")+"?ref="+url.QueryEscape(sha), "application/vnd.github.raw+json")
-	if notFound(err) {
-		return nil, fmt.Errorf("there's no %s on this branch", p)
-	}
-	return b, err
-}
-
 type tag struct {
 	Name   string `json:"name"`
 	Commit struct {

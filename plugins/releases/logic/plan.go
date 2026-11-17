@@ -16,6 +16,7 @@ func (c *cycleRun) refresh(p *project, tick bool) {
 	if p == nil {
 		return
 	}
+	c.res.SetProject(p.ID, "public.numbering", oldNumbering(c.req.ProjectSettings[p.ID]))
 	hasWork := func(id string) bool {
 		for _, it := range p.items {
 			if it.Release == id {

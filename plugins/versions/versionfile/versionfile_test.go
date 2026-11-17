@@ -14,10 +14,12 @@ func TestCandidates(t *testing.T) {
 		"Enplace/Info.plist",
 		"project.yml",
 		"Enplace.xcodeproj/project.pbxproj",
+		"Config/Version.xcconfig",
+		"Config/Shared.xcconfig",
 		"a/b/c/d/e/package.json",
 		".github/package.json",
 	})
-	want := []string{"project.yml", "web/package.json", "VERSION", "Enplace.xcodeproj/project.pbxproj", "Enplace/Info.plist"}
+	want := []string{"project.yml", "Config/Version.xcconfig", "web/package.json", "VERSION", "Enplace.xcodeproj/project.pbxproj", "Config/Shared.xcconfig", "Enplace/Info.plist"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %v, want %v", got, want)
 	}
@@ -28,6 +30,10 @@ func TestRead(t *testing.T) {
 		{"project.yml", "name: Enplace\nsettings:\n  base:\n    MARKETING_VERSION: 1.5\n    CURRENT_PROJECT_VERSION: 42\n", "1.5"},
 		{"project.yml", "settings:\n  MARKETING_VERSION: \"2.0.1\"\n", "2.0.1"},
 		{"App.xcodeproj/project.pbxproj", "\t\t\t\tMARKETING_VERSION = 1.4.2;\n", "1.4.2"},
+		{"App.xcodeproj/project.pbxproj", "\t\t\t\t\"MARKETING_VERSION[sdk=iphoneos*]\" = 2.1;\n", "2.1"},
+		{"project.yml", "settings: {CURRENT_PROJECT_VERSION: 7, MARKETING_VERSION: 3.0}\n", "3.0"},
+		{"Version.xcconfig", "// Bump before each release.\n// MARKETING_VERSION = 9.9\nMARKETING_VERSION = 0.3.0\nCURRENT_PROJECT_VERSION = 42\n", "0.3.0"},
+		{"Config/Release.xcconfig", "#include \"Base.xcconfig\"\nMARKETING_VERSION[config=Release] = 1.2 // shipped\n", "1.2"},
 		{"package.json", `{"name":"x","version":"0.3.0","dependencies":{"a":"1.0"}}`, "0.3.0"},
 		{"pubspec.yaml", "name: x\nversion: 1.4.0+12\n", "1.4.0"},
 		{"app.json", `{"expo":{"name":"x","version":"3.1.0"}}`, "3.1.0"},
@@ -48,10 +54,28 @@ func TestRead(t *testing.T) {
 	for _, c := range []struct{ path, body string }{
 		{"Info.plist", "<key>CFBundleShortVersionString</key>\n\t<string>$(MARKETING_VERSION)</string>"},
 		{"package.json", `{"name":"x"}`},
+		{"Base.xcconfig", "MARKETING_VERSION = $(APP_VERSION)\n"},
+		{"Debug.xcconfig", "SWIFT_VERSION = 5.0\n"},
 		{"README.md", "Nothing here"},
 	} {
 		if v, err := Read(c.path, []byte(c.body)); err == nil {
 			t.Errorf("%s: read %q, want none", c.path, v)
+		}
+	}
+}
+
+func TestBuild(t *testing.T) {
+	cases := []struct{ path, body, want string }{
+		{"Version.xcconfig", "MARKETING_VERSION = 0.3.0\nCURRENT_PROJECT_VERSION = 42\n", "42"},
+		{"project.yml", "settings:\n  base:\n    MARKETING_VERSION: 1.5\n    CURRENT_PROJECT_VERSION: 42\n", "42"},
+		{"App.xcodeproj/project.pbxproj", "\t\t\t\tCURRENT_PROJECT_VERSION = 7;\n", "7"},
+		{"pubspec.yaml", "version: 1.4.0+12\n", "12"},
+		{"Version.xcconfig", "CURRENT_PROJECT_VERSION = $(BUILD)\n", ""},
+		{"package.json", `{"version":"1.0.0"}`, ""},
+	}
+	for _, c := range cases {
+		if got := Build(c.path, []byte(c.body)); got != c.want {
+			t.Errorf("%s: got %q, want %q", c.path, got, c.want)
 		}
 	}
 }

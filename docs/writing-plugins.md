@@ -473,18 +473,48 @@ Obsidian vault plugin works this way with the Enplace plugin for Obsidian.
 ### The code a project ships
 
 A plugin that reads a project's code (GitHub now; GitLab or Bitbucket could
-follow) publishes `public.code` for the project, so Release cycle can say
-how the code compares with the release it plans:
+follow) publishes `public.code` for the project:
 
 ```json
 {"provider": "github", "repo": "owner/name", "url": "https://github.com/owner/name",
- "branch": "main", "file": "ios/project.yml", "version": "1.5",
- "tag": "v1.4", "tag_version": "1.4", "ahead": 12, "sha": "…",
+ "branch": "main", "tag": "v1.4", "tag_version": "1.4", "ahead": 12, "sha": "…",
  "commit_at": "…", "checked_at": "…"}
 ```
 
-`plugins/github/versionfile` finds and reads version files without knowing
-where they come from, so another code host plugin can use it as it is.
+The version itself is the Versions plugin's. It asks the code plugin for
+files, on the project or on each of its products, and the code plugin reads
+them at each new commit and shares them on the project:
+
+```json
+"public.want":  {"patterns": ["project.yml", "*version*.xcconfig", "package.json"],
+                 "skip": ["node_modules"], "max_depth": 4, "read": 3,
+                 "paths": ["Version.xcconfig"], "grep": ["MARKETING_VERSION"]}
+"public.files": {"sha": "…", "matched": ["Version.xcconfig"],
+                 "files": [{"path": "Version.xcconfig", "text": "MARKETING_VERSION = 1.5"}]}
+```
+
+`matched` are the files whose names match a pattern (case doesn't matter),
+best first: the pattern they match, then how near the root they are. The
+code plugin reads the best `read` of them and every one of `paths`; a file
+it can't find comes back with `"missing": true`, and a big one as just its
+lines that say one of `grep`, with `"partial": true`.
+
+To bump the version, Versions asks for a pull request, and the code plugin
+opens it once per `id`, from a branch off the head of the project's branch,
+with each edit made (every place `old` is, with `all`), and says how it went:
+
+```json
+"public.bump":  {"id": "v1", "title": "Bump the version to 1.6", "body": "…",
+                 "branch": "enplace/version-1.6",
+                 "edits": [{"path": "Version.xcconfig", "old": "MARKETING_VERSION = 1.5",
+                            "new": "MARKETING_VERSION = 1.6", "all": true}]}
+"public.bumps": {"v1": {"state": "opened", "number": 31, "url": "…"}}
+```
+
+Versions publishes the version and how releases are numbered as
+`public.versions` (`{"version": "1.5", "build": "42", "file": "Version.xcconfig",
+"style": "short", "bump": "minor"}`), which Release cycle numbers its
+releases by and compares with the release it plans.
 
 A code plugin also says what each work item's code needs, in the same
 shape whatever the host, so Enplace's screens and brief never name a host.

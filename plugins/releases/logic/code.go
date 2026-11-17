@@ -7,8 +7,9 @@ import (
 	"github.com/JustinGuedes/enplace-plugins/sdk/plugin"
 )
 
-// codeInfo is what a code host plugin (like GitHub) published about the
-// project's code as "public.code": the version in its version file.
+// codeInfo is what's known about the project's code: the version in it
+// (from Versions, or from an older code plugin that read it itself) and
+// the repo, branch and tags a code plugin published as "public.code".
 type codeInfo struct {
 	Provider   string `json:"provider"`
 	Repo       string `json:"repo"`
@@ -21,24 +22,38 @@ type codeInfo struct {
 	Ahead      int    `json:"ahead"`
 }
 
-// code is what a linked code plugin knows about the project, or nil. For
-// one of a project's products ("<project id>/<key>"), the project's code
-// counts when the product has no code of its own; for a project's shared
-// cycle, the code of the products sharing it does.
+// code is what the linked plugins know about the project's code, or nil:
+// the version Versions read from it, and the repo, branch and tags a code
+// plugin (like GitHub) published as "public.code". For one of a project's
+// products ("<project id>/<key>"), the project's code counts when the
+// product has no code of its own; for a project's shared cycle, the code
+// of the products sharing it does.
 func (c *cycleRun) code(pid string) *codeInfo {
 	scopes := c.riding(pid)
 	if parent, _, ok := strings.Cut(pid, "/"); ok {
 		scopes = append(scopes, parent)
 	}
+	var found *codeInfo
+find:
 	for _, scope := range scopes {
 		for _, id := range sortedKeys(c.req.Peers) {
 			var ci codeInfo
-			if c.req.Peers[id].GetProject(scope, "public.code", &ci) && ci.Version != "" {
-				return &ci
+			if c.req.Peers[id].GetProject(scope, "public.code", &ci) && ci.Repo != "" {
+				found = &ci
+				break find
 			}
 		}
 	}
-	return nil
+	if v := c.versionsPlugin(pid); v != nil && v.Version != "" {
+		if found == nil {
+			found = &codeInfo{}
+		}
+		found.Version, found.File = v.Version, v.File
+	}
+	if found == nil || found.Version == "" {
+		return nil
+	}
+	return found
 }
 
 // codeLine compares the code's version with release r, like "The code is
