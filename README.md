@@ -51,7 +51,7 @@ One manifest format, with a `kind` that fills in the rest:
 ### Services
 
 - [App Store](plugins/app): Follow an app on the App Store: its icon, live version, review, rating, reviews and downloads.
-- [GitHub](plugins/github): Link a project to its GitHub repo, and see the version in the code beside the release plan.
+- [GitHub](plugins/github): Link a project to its GitHub repo: pull requests move work, and Versions reads and bumps the version.
 - [Google Play](plugins/google-play): Keep an app's Google Play listing beside the product: its package, page and live version.
 - [Uptime](plugins/website): Check a website is up every 15 minutes, with how fast it answered, its page title and its icon.
 
@@ -62,6 +62,7 @@ One manifest format, with a `kind` that fills in the rest:
 - [Markdown export](plugins/markdown-export): Download a project's work as Markdown files with front matter.
 - [Release lanes](plugins/release-lanes): See work grouped by the release it ships in.
 - [Release cycle](plugins/releases): Releases on a cadence, with ship rules at cut-off, or deploys as work is done.
+- [Versions](plugins/versions): Where a project's version lives, how it's numbered, and bumping it in the code.
 - [Work sync](plugins/work-sync): The shared engine work sources build on, like Linear, GitHub Issues and Obsidian.
 - [XP](plugins/xp): Turn finished work into XP, levels, streaks, quests and badges.
 

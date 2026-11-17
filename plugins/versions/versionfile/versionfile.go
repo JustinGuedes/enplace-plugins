@@ -1,12 +1,13 @@
-// Package versionfile finds the file a codebase keeps its version in, and
-// reads the version out of it. It knows the usual places: an Xcode project
-// (XcodeGen's project.yml, project.pbxproj, Info.plist), package.json,
-// Gradle, pubspec.yaml, Cargo.toml, pyproject.toml, Expo's app.json and a
-// plain VERSION file. Any other file works too when it says "version" next
-// to a number.
+// Package versionfile finds the file a codebase keeps its version in,
+// reads the version and build number out of it, and works out the edits
+// that set new ones. It knows the usual places: an Xcode project
+// (XcodeGen's project.yml, .xcconfig files, project.pbxproj, Info.plist),
+// package.json, Gradle, pubspec.yaml, Cargo.toml, pyproject.toml, Expo's
+// app.json and a plain VERSION file. Any other file works too when it says
+// "version" next to a number.
 //
-// It knows nothing about where the files come from, so any code host
-// plugin (GitHub today, GitLab or Bitbucket later) can use it.
+// It knows nothing about where the files come from: a code plugin (GitHub
+// today, GitLab or Bitbucket later) hands them over.
 package versionfile
 
 import (
@@ -18,33 +19,55 @@ import (
 	"strings"
 )
 
-// known are the files that hold a version, best first.
+// known are the files that hold a version, best first, as patterns for a
+// file's name (case doesn't matter).
 var known = []struct {
-	match func(p string) bool
-	name  string
+	pattern, name string
 }{
-	{base("project.yml"), "XcodeGen project"},
-	{base("package.json"), "package.json"},
-	{base("pubspec.yaml"), "Flutter pubspec"},
-	{base("app.json"), "Expo app.json"},
-	{base("build.gradle.kts"), "Gradle"},
-	{base("build.gradle"), "Gradle"},
-	{base("Cargo.toml"), "Cargo.toml"},
-	{base("pyproject.toml"), "pyproject.toml"},
-	{base("project.pbxproj"), "Xcode project"},
-	{base("Info.plist"), "Info.plist"},
-	{func(p string) bool {
-		b := strings.ToLower(path.Base(p))
-		return b == "version" || b == "version.txt"
-	}, "VERSION file"},
+	{"project.yml", "XcodeGen project"},
+	// An .xcconfig named for the version is the likeliest; the rest
+	// (Debug, Release, Shared) only now and then set it.
+	{"*version*.xcconfig", "Xcode config"},
+	{"package.json", "package.json"},
+	{"pubspec.yaml", "Flutter pubspec"},
+	{"app.json", "Expo app.json"},
+	{"build.gradle.kts", "Gradle"},
+	{"build.gradle", "Gradle"},
+	{"cargo.toml", "Cargo.toml"},
+	{"pyproject.toml", "pyproject.toml"},
+	{"project.pbxproj", "Xcode project"},
+	{"*.xcconfig", "Xcode config"},
+	{"info.plist", "Info.plist"},
+	{"version", "VERSION file"},
+	{"version.txt", "VERSION file"},
 }
 
-func base(name string) func(string) bool {
-	return func(p string) bool { return path.Base(p) == name }
+// rank is where a file's kind comes in known, or -1.
+func rank(p string) int {
+	b := strings.ToLower(path.Base(p))
+	for i, k := range known {
+		if ok, _ := path.Match(k.pattern, b); ok {
+			return i
+		}
+	}
+	return -1
 }
 
-// skip are folders that hold other people's code or build output.
-var skip = []string{"node_modules", "Pods", "vendor", "Carthage", ".build", "build", "dist", "DerivedData", "third_party", "testdata", "fixtures", "examples", "example", ".git"}
+// Patterns are the names of the files worth reading, best first, for a
+// code plugin to look for (case doesn't matter).
+func Patterns() []string {
+	out := make([]string, len(known))
+	for i, k := range known {
+		out[i] = k.pattern
+	}
+	return out
+}
+
+// Skip are folders that hold other people's code or build output.
+var Skip = []string{"node_modules", "Pods", "vendor", "Carthage", ".build", "build", "dist", "DerivedData", "third_party", "testdata", "fixtures", "examples", "example", ".git"}
+
+// MaxDepth is how deep in a repo a version file is looked for.
+const MaxDepth = 4
 
 // Candidates picks the files in a repo (paths relative to its root) that
 // may hold its version, best first: the kind of file, then how near the
@@ -58,14 +81,11 @@ func Candidates(paths []string) []string {
 	for _, p := range paths {
 		p = strings.TrimPrefix(p, "/")
 		parts := strings.Split(p, "/")
-		if len(parts) > 4 || skipped(parts[:len(parts)-1]) {
+		if len(parts) > MaxDepth || skipped(parts[:len(parts)-1]) {
 			continue
 		}
-		for i, k := range known {
-			if k.match(p) {
-				out = append(out, cand{p, i, len(parts)})
-				break
-			}
+		if i := rank(p); i >= 0 {
+			out = append(out, cand{p, i, len(parts)})
 		}
 	}
 	// The kind of file counts, and so does being near the root: a strong
@@ -90,7 +110,7 @@ func skipped(dirs []string) bool {
 		if strings.HasPrefix(d, ".") {
 			return true
 		}
-		for _, s := range skip {
+		for _, s := range Skip {
 			if strings.EqualFold(d, s) {
 				return true
 			}
@@ -101,10 +121,8 @@ func skipped(dirs []string) bool {
 
 // Kind names a file's kind for people, like "XcodeGen project".
 func Kind(p string) string {
-	for _, k := range known {
-		if k.match(p) {
-			return k.name
-		}
+	if i := rank(p); i >= 0 {
+		return known[i].name
 	}
 	return "file"
 }
@@ -113,7 +131,8 @@ func Kind(p string) string {
 var ErrNone = errors.New("no version in this file")
 
 var (
-	reMarketing = regexp.MustCompile(`(?m)\bMARKETING_VERSION\s*[:=]\s*["']?([0-9][0-9A-Za-z.\-+]*)`)
+	reMarketing = xcode("MARKETING_VERSION")
+	reBuild     = xcode("CURRENT_PROJECT_VERSION")
 	rePlist     = regexp.MustCompile(`<key>CFBundleShortVersionString</key>\s*<string>([^<]*)</string>`)
 	reGradle    = regexp.MustCompile(`(?m)^\s*versionName\s*(?:=\s*)?["']([^"']+)["']`)
 	reTOMLSect  = regexp.MustCompile(`(?m)^\s*\[([^\]]+)\]\s*$`)
@@ -123,12 +142,24 @@ var (
 	reBare      = regexp.MustCompile(`^v?([0-9]+(?:\.[0-9]+){0,3}(?:[-+][0-9A-Za-z.\-]+)?)$`)
 )
 
+// xcode matches an Xcode build setting set to a number, as project.yml
+// (KEY: 1.4), project.pbxproj (KEY = 1.4;) and .xcconfig files
+// (KEY[config=Release] = 1.4) write it, but not in a // comment.
+func xcode(key string) *regexp.Regexp {
+	return regexp.MustCompile(`(?m)(?:^|[{,])[ \t]*"?` + key + `(?:\[[^\]\n]*\])?"?[ \t]*[:=][ \t]*["']?([0-9][0-9A-Za-z.\-+]*)`)
+}
+
+func xcodeFile(p string) bool {
+	b := strings.ToLower(path.Base(p))
+	return b == "project.yml" || b == "project.pbxproj" || path.Ext(b) == ".xcconfig"
+}
+
 // Read reads the version from a file's contents. The path picks how.
 func Read(p string, data []byte) (string, error) {
 	s := string(data)
 	var v string
-	switch b := path.Base(p); {
-	case b == "project.yml" || b == "project.pbxproj":
+	switch b := strings.ToLower(path.Base(p)); {
+	case xcodeFile(p):
 		v = first(reMarketing, s)
 	case b == "package.json":
 		var pkg struct {
@@ -155,13 +186,13 @@ func Read(p string, data []byte) (string, error) {
 		v, _, _ = strings.Cut(first(reYAMLVer, s), "+")
 	case strings.HasPrefix(b, "build.gradle"):
 		v = first(reGradle, s)
-	case b == "Cargo.toml":
+	case b == "cargo.toml":
 		v = tomlVersion(s, "package", "workspace.package")
 	case b == "pyproject.toml":
 		v = tomlVersion(s, "project", "tool.poetry")
-	case b == "Info.plist":
+	case b == "info.plist":
 		v = first(rePlist, s)
-	case strings.EqualFold(b, "VERSION") || strings.EqualFold(b, "version.txt"):
+	case b == "version" || b == "version.txt":
 		v = first(reBare, strings.TrimSpace(s))
 	default:
 		v = first(reAny, s)
@@ -174,6 +205,23 @@ func Read(p string, data []byte) (string, error) {
 	return v, nil
 }
 
+// Build reads the build number beside the version, like 42 from an Xcode
+// project's CURRENT_PROJECT_VERSION or pubspec.yaml's 1.4.0+42, or "" when
+// the file has none.
+func Build(p string, data []byte) string {
+	var b string
+	switch {
+	case xcodeFile(p):
+		b = first(reBuild, string(data))
+	case strings.ToLower(path.Base(p)) == "pubspec.yaml":
+		_, b, _ = strings.Cut(first(reYAMLVer, string(data)), "+")
+	}
+	if !startsWithDigit(b) {
+		return ""
+	}
+	return b
+}
+
 func first(re *regexp.Regexp, s string) string {
 	if m := re.FindStringSubmatch(s); m != nil {
 		return m[1]
@@ -183,6 +231,13 @@ func first(re *regexp.Regexp, s string) string {
 
 // tomlVersion is version = "..." in the first of the sections named.
 func tomlVersion(s string, sections ...string) string {
+	from, to := tomlSection(s, sections...)
+	return first(reTOMLVer, s[from:to])
+}
+
+// tomlSection is where the first of the sections named that sets a
+// version starts and ends, or 0, 0.
+func tomlSection(s string, sections ...string) (int, int) {
 	idx := reTOMLSect.FindAllStringSubmatchIndex(s, -1)
 	for _, want := range sections {
 		for i, m := range idx {
@@ -193,12 +248,12 @@ func tomlVersion(s string, sections ...string) string {
 			if i+1 < len(idx) {
 				end = idx[i+1][0]
 			}
-			if v := first(reTOMLVer, s[m[1]:end]); v != "" {
-				return v
+			if first(reTOMLVer, s[m[1]:end]) != "" {
+				return m[1], end
 			}
 		}
 	}
-	return ""
+	return 0, 0
 }
 
 func startsWithDigit(s string) bool { return s != "" && s[0] >= '0' && s[0] <= '9' }

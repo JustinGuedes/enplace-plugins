@@ -1,0 +1,37 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "versions",
+  "name": "Versions",
+  "version": "1.0.0",
+  "kind": "extension",
+  "author": "Enplace",
+  "summary": "Where a project's version lives, how it's numbered, and bumping it in the code.",
+  "description": "Keeps everything about a project's version in one place. It finds the file the code keeps its version in (an Xcode project or .xcconfig file, package.json, Gradle, pubspec.yaml, Cargo.toml, a VERSION file and more), or you name it, and reads the version and build number from it through a code plugin like GitHub. Set the version style, what each release bumps and where numbering starts, and Release cycle numbers its releases that way. When a release is cut, or when you press Bump, it writes the new version (and the next build number) into the file and the code plugin opens a pull request for you to merge.",
+  "colour": "#f5a6c8",
+  "icon": "tag",
+  "inherit": "offer",
+  "card_settings": ["style", "bump_code"],
+  "levels": ["project", "product"],
+  "suggest_for": ["app", "website"],
+  "requires": [
+    { "id": "github", "version": "^2.0.0", "optional": true },
+    { "id": "releases", "version": "^3.0.0", "optional": true }
+  ],
+  "permissions": { "read": ["projects"] },
+  "settings": [
+    { "key": "file", "name": "Where the version lives", "type": "text", "scope": "project", "help": "Blank: Enplace finds it. Or a path in the repo, like Version.xcconfig or ios/project.yml." },
+    { "key": "style", "name": "Version style", "type": "select", "scope": "project", "options": ["Short (1.4)", "Semantic (1.4.0)", "Calendar (2026.11)", "Number (14)"], "default": "Short (1.4)" },
+    { "key": "bump", "name": "Each release bumps", "type": "select", "scope": "project", "options": ["Major", "Minor", "Patch"], "default": "Minor" },
+    { "key": "next_version", "name": "Next version", "type": "text", "scope": "project", "help": "Where numbering starts when nothing is live yet, like 1.0." },
+    { "key": "build", "name": "Build number on each bump", "type": "select", "scope": "project", "options": ["Goes up by one", "Stays as it is"], "default": "Goes up by one", "help": "For files that keep one, like CURRENT_PROJECT_VERSION in an Xcode project." },
+    { "key": "bump_code", "name": "Bump the code", "type": "select", "scope": "project", "options": ["When a release is cut", "When I press Bump", "Never"], "default": "When a release is cut", "help": "Writes the new version into the file and opens a pull request for you to merge. The code plugin's token needs to write: for GitHub, Contents and Pull requests: read and write." }
+  ],
+  "contributes": {
+    "project_cards": [ { "key": "version", "name": "Version", "size": "small" } ],
+    "schedule": { "every": 5, "per": "workspace" },
+    "settings_panel": true,
+    "tools": [
+      { "name": "get_version", "description": "A project's version as its code says it: the version, build number and the file they're in, how releases are numbered (style, bump, next version), the next release's number, and any bump pull request in flight.", "action": "tool_version", "project": true }
+    ]
+  }
+}
