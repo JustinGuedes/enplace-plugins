@@ -2,7 +2,7 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "github",
   "name": "GitHub",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "kind": "service",
   "author": "Enplace",
   "summary": "Link a project to its GitHub repo, and see the version in the code beside the release plan.",

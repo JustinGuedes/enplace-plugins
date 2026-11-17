@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -98,4 +99,44 @@ func TestMergedWaitsForOtherOpenPullRequest(t *testing.T) {
 // newFakeWith is a fresh fake answering like f (its call count reset).
 func newFakeWith(f *fakeGitHub) *fakeGitHub {
 	return &fakeGitHub{bodies: f.bodies, status: f.status}
+}
+
+// A product with its own repo moves any of its project's work that a pull
+// request names, whichever product the item is on, but not another
+// project's work with the same key.
+func TestProductRepoMovesWholeProjectsWork(t *testing.T) {
+	now := time.Date(2026, 11, 12, 12, 0, 0, 0, time.UTC)
+	f := newFake("abc")
+	f.bodies[pullsPath] = `[
+		{"number":14,"title":"ACM-5, ACM-6: content plugin","html_url":"https://github.com/Acme/app/pull/14","state":"closed","merged_at":"2026-11-12T11:00:00Z","updated_at":"2026-11-12T11:00:00Z","head":{"ref":"content"}},
+		{"number":9,"title":"ACM-7 old","html_url":"https://github.com/Acme/app/pull/9","state":"closed","merged_at":"2026-10-01T09:00:00Z","updated_at":"2026-10-01T09:00:00Z","head":{"ref":"old"}}]`
+	scope := "p1:plugins"
+	req := &plugin.Request{Hook: plugin.HookSchedule, Now: now, ProjectID: scope,
+		Projects: []plugin.Project{
+			{ID: "p1", Key: "ACM", On: true},
+			{ID: scope, Key: "ACM", On: true, Product: "plugins", Parent: "p1"},
+			{ID: "p1:web", Key: "ACM", On: true, Product: "web", Parent: "p1"},
+			{ID: "p2", Key: "ACM", On: true},
+		},
+		ProjectSettings: map[string]map[string]any{scope: {"repo": "acme/app"}},
+		State:           plugin.State{Projects: map[string]map[string]json.RawMessage{scope: {keyMoves: json.RawMessage(`{"since":"2026-11-01T00:00:00Z"}`)}}},
+		Work: []plugin.Work{
+			{ID: "w5", Key: "ACM-5", ProjectID: "p1", StageKind: "review"},
+			{ID: "w6", Key: "ACM-6", ProjectID: "p1:web", StageKind: "review"},
+			{ID: "w7", Key: "ACM-7", ProjectID: "p1", StageKind: "review"},
+			{ID: "x5", Key: "ACM-5", ProjectID: "p2", StageKind: "review"},
+		},
+	}
+	res := runWith(f, req)
+	got := movesOf(res)
+	// ACM-7's pull request merged long before this repo could move it.
+	if len(got) != 2 || got["w5"]["stage"] != "done" || got["w6"]["stage"] != "done" {
+		t.Fatalf("moves %+v", got)
+	}
+	for _, op := range res.Ops {
+		want := map[string]string{"w5": "p1", "w6": "p1:web"}[op.Params.(map[string]any)["id"].(string)]
+		if op.ProjectID != want {
+			t.Fatalf("op in %q, want the item's own %q", op.ProjectID, want)
+		}
+	}
 }
