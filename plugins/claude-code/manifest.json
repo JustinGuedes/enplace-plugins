@@ -2,14 +2,14 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "claude-code",
   "name": "Claude Code",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "kind": "agent",
+  "replaced_by": "claude",
   "author": "Enplace",
   "summary": "Send work to Claude Code on your own computer, on your Claude plan.",
   "description": "Send copies a prompt for the work item. Paste it into Claude Code on your computer: it picks the item up through the Enplace connector, reports progress there, and hands it back for review. Messages you leave on the item reach it on its next Enplace call. It runs on your own Claude plan and your own login; Enplace never sees either.",
   "colour": "#ff9b6b",
   "icon": "agent",
-  "default": true,
   "contributes": {
     "runner": {
       "agent": "Claude",

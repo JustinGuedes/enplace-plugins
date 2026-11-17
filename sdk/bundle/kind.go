@@ -18,7 +18,8 @@ const (
 	// manifest needn't list them.
 	KindSkills = "skills"
 	// KindAgent does work items for people (Send to Claude, Codex…):
-	// contributes.runner, on the workspace.
+	// contributes.runner, or contributes.ways for one agent with several
+	// ways to connect, on the workspace.
 	KindAgent = "agent"
 	// KindSource keeps a project's work in step with another tool, like
 	// Linear or GitHub Issues. It builds on the work-sync plugin.
@@ -49,7 +50,7 @@ var kinds = map[string]kindRule{
 	},
 	KindAgent: {
 		scope:  "workspace",
-		pieces: []string{"runner"},
+		pieces: []string{"runner", "ways"},
 	},
 	KindSource: {
 		scope: "project", levels: []string{"project", "product"}, inherit: InheritOffer,
@@ -109,8 +110,8 @@ func (m *Manifest) applyKind() error {
 			return fmt.Errorf("a %s plugin doesn't contribute %s", m.Kind, p)
 		}
 	}
-	if m.Kind == KindAgent && m.Contributes.Runner == nil {
-		return fmt.Errorf("an agent plugin needs contributes.runner")
+	if m.Kind == KindAgent && m.Contributes.Runner == nil && len(m.Contributes.Ways) == 0 {
+		return fmt.Errorf("an agent plugin needs contributes.runner or contributes.ways")
 	}
 	return nil
 }

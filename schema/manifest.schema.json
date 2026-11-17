@@ -19,7 +19,8 @@
           "contributes": {
             "propertyNames": {
               "enum": [
-                "runner"
+                "runner",
+                "ways"
               ]
             }
           }
@@ -348,6 +349,9 @@
             "name": {
               "type": "string"
             },
+            "open": {
+              "type": "string"
+            },
             "pays": {
               "type": "string"
             },
@@ -438,6 +442,24 @@
               },
               "project": {
                 "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "ways": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "settings": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
               }
             },
             "type": "object"
@@ -626,6 +648,9 @@
         }
       },
       "type": "object"
+    },
+    "replaced_by": {
+      "type": "string"
     },
     "requires": {
       "items": {

@@ -1,0 +1,27 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "gemini",
+  "name": "Gemini",
+  "version": "1.0.0",
+  "kind": "agent",
+  "author": "Enplace",
+  "summary": "Send work to Gemini on your Mac with the Gemini CLI, on your own plan.",
+  "description": "Add Gemini once for each computer you use it on, and name it. Send copies a prompt for the Gemini CLI: with Enplace added as an MCP server (Settings → Agents → Connect an agent shows the command), it picks the item up, reports progress and hands it back for review. Messages you leave on the item reach it on its next Enplace call.",
+  "colour": "#ff9fd0",
+  "icon": "agent",
+  "contributes": {
+    "ways": [
+      {
+        "key": "mac",
+        "name": "On your Mac",
+        "agent": "Gemini",
+        "where": "computer",
+        "pays": "plan",
+        "kind": "prompt",
+        "hint": "Copies a prompt for the Gemini CLI on your computer, which picks it up over MCP.",
+        "connect": "gemini",
+        "prompt": "Work on Enplace work item {key}: {title}\n\nUse the enplace MCP server's tools: call start_work with key {key} first and follow what it returns, post progress with add_note, and finish with submit_for_review (a short report and any pull request link)."
+      }
+    ]
+  }
+}

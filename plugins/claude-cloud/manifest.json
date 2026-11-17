@@ -2,19 +2,38 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "claude-cloud",
   "name": "Claude in the cloud",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "kind": "agent",
+  "replaced_by": "claude",
   "author": "Enplace",
   "summary": "Send work to your own Claude Code task on claude.ai, so it runs with your laptop closed.",
   "description": "On claude.ai, make a scheduled task (a routine) with the Enplace connector and your repositories, add an API trigger, and paste its link and token here. Send then starts the task on the work item and shows the session to follow. It runs on your own Claude plan; Enplace only keeps the task's token, encrypted, and never sees your Claude login. A task can start up to 30 runs an hour.",
   "colour": "#b79cff",
   "icon": "cloud",
-  "permissions": { "hosts": ["api.anthropic.com"] },
+  "permissions": {
+    "hosts": [
+      "api.anthropic.com"
+    ]
+  },
   "settings": [
-    { "key": "claude_cloud_url", "name": "Task link", "type": "url", "scope": "workspace", "help": "The task's API trigger link from claude.ai, like https://api.anthropic.com/v1/claude_code/routines/trig_…/fire" },
-    { "key": "claude_cloud_token", "name": "Task token", "type": "secret", "scope": "workspace", "help": "The token claude.ai showed when you added the API trigger. Kept encrypted and never shown again." }
+    {
+      "key": "claude_cloud_url",
+      "name": "Task link",
+      "type": "url",
+      "scope": "workspace",
+      "help": "The task's API trigger link from claude.ai, like https://api.anthropic.com/v1/claude_code/routines/trig_…/fire"
+    },
+    {
+      "key": "claude_cloud_token",
+      "name": "Task token",
+      "type": "secret",
+      "scope": "workspace",
+      "help": "The token claude.ai showed when you added the API trigger. Kept encrypted and never shown again."
+    }
   ],
-  "card_settings": ["claude_cloud_url"],
+  "card_settings": [
+    "claude_cloud_url"
+  ],
   "contributes": {
     "runner": {
       "agent": "Claude",
@@ -23,7 +42,10 @@
       "kind": "start",
       "hint": "Starts your claude.ai task now. Your laptop can be closed.",
       "start": "fire",
-      "ready": ["claude_cloud_url", "claude_cloud_token"],
+      "ready": [
+        "claude_cloud_url",
+        "claude_cloud_token"
+      ],
       "max_per_hour": 30,
       "prompt": "Enplace work item {key}: {title}\n\nUse the Enplace connector: call start_work for {key}, do the work, post progress with add_note, then submit_for_review with a short report and any pull request link."
     }

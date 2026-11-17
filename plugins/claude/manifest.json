@@ -1,0 +1,65 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "claude",
+  "name": "Claude",
+  "version": "1.0.0",
+  "kind": "agent",
+  "author": "Enplace",
+  "summary": "Send work to Claude: on your Mac, in the cloud on claude.ai, or on your own API key.",
+  "description": "Add Claude once for each way you use it, and name it, like \"Claude · Mac mini\" or \"Claude · Work key\". On your Mac, the Enplace helper (or a prompt you paste) starts Claude Code on your own Claude plan. In the cloud, Send starts your own Claude Code task on claude.ai (a routine with an API trigger), so it runs with your laptop closed; it can start up to 30 runs an hour. On an API key, Enplace's server runs Claude itself on your own Anthropic key: it plans, breaks work down and writes notes, can't touch code, and stops before it could go over your caps. Each agent keeps its own task link, token or key, encrypted and never shown again. Enplace never sees your Claude login.",
+  "colour": "#ff9b6b",
+  "icon": "agent",
+  "default": true,
+  "permissions": { "hosts": ["api.anthropic.com"] },
+  "settings": [
+    { "key": "claude_cloud_url", "name": "Task link", "type": "url", "scope": "agent", "help": "The task's API trigger link from claude.ai, like https://api.anthropic.com/v1/claude_code/routines/trig_…/fire" },
+    { "key": "claude_cloud_token", "name": "Task token", "type": "secret", "scope": "agent", "help": "The token claude.ai showed when you added the API trigger. Kept encrypted and never shown again." },
+    { "key": "anthropic_api_key", "name": "Anthropic API key", "type": "secret", "scope": "agent", "help": "From the Claude Console → API keys. It starts with sk-ant-." }
+  ],
+  "contributes": {
+    "ways": [
+      {
+        "key": "mac",
+        "name": "On your Mac",
+        "agent": "Claude",
+        "where": "computer",
+        "pays": "plan",
+        "kind": "prompt",
+        "hint": "Claude Code on your computer, on your Claude plan. The helper starts it, or you paste the prompt.",
+        "connect": "claude_code",
+        "prompt": "Enplace work item {key}: {title}\n\nUse the Enplace connector: call start_work for {key}, do the work, post progress with add_note, then submit_for_review with a short report and any pull request link."
+      },
+      {
+        "key": "cloud",
+        "name": "In the cloud",
+        "agent": "Claude",
+        "where": "cloud",
+        "pays": "plan",
+        "kind": "start",
+        "hint": "Starts your claude.ai task now. Your laptop can be closed.",
+        "settings": ["claude_cloud_url", "claude_cloud_token"],
+        "start": "fire",
+        "ready": ["claude_cloud_url", "claude_cloud_token"],
+        "max_per_hour": 30,
+        "prompt": "Enplace work item {key}: {title}\n\nUse the Enplace connector: call start_work for {key}, do the work, post progress with add_note, then submit_for_review with a short report and any pull request link."
+      },
+      {
+        "key": "api",
+        "name": "On an API key",
+        "agent": "Claude",
+        "where": "enplace",
+        "pays": "api",
+        "kind": "loop",
+        "hint": "Enplace runs it now: it plans and writes notes, no code. Message and Stop work.",
+        "settings": ["anthropic_api_key"],
+        "api": "anthropic",
+        "key_secret": "anthropic_api_key",
+        "models": [
+          { "id": "claude-sonnet-5-5", "name": "Sonnet 5.5", "hint": "Good at most things, and the usual choice", "in": 2, "out": 10, "cache_read": 0.10, "fallback": true },
+          { "id": "claude-opus-5-5", "name": "Opus 5.5", "hint": "Best for hard planning, about twice the price", "in": 4, "out": 20, "cache_read": 0.20, "fallback": true },
+          { "id": "claude-haiku-5-5", "name": "Haiku 5.5", "hint": "Fast and very cheap, for small jobs", "in": 0.10, "out": 0.50, "cache_read": 0.01 }
+        ]
+      }
+    ]
+  }
+}

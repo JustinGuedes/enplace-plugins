@@ -52,21 +52,24 @@ type Catalogue struct {
 // Entry is one plugin in a catalogue: enough of its manifest to show and
 // shelve it, and where to get it.
 type Entry struct {
-	ID       string         `json:"id"`
-	Name     string         `json:"name"`
-	Version  string         `json:"version"`
-	Author   string         `json:"author,omitempty"`
-	Summary  string         `json:"summary,omitempty"`
-	Colour   string         `json:"colour,omitempty"`
-	Icon     string         `json:"icon,omitempty"`
-	Glyph    bundle.Glyph   `json:"glyph,omitempty"`
-	Levels   []string       `json:"levels,omitempty"`
-	Kinds    []string       `json:"kinds,omitempty"`
-	Skills   []bundle.Skill `json:"skills,omitempty"`
-	HasCode  bool           `json:"has_code,omitempty"` // logic or UI scripts
-	Download string         `json:"download"`           // https, or relative to the catalogue
-	SHA256   string         `json:"sha256"`
-	Size     int            `json:"size,omitempty"`
+	ID      string         `json:"id"`
+	Name    string         `json:"name"`
+	Version string         `json:"version"`
+	Author  string         `json:"author,omitempty"`
+	Summary string         `json:"summary,omitempty"`
+	Colour  string         `json:"colour,omitempty"`
+	Icon    string         `json:"icon,omitempty"`
+	Glyph   bundle.Glyph   `json:"glyph,omitempty"`
+	Levels  []string       `json:"levels,omitempty"`
+	Kinds   []string       `json:"kinds,omitempty"`
+	Skills  []bundle.Skill `json:"skills,omitempty"`
+	HasCode bool           `json:"has_code,omitempty"` // logic or UI scripts
+	// ReplacedBy is the plugin that does what this one did: stores don't
+	// offer this one to new people.
+	ReplacedBy string `json:"replaced_by,omitempty"`
+	Download   string `json:"download"` // https, or relative to the catalogue
+	SHA256     string `json:"sha256"`
+	Size       int    `json:"size,omitempty"`
 }
 
 // Kinds says what a manifest makes a plugin, for the store's shelves.
@@ -106,7 +109,7 @@ func EntryFor(data []byte, download string) (Entry, error) {
 	return Entry{
 		ID: m.ID, Name: m.Name, Version: m.Version, Author: m.Author, Summary: m.Summary,
 		Colour: m.Colour, Icon: m.Icon, Glyph: m.Glyph, Levels: m.OnLevels(), Kinds: Kinds(m),
-		Skills: slices.Clone(m.Contributes.Skills), HasCode: HasCode(b.Files),
+		Skills: slices.Clone(m.Contributes.Skills), HasCode: HasCode(b.Files), ReplacedBy: m.ReplacedBy,
 		Download: download, SHA256: hex.EncodeToString(sum[:]), Size: len(data),
 	}, nil
 }

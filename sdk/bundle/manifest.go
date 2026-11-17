@@ -75,6 +75,10 @@ type Manifest struct {
 	// Default: new workspaces start with it. Only honoured for the plugins
 	// that come with Enplace.
 	Default bool `json:"default,omitempty"`
+	// ReplacedBy names the plugin that now does what this one did, like
+	// "claude" for "claude-code". The store stops offering this one, and
+	// Enplace moves what it has set up over to the new one.
+	ReplacedBy string `json:"replaced_by,omitempty"`
 	// Base marks a plugin that only exists to be extended, like the sync
 	// engine work sources build on. It's never switched on by itself: its
 	// settings, contributions and permissions only take effect folded into
@@ -202,8 +206,10 @@ type Setting struct {
 	// Type: text, number, toggle, select, url, urls (one per line) or
 	// secret. Secrets are stored encrypted with the workspace's other
 	// secrets, never shown again, and only handed to the logic.
-	Type    string   `json:"type"`
-	Scope   string   `json:"scope"` // workspace or project
+	Type string `json:"type"`
+	// Scope: workspace, project, or agent (kept for each agent added
+	// from an agent plugin with ways, and asked for by one of them).
+	Scope   string   `json:"scope"`
 	Options []string `json:"options,omitempty"`
 	Default any      `json:"default,omitempty"`
 	Help    string   `json:"help,omitempty"`
@@ -292,6 +298,9 @@ type Contributes struct {
 	// Runner makes the plugin a way to run work: Send hands a work item to
 	// the agent it reaches (see Runner).
 	Runner *Runner `json:"runner,omitempty"`
+	// Ways make the plugin one agent with several ways to connect, in
+	// place of Runner (see Way).
+	Ways []Way `json:"ways,omitempty"`
 	// Webhook lets an outside service tell the plugin something changed,
 	// for each project (or product) it's on: Enplace gives each one its
 	// own address and signing secret, checks every delivery's signature
@@ -496,6 +505,9 @@ func (m *Manifest) Check() error {
 	if len(m.Summary) > 200 || len(m.Description) > 2000 {
 		return errors.New("summary or description is too long")
 	}
+	if m.ReplacedBy != "" && (!idRe.MatchString(m.ReplacedBy) || m.ReplacedBy == m.ID) {
+		return errors.New("replaced_by names another plugin's id")
+	}
 	if err := m.applyKind(); err != nil {
 		return err
 	}
@@ -613,8 +625,11 @@ func (m *Manifest) Check() error {
 		if s.Type == "secret" && s.Default != nil {
 			return fmt.Errorf("setting %s: a secret can't have a default", s.Key)
 		}
-		if s.Scope != "workspace" && s.Scope != "project" {
-			return fmt.Errorf("setting %s: scope must be workspace or project", s.Key)
+		if s.Scope != "workspace" && s.Scope != "project" && s.Scope != "agent" {
+			return fmt.Errorf("setting %s: scope must be workspace, project or agent", s.Key)
+		}
+		if s.Scope == "agent" && (len(m.Contributes.Ways) == 0 || s.Allows != nil || s.HideWhen != "") {
+			return fmt.Errorf("setting %s: an agent setting belongs to a plugin with ways, and is plain", s.Key)
 		}
 		if s.Scope == "project" && m.Scope == "workspace" {
 			return fmt.Errorf("setting %s is per project, but the plugin is workspace only", s.Key)
@@ -879,6 +894,7 @@ func Merge(parent, child Manifest) Manifest {
 	if cc.Runner == nil {
 		out.Contributes.Runner = pc.Runner
 	}
+	out.Contributes.Ways = mergeBy(pc.Ways, cc.Ways, func(w Way) string { return w.Key })
 	out.Contributes.Calendar = pc.Calendar || cc.Calendar
 	out.Contributes.Deadlines = pc.Deadlines || cc.Deadlines
 	out.Contributes.SettingsPanel = pc.SettingsPanel || cc.SettingsPanel

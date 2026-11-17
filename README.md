@@ -38,11 +38,9 @@ One manifest format, with a `kind` that fills in the rest:
 
 ### Agents
 
-- [Claude on your API key](plugins/claude-api): Enplace runs Claude itself on your own Anthropic API key, up to the caps you set.
-- [Claude in the cloud](plugins/claude-cloud): Send work to your own Claude Code task on claude.ai, so it runs with your laptop closed.
-- [Claude Code](plugins/claude-code): Send work to Claude Code on your own computer, on your Claude plan.
-- [Codex CLI](plugins/codex-cli): Send work to the Codex CLI on your own computer, on your own plan.
-- [Gemini CLI](plugins/gemini-cli): Send work to the Gemini CLI on your own computer, on your own plan.
+- [Claude](plugins/claude): Send work to Claude: on your Mac, in the cloud on claude.ai, or on your own API key.
+- [Codex](plugins/codex): Send work to Codex: on your Mac with the Codex CLI, or in the cloud on chatgpt.com.
+- [Gemini](plugins/gemini): Send work to Gemini on your Mac with the Gemini CLI, on your own plan.
 
 ### Work sources
 
