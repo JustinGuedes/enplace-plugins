@@ -152,6 +152,19 @@ func TestPromotes(t *testing.T) {
 	}
 }
 
+// The panel's first line says when and where it posts, so a folded panel
+// still says it.
+func TestPanelFirstLine(t *testing.T) {
+	req := request(plugin.HookRender)
+	req.Work = []plugin.Work{work("1", "Trailer", "edit", "doing", "2026-03-04")}
+	req.WorkID = "1"
+	req.Slots = []string{plugin.SlotWorkPanel}
+	res := plugintest.Call(t, handle, req)
+	if got := string(mustJSON(res.Cards[plugin.SlotWorkPanel])); !strings.Contains(got, "Posts Wednesday · TikTok, YouTube") {
+		t.Fatalf("panel: %s", got)
+	}
+}
+
 func mustJSON(v any) []byte {
 	b, _ := json.Marshal(v)
 	return b

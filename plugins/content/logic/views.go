@@ -164,8 +164,18 @@ func (r *run) workPanel() []plugin.Block {
 	if d, ok := r.due(*w); ok {
 		when = "Posts " + d.Format("Mon 2 Jan")
 		if n := d.Sub(r.today); n >= 0 && n < 7*24*time.Hour {
-			when = "Posts " + strings.ToLower(r.dayWord(d))
+			when = "Posts " + d.Weekday().String()
+			if day := r.dayWord(d); day == "Today" || day == "Tomorrow" {
+				when = "Posts " + strings.ToLower(day)
+			}
 		}
+	}
+	if _, ok := r.due(*w); ok && len(to) > 0 && w.StageKind != "cancelled" {
+		names := []string{}
+		for _, c := range to {
+			names = append(names, c.Name)
+		}
+		when += " · " + strings.Join(names, ", ")
 	}
 	items := []plugin.Item{}
 	for _, c := range r.chans {
