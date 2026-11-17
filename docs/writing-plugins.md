@@ -28,7 +28,9 @@ A plugin folder has:
   run on a schedule, hand people a file, and supply busy time for the
   calendar.
 - `skills/` (optional): Markdown skills the plugin gives agents, one file
-  each. A skill's front matter describes it (see Skills plugins below).
+  or one folder each. A skill's front matter describes it (see Skills
+  plugins below).
+- `LICENSE` (optional): the licence the plugin's files come under.
 - `assets/`, `README.md` (optional).
 
 ## Kinds
@@ -75,6 +77,62 @@ applies: writing an update, a report or a summary
 
 The front matter comes off before agents see the skill. A skill can be
 listed under `contributes.skills` instead; a listed skill wins.
+
+A skill can also be a folder, the way Agent Skills are shared:
+`skills/<name>/SKILL.md`, with the files it reads beside it (like
+`skills/tdd/tests.md`). Its SKILL.md can say `applies` (or
+`x-enplace-applies`, to stay a plain Agent Skill elsewhere); a folder
+skill that doesn't is given in full only to the roles it's on (`by role`),
+and everyone else sees one line about it.
+
+A skills plugin holds words and pictures only (Markdown, text, JSON, CSV,
+YAML and images): nothing an agent could be told to run. That's what lets
+packs update by themselves.
+
+### Packs of someone else's skills
+
+A pack can carry skills someone shares on GitHub, credited to them. The
+manifest names their repo, the commit the skills were copied at and their
+licence, and the folder keeps their `LICENSE`:
+
+```json
+{
+  "id": "engineering-skills",
+  "name": "Engineering",
+  "version": "1.0.0",
+  "kind": "skills",
+  "author": "Matt Pocock",
+  "license": "MIT",
+  "upstream": {
+    "repo": "https://github.com/mattpocock/skills",
+    "commit": "5863806dd4e15c63174bee4e7515a4256792ecfa"
+  }
+}
+```
+
+`upstream.json` beside it says which of the repo's skill folders to take:
+
+```json
+{ "skills": ["skills/engineering/*"], "except": ["ask-matt"] }
+```
+
+Don't edit the copied skills by hand. Copy them in, or move to the repo's
+newest commit, with:
+
+```sh
+go run ./cmd/enplace-plugin vendor plugins/engineering-skills           # the pinned commit
+go run ./cmd/enplace-plugin vendor plugins/engineering-skills --latest --bump
+```
+
+Only licences that let copies be shared are taken (MIT, Apache-2.0, BSD,
+ISC, CC0, CC-BY-4.0, Unlicense), and only words come over: scripts are left
+out, and said so. Every Monday the Upstream skills Action does this for
+each pack and opens a pull request with what changed, so nobody's agents
+follow new instructions before someone has read them.
+
+A repo whose licence doesn't allow copies (like a non-commercial one) can
+still be on the shelf as a link: a skills plugin with no skills, its
+`homepage` and its `license`.
 
 ## Levels, and flowing down
 

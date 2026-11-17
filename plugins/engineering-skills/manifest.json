@@ -1,0 +1,17 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "engineering-skills",
+  "name": "Engineering",
+  "version": "1.0.0",
+  "kind": "skills",
+  "author": "Matt Pocock",
+  "summary": "Grill a plan, build test first, review code and diagnose bugs: the process a good engineer follows.",
+  "homepage": "https://github.com/mattpocock/skills",
+  "license": "MIT",
+  "upstream": {
+    "repo": "https://github.com/mattpocock/skills",
+    "commit": "5863806dd4e15c63174bee4e7515a4256792ecfa"
+  },
+  "colour": "#f2c94c",
+  "icon": "code"
+}

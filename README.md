@@ -67,6 +67,11 @@ One manifest format, with a `kind` that fills in the rest:
 
 ### Skill packs
 
+- [Design engineering](plugins/design-engineering): Apple-style design, animation and UI polish: springs, depth, gestures and restraint.
+- [Engineering](plugins/engineering-skills): Grill a plan, build test first, review code and diagnose bugs: the process a good engineer follows.
+- [Lemo-Opuscar film styles](plugins/film-styles): 99 film styles made in code, with their own setup. Its write-ups are non-commercial, so it's a link to the repo, not a copy.
+- [Humanizer](plugins/humanizer): Takes the signs of AI writing out of a draft without changing what it says.
+- [Marketing](plugins/marketing-skills): SEO audits, copywriting, launches, pricing, emails and ads for the things you ship.
 - [Plain-words writing](plugins/plain-words): Skills for writing that people read once and act on: updates, release notes and replies.
 - [Ship an app](plugins/ship-an-app): Skills for getting an iPhone or Android app out: TestFlight builds, store screenshots and review notes.
 - [Short video](plugins/short-video): Skills for short videos and posts: hooks, 30-second scripts, captions and hashtags, and one video cut for TikTok, Reels and Shorts.

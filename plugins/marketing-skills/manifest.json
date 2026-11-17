@@ -1,0 +1,17 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "marketing-skills",
+  "name": "Marketing",
+  "version": "1.0.0",
+  "kind": "skills",
+  "author": "Corey Haines",
+  "summary": "SEO audits, copywriting, launches, pricing, emails and ads for the things you ship.",
+  "homepage": "https://github.com/coreyhaines31/marketingskills",
+  "license": "MIT",
+  "upstream": {
+    "repo": "https://github.com/coreyhaines31/marketingskills",
+    "commit": "1f837447b20bb6f0e72d87b80ece1c221c362c7d"
+  },
+  "colour": "#f5a3b5",
+  "icon": "target"
+}

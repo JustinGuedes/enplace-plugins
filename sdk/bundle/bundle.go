@@ -5,7 +5,8 @@
 //	manifest.json   what the plugin is and what it adds (see Manifest)
 //	logic.wasm      optional sandboxed logic (a WASI command module)
 //	assets/...      optional images (icons, badge art) served to the UI
-//	skills/<name>.md  optional skills the plugin brings (see skills.go)
+//	skills/...      optional skills the plugin brings (see skills.go)
+//	LICENSE         optional licence the plugin's files come under
 //	SIGNATURE       optional ed25519 signature over every other file
 //
 // Nothing in a bundle is trusted until it is checked here: paths, sizes,
@@ -171,7 +172,7 @@ func checkFiles(m *Manifest, files map[string][]byte) error {
 		return err
 	}
 	for _, s := range m.Contributes.Skills {
-		if _, ok := files["skills/"+s.Name+".md"]; !ok {
+		if _, ok := SkillPath(files, s.Name); !ok {
 			return fmt.Errorf("skill %s is listed but skills/%s.md is missing", s.Name, s.Name)
 		}
 	}
