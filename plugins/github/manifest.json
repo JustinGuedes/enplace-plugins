@@ -2,7 +2,7 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "github",
   "name": "GitHub",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "kind": "service",
   "author": "Enplace",
   "summary": "Link a project to its GitHub repo: pull requests move work, and Versions reads and bumps the version.",
@@ -13,7 +13,7 @@
   "card_settings": ["repo", "branch"],
   "levels": ["project", "product"],
   "suggest_for": ["app", "website"],
-  "requires": [ { "id": "releases", "version": "^2.0.0", "optional": true } ],
+  "requires": [ { "id": "releases", "version": "^3.0.0", "optional": true } ],
   "permissions": { "read": ["projects", "work"], "ops": ["work.move"], "hosts": ["api.github.com"] },
   "settings": [
     { "key": "repo", "name": "Repository", "type": "text", "scope": "project", "help": "Pick one of the repos your token can see, or type owner/name or the repo's GitHub link.", "choices": "repos" },

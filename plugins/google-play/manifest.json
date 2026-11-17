@@ -2,7 +2,7 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "google-play",
   "name": "Google Play",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "kind": "service",
   "author": "Enplace",
   "summary": "Keep an app's Google Play listing beside the product: its package, page and live version.",
@@ -10,7 +10,7 @@
   "colour": "#8be28b",
   "icon": "app",
   "card_settings": ["package_name"],
-  "requires": [ { "id": "releases", "version": "^2.7.0", "optional": true } ],
+  "requires": [ { "id": "releases", "version": "^3.0.0", "optional": true } ],
   "permissions": { "read": ["projects"] },
   "settings": [
     { "key": "package_name", "name": "Package name", "type": "text", "scope": "project", "help": "Like com.example.app." },
