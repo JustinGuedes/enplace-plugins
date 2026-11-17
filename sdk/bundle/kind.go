@@ -32,6 +32,11 @@ const (
 	// or XP. It may use every piece and fills nothing in: the manifest
 	// says where it goes with Levels.
 	KindExtension = "extension"
+	// KindRole is a job on the person's team, like Designer or App shipper:
+	// contributes.role says what work it takes and what its agent is told
+	// to do with it, and its skills (its own, and those of the skills
+	// plugins it uses) go to the agent on every item. No logic.
+	KindRole = "role"
 )
 
 // SkillFileTypes are the kinds of file a skills plugin's skills may hold.
@@ -68,6 +73,10 @@ var kinds = map[string]kindRule{
 			"schedule", "settings_panel", "skills", "tools", "webhook", "work_fields", "work_panel"},
 	},
 	KindExtension: {},
+	KindRole: {
+		scope: "workspace", levels: []string{"workspace"},
+		pieces: []string{"role", "skills"},
+	},
 }
 
 // KindNames are the kinds a manifest can name, in order.
@@ -102,6 +111,9 @@ func (m *Manifest) applyKind() error {
 	if len(m.Extends) == 0 && rule.extends != nil {
 		m.Extends = slices.Clone(rule.extends)
 	}
+	if m.Kind != KindRole && m.Contributes.Role != nil {
+		return fmt.Errorf("only a role plugin contributes role")
+	}
 	if rule.pieces == nil {
 		return nil
 	}
@@ -113,6 +125,9 @@ func (m *Manifest) applyKind() error {
 		if !slices.Contains(rule.pieces, p) {
 			return fmt.Errorf("a %s plugin doesn't contribute %s", m.Kind, p)
 		}
+	}
+	if m.Kind == KindRole && m.Contributes.Role == nil {
+		return fmt.Errorf("a role plugin needs contributes.role")
 	}
 	if m.Kind == KindAgent && m.Contributes.Runner == nil && len(m.Contributes.Ways) == 0 {
 		return fmt.Errorf("an agent plugin needs contributes.runner or contributes.ways")
@@ -138,20 +153,20 @@ func (c Contributes) pieces() ([]string, error) {
 	return keys, nil
 }
 
-// checkKindFiles checks the files a kind allows: a skills plugin has no
-// logic. It runs where the files are known, packing and reading.
+// checkKindFiles checks the files a kind allows: a skills or role plugin
+// has no logic and holds words and pictures only. It runs where the files are known, packing and reading.
 func checkKindFiles(m *Manifest, files map[string][]byte) error {
-	if m.Kind != KindSkills {
+	if m.Kind != KindSkills && m.Kind != KindRole {
 		return nil
 	}
 	if HasLogic(files) {
-		return fmt.Errorf("a skills plugin has no logic: remove logic.wasm")
+		return fmt.Errorf("a %s plugin has no logic: remove logic.wasm", m.Kind)
 	}
 	// Words only: nothing an agent could be told to run comes with a skill
 	// pack, so packs can update by themselves.
 	for p := range files {
 		if strings.HasPrefix(p, "skills/") && !slices.Contains(SkillFileTypes, strings.ToLower(path.Ext(p))) {
-			return fmt.Errorf("%s: a skills plugin holds words and pictures only (%s)", p, strings.Join(SkillFileTypes, " "))
+			return fmt.Errorf("%s: a %s plugin holds words and pictures only (%s)", p, m.Kind, strings.Join(SkillFileTypes, " "))
 		}
 	}
 	return nil

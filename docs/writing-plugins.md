@@ -47,6 +47,7 @@ itself wins over its kind.
 | `source` | Keeping a project's work in step with another tool | projects and products, offered down, extends `work-sync` | cards, fields, panels, schedule, tools, webhook, skills |
 | `service` | Following something a product ships to: a store, a site, a repo | products | cards, pages, fields, panels, schedule, tools, webhook, calendar, skills |
 | `extension` | A feature across Enplace, like Release cycle or XP | nothing: say where with `levels` | every piece |
+| `role` | A job on the person's team, like App shipper | the workspace | `role`, `skills` |
 
 Every manifest names its kind. Pick the narrowest one that fits: an
 `extension` can do anything, so it has to say where it goes itself.
@@ -88,6 +89,38 @@ and everyone else sees one line about it.
 A skills plugin holds words and pictures only (Markdown, text, JSON, CSV,
 YAML and images): nothing an agent could be told to run. That's what lets
 packs update by themselves.
+
+### Roles
+
+A role plugin is a job someone can add to their team in one tap. It says
+the work it takes (by tag, or `anything` no other role takes), the brief its
+agent is told on every item, and the skills that agent gets: its own
+`skills/`, plus those of the skills plugins it `uses`. Like a skills plugin
+it has no logic and holds words and pictures only.
+
+```json
+{
+  "id": "app-shipper",
+  "name": "App shipper",
+  "version": "1.0.0",
+  "kind": "role",
+  "summary": "A role for your team that gets apps out.",
+  "contributes": {
+    "role": {
+      "about": "Builds, screenshots and store notes",
+      "icon": "phone",
+      "tone": "accent",
+      "takes": { "tags": ["release", "store", "testflight"] },
+      "brief": "You're the app shipper. Get the build in the item out...",
+      "uses": ["ship-an-app"]
+    }
+  }
+}
+```
+
+`tone` tints the role's icon: `accent`, `info`, `ok`, `warn`, `danger` or
+`muted`. Once added, the role is the person's own: they can change what it
+takes, its brief and who plays it.
 
 ### Packs of someone else's skills
 

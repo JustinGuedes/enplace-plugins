@@ -31,6 +31,8 @@ One manifest format, with a `kind` that fills in the rest:
 - `source`: keeps a project's work in step with another tool, like Linear.
 - `service`: follows something a product ships to: a store, a site, a repo.
 - `extension`: adds a feature across Enplace, like Release cycle or XP.
+- `role`: a job on your team, like App shipper: the work it takes, what its
+  agent is told to do with it, and the skills it brings or `uses`.
 
 ## The plugins
 
@@ -76,6 +78,11 @@ One manifest format, with a `kind` that fills in the rest:
 - [Plain-words writing](plugins/plain-words): Skills for writing that people read once and act on: updates, release notes and replies.
 - [Ship an app](plugins/ship-an-app): Skills for getting an iPhone or Android app out: TestFlight builds, store screenshots and review notes.
 - [Short video](plugins/short-video): Skills for short videos and posts: hooks, 30-second scripts, captions and hashtags, and one video cut for TikTok, Reels and Shorts.
+
+### Roles
+
+- [App shipper](plugins/app-shipper): A role for your team that gets apps out: TestFlight builds, store screenshots and review notes.
+- [Video maker](plugins/video-maker): A role for your team that writes short videos: hooks, 30-second scripts, captions and one cut for every place.
 
 <!-- /plugins -->
 
