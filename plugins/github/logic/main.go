@@ -84,10 +84,14 @@ type Public struct {
 type run struct {
 	// fresh: the repo changed, so links found before are dropped.
 	fresh bool
-	req   *plugin.Request
-	res   *plugin.Response
-	pid   string
-	fetch fetcher
+	// merged is the pull request just merged through Enplace (the Merge
+	// button), and linked says a read filed the links this run.
+	merged int
+	linked bool
+	req    *plugin.Request
+	res    *plugin.Response
+	pid    string
+	fetch  fetcher
 }
 
 func handle(req *plugin.Request) (*plugin.Response, error) {
@@ -175,7 +179,20 @@ func (r *run) merge() {
 		fail(err.Error())
 		return
 	}
+	// GitHub's list can still say open for a moment after a merge, so
+	// the read files #N as merged whatever it says, and its work moves to
+	// done now rather than at the next read (ENP-127).
+	r.merged = args.Number
 	r.save(r.check(true))
+	if !r.linked {
+		// The read failed: move the work from what was known.
+		ls := Links{}
+		r.req.State.GetProject(r.pid, keyLinks, &ls)
+		if ls.markMerged(args.Number, r.req.Now) {
+			r.res.SetProject(r.pid, keyLinks, ls)
+			r.moveWork(ls)
+		}
+	}
 	r.res.Toast = fmt.Sprintf("Merged #%d", args.Number)
 	r.res.Data = map[string]any{"merged": true}
 }

@@ -214,9 +214,71 @@ func (r *run) link(gh *client, c *Code, moved bool) error {
 	r.linkBranches(gh, c, prs, ls, re)
 	ls.trim()
 	details(gh, ls, moved, r.req.Now)
+	if r.merged > 0 {
+		ls.markMerged(r.merged, r.req.Now)
+	}
 	r.res.SetProject(r.pid, keyLinks, ls)
+	r.linked = true
 	r.moveWork(ls)
 	return nil
+}
+
+// markMerged files pull request n as merged at now under every item it
+// mentions, when it's still known as open. It says whether anything changed.
+func (ls Links) markMerged(n int, now time.Time) bool {
+	changed := false
+	for k, list := range ls {
+		for i, l := range list {
+			if l.Kind == "pr" && l.Number == n && (l.State == "open" || l.State == "draft") {
+				list[i].State, list[i].At = "merged", now
+				changed = true
+			}
+		}
+		sort.SliceStable(list, func(i, j int) bool { return list[i].At.After(list[j].At) })
+		ls[k] = list
+	}
+	return changed
+}
+
+// settling is how long after a merge an item that hasn't reached done yet
+// says it's on its way, rather than looking stuck in review.
+const settling = time.Hour
+
+// mergedPending is the pull request that merged lately while the item
+// hasn't reached done: its move is on the way, or waits for approval.
+// Nil when nothing waits, or another pull request for it is still open.
+func (r *run) mergedPending(key string, list []Link) *Link {
+	if !r.follow() {
+		return nil
+	}
+	var w *plugin.Work
+	for i := range r.req.Work {
+		if strings.EqualFold(r.req.Work[i].Key, key) {
+			w = &r.req.Work[i]
+		}
+	}
+	if w == nil || w.StageKind == "done" || w.StageKind == "cancelled" {
+		return nil
+	}
+	var m *Link
+	for i, l := range list {
+		if l.Kind != "pr" {
+			continue
+		}
+		if l.State == "open" || l.State == "draft" {
+			return nil
+		}
+		if l.State == "merged" && m == nil && r.req.Now.Sub(l.At) < settling {
+			m = &list[i]
+		}
+	}
+	return m
+}
+
+// instant is whether GitHub tells Enplace of changes the moment they
+// happen (a webhook), rather than being read every 15 minutes.
+func (r *run) instant() bool {
+	return r.req.Webhook != nil && r.req.Webhook.On
 }
 
 // details reads the size, checks and merge state of the open pull
@@ -472,6 +534,11 @@ func (r *run) workPanel(c *Code) []plugin.Block {
 			Sub: "Links itself when a branch, pull request or commit in " + c.Repo + " mentions " + key + "."}}
 	}
 	var out []plugin.Block
+	if m := r.mergedPending(key, list); m != nil {
+		out = append(out, plugin.Block{Type: plugin.BlockStrip, Label: fmt.Sprintf("PR #%d", m.Number),
+			Text: "Merged on GitHub, moving to Done soon", Value: "Merged", Tone: "done",
+			Sub: "If the plugin's Move work permission asks first, the move waits for you in Approvals."})
+	}
 	var commits []plugin.Item
 	var events []plugin.Item
 	at := func(t time.Time) string { return t.UTC().Format(time.RFC3339) }
@@ -528,8 +595,11 @@ func (r *run) workPanel(c *Code) []plugin.Block {
 		out = append(out, plugin.Block{Type: plugin.BlockEvents, Items: events})
 	}
 	if r.follow() {
-		out = append(out, plugin.Block{Type: plugin.BlockText, Tone: "muted",
-			Text: "This item moves with its pull request: opened to review, merged to done."})
+		text := "This item moves with its pull request: opened to review, merged to done."
+		if !r.instant() {
+			text += " Instant updates are off, so GitHub is read every 15 minutes and a merge can take that long to show: turn them on in the plugin's settings to move it the moment it merges."
+		}
+		out = append(out, plugin.Block{Type: plugin.BlockText, Tone: "muted", Text: text})
 	}
 	return out
 }
