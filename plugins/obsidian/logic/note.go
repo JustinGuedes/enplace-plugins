@@ -6,6 +6,7 @@ package main
 //	enplace_id: ENP-42
 //	stage: doing
 //	priority: 3
+//	assignee: Byron
 //	tags: [plugins]
 //	due: 2026-11-20
 //	---
@@ -27,7 +28,7 @@ import (
 )
 
 // Enplace's keys, in the order they're added to a note that lacks them.
-var ownKeys = []string{"enplace_id", "id", "stage", "status", "priority", "tags", "due", "updated"}
+var ownKeys = []string{"enplace_id", "id", "stage", "status", "priority", "assignee", "tags", "due", "updated"}
 
 // entry is one top-level key of the front matter with its lines (the key's
 // own line and any indented or list lines under it), kept verbatim.

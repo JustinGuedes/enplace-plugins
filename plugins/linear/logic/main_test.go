@@ -147,12 +147,29 @@ func (f *fakeLinear) fetch(r plugin.FetchRequest) (*plugin.FetchResponse, error)
 		f.apply(is, in)
 		f.issues = append(f.issues, is)
 		return ok(map[string]any{"issueCreate": map[string]any{"success": true, "issue": is}})
+	case "Users":
+		var out []any
+		raw, _ := json.Marshal(body.Variables["filter"])
+		for _, u := range linearUsers {
+			for _, v := range []string{u["email"], u["name"], u["displayName"]} {
+				if strings.Contains(strings.ToLower(string(raw)), `"eqignorecase":"`+strings.ToLower(v)+`"`) {
+					out = append(out, map[string]any{"id": u["id"]})
+					break
+				}
+			}
+		}
+		return ok(map[string]any{"users": map[string]any{"nodes": out}})
 	case "Label":
 		in := body.Variables["input"].(map[string]any)
 		return ok(map[string]any{"issueLabelCreate": map[string]any{"success": true, "issueLabel": map[string]any{"id": "l-new-" + in["name"].(string), "name": in["name"]}}})
 	}
 	f.t.Fatalf("unexpected operation %s", op)
 	return nil, nil
+}
+
+var linearUsers = []map[string]string{
+	{"id": "u-sam", "name": "Sam Rivera", "displayName": "sam", "email": "sam@acme.dev"},
+	{"id": "u-justin", "name": "Justin", "displayName": "justin", "email": "justin@acme.dev"},
 }
 
 func (f *fakeLinear) apply(is, in map[string]any) {
@@ -162,6 +179,13 @@ func (f *fakeLinear) apply(is, in map[string]any) {
 			is["state"] = f.stateByID(v.(string))
 		case "labelIds":
 			is["labels"] = f.labelsByID(v.([]any))
+		case "assigneeId":
+			is["assignee"] = nil
+			for _, u := range linearUsers {
+				if u["id"] == v {
+					is["assignee"] = map[string]any{"name": u["name"], "displayName": u["displayName"], "email": u["email"]}
+				}
+			}
 		case "teamId", "projectId":
 		default:
 			is[k] = v
@@ -323,6 +347,9 @@ func (w *world) link() *plugin.Response {
 		}
 		if d, ok := in["due"].(string); ok {
 			wk.Due = d
+		}
+		if a, ok := in["assignee"].(string); ok {
+			wk.Assignee = a
 		}
 		if tags, ok := in["tags"].([]any); ok {
 			for _, t := range tags {
@@ -562,5 +589,49 @@ func TestPriorityAndKinds(t *testing.T) {
 		if got := kindOf(c.st); got != c.want {
 			t.Errorf("%s: %s, want %s", c.st.Name, got, c.want)
 		}
+	}
+}
+
+// The assignee comes in as Linear has them and goes out by the member's
+// email; someone Linear doesn't know leaves the issue as it was.
+func TestAssigneeBothWays(t *testing.T) {
+	w := newWorld(t)
+	w.lin.byRef("ENG-1")["assignee"] = map[string]any{"name": "Sam Rivera", "displayName": "sam", "email": "sam@acme.dev"}
+	w.lin.touch(w.lin.byRef("ENG-1"))
+	w.link()
+	if w.work[0].Assignee != "Sam Rivera <sam@acme.dev>" {
+		t.Fatalf("came in as %q", w.work[0].Assignee)
+	}
+	w.at(time.Minute)
+	if res := w.sync(); len(res.Ops) != 0 {
+		t.Fatalf("approved work should be in step: %+v", res.Ops)
+	}
+
+	w.at(5 * time.Minute)
+	w.lin.now = w.now
+	w.work[0].Assignee, w.work[0].AssigneeEmail, w.work[0].UpdatedAt = "Justin Guedes", "justin@acme.dev", w.now
+	w.sync()
+	if a := w.lin.byRef("ENG-1")["assignee"].(map[string]any); a["name"] != "Justin" {
+		t.Fatalf("went out as %+v", a)
+	}
+
+	w.at(7 * time.Minute)
+	w.lin.now = w.now
+	w.work[0].Assignee, w.work[0].AssigneeEmail, w.work[0].UpdatedAt = "Byron", "", w.now
+	w.sync()
+	if a := w.lin.byRef("ENG-1")["assignee"].(map[string]any); a["name"] != "Justin" {
+		t.Fatalf("an unknown person changed it: %+v", a)
+	}
+	w.at(9 * time.Minute)
+	if res := w.sync(); len(ops(res, "work.update")) != 0 {
+		t.Fatalf("Linear's assignee came back over the pick: %+v", res.Ops)
+	}
+
+	w.at(11 * time.Minute)
+	w.lin.now = w.now
+	w.work[0].Assignee, w.work[0].UpdatedAt = "", w.now
+	w.sync()
+	if a := w.lin.byRef("ENG-1")["assignee"]; a != nil {
+		t.Fatalf("unassigning left %+v", a)
 	}
 }

@@ -250,15 +250,11 @@ func (src *source) item(s *worksync.Sync, is issue, keep bool) worksync.Item {
 	for _, l := range is.Labels.Nodes {
 		it.Labels = append(it.Labels, l.Name)
 	}
-	var facts []string
-	if a := is.Assignee.String(); a != "" {
-		facts = append(facts, a)
-	}
+	it.Assignee = is.Assignee.who()
 	if is.Parent != nil && is.Parent.Identifier != "" {
 		// Sub-issues come in as plain work; the panel names the parent.
-		facts = append(facts, "sub-issue of "+is.Parent.Identifier)
+		it.Info = "sub-issue of " + is.Parent.Identifier
 	}
-	it.Assignee = strings.Join(facts, " · ")
 	if keep && s.ProjectID != "" && is.Identifier != "" {
 		x := extras{Ref: is.Identifier, URL: is.URL, Status: is.State.Name, Assignee: is.Assignee.String(), Points: points(is.Estimate), Read: s.Req.Now}
 		if is.Parent != nil {
@@ -388,6 +384,16 @@ func (src *source) Update(s *worksync.Sync, it worksync.Item, ch worksync.Change
 			in["stateId"] = st.ID
 		}
 	}
+	if ch.Assignee != nil {
+		if *ch.Assignee == "" {
+			in["assigneeId"] = nil
+		} else if id, err := src.userFor(s, *ch.Assignee, ch.AssigneeEmail); err != nil {
+			return it, err
+		} else if id != "" {
+			in["assigneeId"] = id
+		}
+		// Someone Linear doesn't know: the issue keeps its assignee.
+	}
 	if len(in) == 0 {
 		return it, nil
 	}
@@ -427,11 +433,39 @@ func (src *source) Create(s *worksync.Sync, w plugin.Work, it worksync.Item) (wo
 	if st := stateFor(info, worksync.Item{}, nilIfEmpty(it.Status), cmp.Or(it.StatusKind, "todo")); st != nil {
 		in["stateId"] = st.ID
 	}
+	if w.Assignee != "" {
+		id, err := src.userFor(s, w.Assignee, w.AssigneeEmail)
+		if err != nil {
+			return it, err
+		}
+		if id != "" {
+			in["assigneeId"] = id
+		}
+	}
 	is, err := src.client(s).create(in)
 	if err != nil {
 		return it, err
 	}
 	return src.item(s, *is, true), nil
+}
+
+// userFor finds the Linear user for an assignee as Enplace has them: by
+// the member's email, an email in "Name <email>", or the name.
+func (src *source) userFor(s *worksync.Sync, who, email string) (string, error) {
+	name := strings.TrimSpace(who)
+	if n, e, ok := strings.Cut(name, " <"); ok && strings.HasSuffix(name, ">") {
+		name, email = strings.TrimSpace(n), cmp.Or(email, strings.TrimSuffix(e, ">"))
+	}
+	if strings.Contains(name, "@") && email == "" {
+		email = name
+	}
+	c := src.client(s)
+	if email != "" {
+		if id, err := c.user("", email); err != nil || id != "" {
+			return id, err
+		}
+	}
+	return c.user(name, "")
 }
 
 func nilIfEmpty(v string) *string {

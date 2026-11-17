@@ -20,7 +20,8 @@
 //     state, and each linked item carries the outside reference in the
 //     plugin's "link" work field, so a person sees it on the card.
 //   - Mapping: title, Markdown body, stage (by the outside status, with the
-//     project's own mapping setting), priority, labels as tags, and due date.
+//     project's own mapping setting), priority, labels as tags, due date
+//     and assignee.
 //   - The sync rules: two-way, pull only or push only. When both sides
 //     changed the same thing since they last agreed, the later change wins
 //     and the other one is posted as a note on the item, so nothing is lost.
@@ -75,8 +76,14 @@ type Item struct {
 	Priority int      `json:"priority,omitempty"`
 	Labels   []string `json:"labels,omitempty"`
 	Due      string   `json:"due,omitempty"` // YYYY-MM-DD
-	// Assignee is shown on the work panel, never synced.
+	// Assignee is who it's for, as the source names them: a name, a login,
+	// an email, or "Name <email>" when it knows both. It syncs both ways
+	// like the title: Enplace matches it to a member by email or name, and
+	// otherwise keeps it as a plain name. Empty is nobody.
 	Assignee string `json:"assignee,omitempty"`
+	// Info is a short line about the item for the work panel, like
+	// "sub-issue of LIN-12". It's never synced.
+	Info string `json:"info,omitempty"`
 	// Author is who opened it, shown in the tray.
 	Author    string    `json:"author,omitempty"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -101,11 +108,16 @@ type Change struct {
 	Priority   *int      `json:"priority,omitempty"`
 	Labels     *[]string `json:"labels,omitempty"`
 	Due        *string   `json:"due,omitempty"`
+	// Assignee is who it's for now, as Enplace names them (empty for
+	// nobody); AssigneeEmail is their email when they're a member. A
+	// source that can't find that person leaves its assignee as it is.
+	Assignee      *string `json:"assignee,omitempty"`
+	AssigneeEmail string  `json:"assignee_email,omitempty"`
 }
 
 // Empty reports whether the change changes nothing.
 func (c Change) Empty() bool {
-	return c.Title == nil && c.Body == nil && c.Status == nil && c.StatusKind == nil && c.Priority == nil && c.Labels == nil && c.Due == nil
+	return c.Title == nil && c.Body == nil && c.Status == nil && c.StatusKind == nil && c.Priority == nil && c.Labels == nil && c.Due == nil && c.Assignee == nil
 }
 
 // Source is a client for one outside system.
@@ -142,7 +154,7 @@ type Config struct {
 	// answer (like its settings panel).
 	Render func(s *Sync, slot string) []plugin.Block
 	// Skip names what the source doesn't have, so it's neither sent nor
-	// read: "body", "priority", "labels", "due".
+	// read: "body", "priority", "labels", "due", "assignee".
 	Skip []string
 	// Hold, when set, says which new outside items wait in the project's
 	// tray (the "tray" project card and a line in the brief) for the
@@ -202,6 +214,7 @@ type Snap struct {
 	Priority int      `json:"p"`
 	Tags     []string `json:"g,omitempty"`
 	Due      string   `json:"d,omitempty"`
+	Assignee string   `json:"a,omitempty"` // as compared: see who
 }
 
 // Link is one outside item and the work item it's linked to.
@@ -215,6 +228,7 @@ type Link struct {
 	// Status is the outside status name last seen, for the panel.
 	Status   string `json:"os,omitempty"`
 	Assignee string `json:"as,omitempty"`
+	Info     string `json:"in,omitempty"`
 	// Title, Author and Labels are kept for held items, for the tray.
 	Title  string    `json:"t,omitempty"`
 	Author string    `json:"by,omitempty"`
@@ -717,7 +731,7 @@ func (s *Sync) holds(it Item) bool { return s.cfg.Hold != nil && s.cfg.Hold(s, i
 // hold keeps what the tray shows about a held item.
 func (s *Sync) hold(l *Link, it Item) {
 	l.Ref, l.URL, l.Title, l.Author, l.Labels = it.Ref, it.URL, cmp.Or(strings.TrimSpace(it.Title), it.Ref), it.Author, it.Labels
-	l.Status, l.Assignee, l.Seen = it.Status, it.Assignee, it.UpdatedAt
+	l.Status, l.Assignee, l.Info, l.Seen = it.Status, it.Assignee, it.Info, it.UpdatedAt
 	s.touch(l)
 }
 
@@ -825,7 +839,7 @@ func (s *Sync) bringIn(items []Item, first bool) {
 	}
 	now := s.Req.Now
 	for _, it := range items {
-		l := &Link{ID: it.ID, Ref: it.Ref, URL: it.URL, State: Filed, Base: s.snapItem(it), Status: it.Status, Assignee: it.Assignee, Seen: it.UpdatedAt, Filed: now}
+		l := &Link{ID: it.ID, Ref: it.Ref, URL: it.URL, State: Filed, Base: s.snapItem(it), Status: it.Status, Assignee: it.Assignee, Info: it.Info, Seen: it.UpdatedAt, Filed: now}
 		s.links[it.ID] = l
 		s.touch(l)
 	}
@@ -854,13 +868,16 @@ func (s *Sync) workInput(it Item) map[string]any {
 	if it.Due != "" && !s.skips("due") {
 		in["due"] = it.Due
 	}
+	if a := strings.TrimSpace(it.Assignee); a != "" && !s.skips("assignee") {
+		in["assignee"] = a
+	}
 	return in
 }
 
 // merge brings one linked pair back in step, field by field.
 func (s *Sync) merge(l *Link, w *plugin.Work, it *Item) error {
 	e, o, b := s.snapWork(w), s.snapItem(*it), l.Base
-	l.Status, l.Assignee, l.URL, l.Ref = it.Status, it.Assignee, cmp.Or(it.URL, l.URL), cmp.Or(it.Ref, l.Ref)
+	l.Status, l.Assignee, l.Info, l.URL, l.Ref = it.Status, it.Assignee, it.Info, cmp.Or(it.URL, l.URL), cmp.Or(it.Ref, l.Ref)
 	outsideNewer := it.UpdatedAt.After(w.UpdatedAt)
 	var in map[string]any // changes to the work item
 	var out Change
@@ -909,8 +926,12 @@ func (s *Sync) merge(l *Link, w *plugin.Work, it *Item) error {
 		{key: "due", name: "due date", ev: e.Due, ov: o.Due, eShow: e.Due, oShow: o.Due,
 			pull: func() { set("due", it.Due) }, push: func() { d := w.Due; out.Due = &d },
 			settle: func(fo bool) { next.Due = pick(fo, o.Due, e.Due) }},
+		{key: "assignee", name: "assignee", ev: e.Assignee, ov: o.Assignee, eShow: w.Assignee, oShow: it.Assignee,
+			pull:   func() { set("assignee", strings.TrimSpace(it.Assignee)) },
+			push:   func() { a := strings.TrimSpace(w.Assignee); out.Assignee, out.AssigneeEmail = &a, w.AssigneeEmail },
+			settle: func(fo bool) { next.Assignee = pick(fo, o.Assignee, e.Assignee) }},
 	}
-	bv := map[string]string{"title": b.Title, "description": b.Body, "stage": b.Stage, "priority": fmt.Sprint(b.Priority), "tags": strings.Join(b.Tags, ","), "due date": b.Due}
+	bv := map[string]string{"title": b.Title, "description": b.Body, "stage": b.Stage, "priority": fmt.Sprint(b.Priority), "tags": strings.Join(b.Tags, ","), "due date": b.Due, "assignee": b.Assignee}
 	for _, f := range fields {
 		if s.skips(f.key) {
 			continue
@@ -954,6 +975,15 @@ func (s *Sync) merge(l *Link, w *plugin.Work, it *Item) error {
 			return err
 		}
 		l.Status, l.Seen = cmp.Or(got.Status, l.Status), got.UpdatedAt
+		if out.Assignee != nil && got.ID != "" {
+			// A source that couldn't find that person kept its own
+			// assignee: agree on what it has, so the next run doesn't
+			// bring that back over the person's pick as a change outside.
+			l.Assignee = got.Assignee
+			if a := who(got.Assignee); a != next.Assignee {
+				next.Assignee = a
+			}
+		}
 	} else {
 		l.Seen = it.UpdatedAt
 	}
@@ -1033,7 +1063,17 @@ func nonNil(x []string) []string {
 }
 
 func snapEqual(a, b Snap) bool {
-	return a.Title == b.Title && a.Body == b.Body && a.Stage == b.Stage && a.Priority == b.Priority && slices.Equal(a.Tags, b.Tags) && a.Due == b.Due
+	return a.Title == b.Title && a.Body == b.Body && a.Stage == b.Stage && a.Priority == b.Priority && slices.Equal(a.Tags, b.Tags) && a.Due == b.Due && a.Assignee == b.Assignee
+}
+
+// who is an assignee as compared: "@Sam", "sam", " Sam " and
+// "Sam <sam@example.com>" are the same person.
+func who(s string) string {
+	s = strings.TrimSpace(s)
+	if name, _, ok := strings.Cut(s, " <"); ok && strings.HasSuffix(s, ">") {
+		s = name
+	}
+	return strings.ToLower(strings.TrimPrefix(strings.TrimSpace(s), "@"))
 }
 
 func hash(s string) string {
@@ -1060,17 +1100,17 @@ func tags(x []string) []string {
 }
 
 func (s *Sync) snapWork(w *plugin.Work) Snap {
-	return Snap{Title: strings.TrimSpace(w.Title), Body: hash(w.Body), Stage: w.Stage, Priority: w.Priority, Tags: tags(w.Tags), Due: w.Due}
+	return Snap{Title: strings.TrimSpace(w.Title), Body: hash(w.Body), Stage: w.Stage, Priority: w.Priority, Tags: tags(w.Tags), Due: w.Due, Assignee: who(w.Assignee)}
 }
 
 func (s *Sync) snapItem(it Item) Snap {
-	return Snap{Title: strings.TrimSpace(cmp.Or(it.Title, it.Ref)), Body: hash(it.Body), Stage: s.stageFor(it), Priority: it.Priority, Tags: tags(it.Labels), Due: it.Due}
+	return Snap{Title: strings.TrimSpace(cmp.Or(it.Title, it.Ref)), Body: hash(it.Body), Stage: s.stageFor(it), Priority: it.Priority, Tags: tags(it.Labels), Due: it.Due, Assignee: who(it.Assignee)}
 }
 
 // itemFor is a work item as a new outside item.
 func (s *Sync) itemFor(w *plugin.Work) Item {
 	name, kind := s.statusFor(w.Stage)
-	return Item{Title: w.Title, Body: w.Body, Status: name, StatusKind: kind, Priority: w.Priority, Labels: w.Tags, Due: w.Due}
+	return Item{Title: w.Title, Body: w.Body, Status: name, StatusKind: kind, Priority: w.Priority, Labels: w.Tags, Due: w.Due, Assignee: w.Assignee}
 }
 
 var priorityNames = []string{"none", "low", "medium", "high", "urgent"}

@@ -112,8 +112,18 @@ func (f *fakeGitHub) fetch(r plugin.FetchRequest) (*plugin.FetchResponse, error)
 	}
 	if method == "PATCH" {
 		for k, v := range body {
-			if k == "labels" {
+			switch k {
+			case "labels":
 				v = labelsOf(v)
+			case "assignees":
+				// Only collaborators can be assigned; the rest are dropped.
+				is["assignee"] = nil
+				for _, l := range v.([]any) {
+					if l == "JustinGuedes" || l == "sam" {
+						is["assignee"] = map[string]any{"login": l}
+					}
+				}
+				continue
 			}
 			is[k] = v
 		}
@@ -232,6 +242,9 @@ func (w *world) approve(res *plugin.Response) {
 			Fields: map[string]string{"github-issues.link": in["fields"].(map[string]any)["github-issues.link"].(string)}}
 		if b, ok := in["body"].(string); ok {
 			wk.Body = b
+		}
+		if a, ok := in["assignee"].(string); ok {
+			wk.Assignee = a
 		}
 		for _, t := range in["tags"].([]any) {
 			wk.Tags = append(wk.Tags, t.(string))
@@ -531,5 +544,42 @@ func TestTray(t *testing.T) {
 	res = w.sync()
 	if c := ops(res, "work.create"); len(c) != 1 || c[0]["title"] != "Issue 22" || strings.Contains(status(res), "waiting") || res.Ops[0].Asked {
 		t.Fatalf("ask mode: %q %+v", status(res), res.Ops)
+	}
+}
+
+// The assignee comes in as a login and goes out as one; a name GitHub
+// can't assign leaves the issue as it was.
+func TestAssignee(t *testing.T) {
+	w := newWorld(t)
+	w.approve(w.sync())
+	if w.work[1].Assignee != "@JustinGuedes" {
+		t.Fatalf("came in as %q", w.work[1].Assignee)
+	}
+	w.at(time.Minute)
+	w.sync()
+
+	w.at(2 * time.Minute)
+	w.work[1].Assignee, w.work[1].UpdatedAt = "sam", w.now
+	w.sync()
+	if a := w.gh.issues[14]["assignee"].(map[string]any); a["login"] != "sam" {
+		t.Fatalf("went out as %+v", a)
+	}
+
+	w.at(4 * time.Minute)
+	w.work[1].Assignee, w.work[1].UpdatedAt = "Byron Smith", w.now
+	w.sync()
+	if a := w.gh.issues[14]["assignee"].(map[string]any); a["login"] != "sam" {
+		t.Fatalf("a name changed it: %+v", a)
+	}
+	w.at(6 * time.Minute)
+	if res := w.sync(); len(ops(res, "work.update")) != 0 {
+		t.Fatalf("GitHub's assignee came back over the pick: %+v", res.Ops)
+	}
+
+	w.at(8 * time.Minute)
+	w.work[1].Assignee, w.work[1].UpdatedAt = "", w.now
+	w.sync()
+	if a := w.gh.issues[14]["assignee"]; a != nil {
+		t.Fatalf("unassigning left %+v", a)
 	}
 }

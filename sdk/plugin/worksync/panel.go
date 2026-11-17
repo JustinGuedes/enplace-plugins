@@ -149,6 +149,9 @@ func (s *Sync) panel() []plugin.Block {
 	if l.Assignee != "" {
 		facts = append(facts, l.Assignee)
 	}
+	if l.Info != "" {
+		facts = append(facts, l.Info)
+	}
 	tone := "good"
 	switch {
 	case l.State == Removed:

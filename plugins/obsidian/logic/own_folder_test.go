@@ -252,3 +252,20 @@ func TestQuotedNoteRoundTrip(t *testing.T) {
 		t.Fatalf("read %q %q %d %v", n.value("status"), n.value("id"), n.priority(), n.list("tags"))
 	}
 }
+
+// A note's assignee comes in, and a change in Enplace is written back in
+// the note's own style.
+func TestOwnFolderAssignee(t *testing.T) {
+	w := linkedOwnWorld(t)
+	i := len(w.work) - 3 // CHAIN-001
+	if w.work[i].Assignee != "Byron" {
+		t.Fatalf("came in as %q", w.work[i].Assignee)
+	}
+	w.at(2 * time.Minute)
+	w.work[i].Assignee, w.work[i].UpdatedAt = "Justin Guedes", w.now
+	w.event(i)
+	w.call(nil, false)
+	if got := w.vault["CHAIN-001 - Confirm the MVP.md"]; !strings.Contains(got, "\n\"assignee\": \"Justin Guedes\"\n") {
+		t.Fatalf("note:\n%s", got)
+	}
+}
