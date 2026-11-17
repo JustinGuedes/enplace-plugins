@@ -85,6 +85,11 @@ func TestManifestChecks(t *testing.T) {
 		`{"id":"ok","name":"x","version":"1.0.0","scope":"both","settings":[{"key":"f","name":"F","type":"toggle","scope":"workspace","level":"product"}]}`,
 		`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"d","name":"D","type":"text","scope":"project","hide_when":"f"}]}`,
 		`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"f","name":"F","type":"text","scope":"project"},{"key":"d","name":"D","type":"text","scope":"project","hide_when":"f"}]}`,
+		`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"r","name":"R","type":"toggle","scope":"project","choices":"repos"}]}`,
+		`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"r","name":"R","type":"text","scope":"project","choices":"Bad Name"}]}`,
+	}
+	if _, err := ParseManifest([]byte(`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"r","name":"R","type":"text","scope":"project","choices":"repos"}]}`)); err != nil {
+		t.Errorf("a text setting with choices: %v", err)
 	}
 	if _, err := ParseManifest([]byte(`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"f","name":"F","type":"toggle","scope":"project","level":"product"},{"key":"d","name":"D","type":"text","scope":"project","hide_when":"f"}]}`)); err != nil {
 		t.Errorf("a product toggle that hides a setting: %v", err)

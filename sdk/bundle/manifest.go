@@ -229,6 +229,12 @@ type Setting struct {
 	// HideWhen names a toggle setting that, while it's on, makes this one
 	// not count, so it isn't shown (like dates taken from elsewhere).
 	HideWhen string `json:"hide_when,omitempty"`
+	// Choices names the logic action that lists what this setting can be
+	// set to, like the repos a token can see. Enplace shows them as a
+	// list to search and pick from; typing anything else still works. The
+	// action gets plugin.ChoicesArgs and answers with Data: a list of
+	// plugin.Choice. Only for text settings.
+	Choices string `json:"choices,omitempty"`
 }
 
 // SettingAllows is what choosing one option of a setting allows.
@@ -621,6 +627,9 @@ func (m *Manifest) Check() error {
 		}
 		if a := s.Allows; a != nil && (s.Type != "select" || s.Scope != "project" || !slices.Contains(s.Options, a.When) || a.Action != "create") {
 			return fmt.Errorf("setting %s: allows needs a project select, one of its options, and the action create", s.Key)
+		}
+		if s.Choices != "" && (s.Type != "text" || !keyRe.MatchString(s.Choices)) {
+			return fmt.Errorf("setting %s: choices names an action, on a text setting", s.Key)
 		}
 		if s.Type == "secret" && s.Default != nil {
 			return fmt.Errorf("setting %s: a secret can't have a default", s.Key)
