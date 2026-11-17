@@ -187,7 +187,7 @@ type Project struct {
 	On     bool   `json:"on"`
 	// Product is set for a product: its key, and ProductName its own name
 	// ("Apple app"). Parent is the project it's in. ProductType is what it
-	// is (app, website, physical, service or other) and ProductStage where
+	// is (app, website, physical, service, channel or other) and ProductStage where
 	// it is (idea, building, live or retired).
 	Product      string `json:"product,omitempty"`
 	ProductName  string `json:"product_name,omitempty"`

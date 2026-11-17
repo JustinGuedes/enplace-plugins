@@ -58,6 +58,7 @@ One manifest format, with a `kind` that fills in the rest:
 ### Extensions
 
 - [Calendar feeds](plugins/calendar-feeds): Show your calendars on the timeline so plans fit around meetings.
+- [Content](plugins/content): Plan videos and posts for your channels: where each one posts, when, what it promotes, and whether this week's slots are filled.
 - [Markdown export](plugins/markdown-export): Download a project's work as Markdown files with front matter.
 - [Release lanes](plugins/release-lanes): See work grouped by the release it ships in.
 - [Release cycle](plugins/releases): Releases on a cadence, with ship rules at cut-off, or deploys as work is done.
@@ -68,6 +69,7 @@ One manifest format, with a `kind` that fills in the rest:
 
 - [Plain-words writing](plugins/plain-words): Skills for writing that people read once and act on: updates, release notes and replies.
 - [Ship an app](plugins/ship-an-app): Skills for getting an iPhone or Android app out: TestFlight builds, store screenshots and review notes.
+- [Short video](plugins/short-video): Skills for short videos and posts: hooks, 30-second scripts, captions and hashtags, and one video cut for TikTok, Reels and Shorts.
 
 <!-- /plugins -->
 

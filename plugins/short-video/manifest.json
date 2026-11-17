@@ -1,0 +1,11 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "short-video",
+  "name": "Short video",
+  "version": "1.0.0",
+  "kind": "skills",
+  "author": "Enplace",
+  "summary": "Skills for short videos and posts: hooks, 30-second scripts, captions and hashtags, and one video cut for TikTok, Reels and Shorts.",
+  "colour": "#ff8fb8",
+  "icon": "sparkle"
+}

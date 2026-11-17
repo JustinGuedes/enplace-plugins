@@ -1,0 +1,31 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "content",
+  "name": "Content",
+  "version": "1.0.0",
+  "kind": "extension",
+  "author": "Enplace",
+  "summary": "Plan videos and posts for your channels: where each one posts, when, what it promotes, and whether this week's slots are filled.",
+  "description": "For a project that makes content. Its channels are the project's Channel products (a TikTok, Instagram or YouTube account). Each piece of work picks the channels it posts to, so one video can go to TikTok, Reels and Shorts, and its due date is the day it posts. Give each channel the days it posts on, and the Overview shows this week per channel, what's coming up and how each app you promote is doing. Today speaks up when a slot has nothing planned or the next post isn't ready. Paste each post's link on the piece once it's out; when every channel has one, it moves to done.",
+  "colour": "#ff8fb8",
+  "icon": "sparkle",
+  "levels": ["project"],
+  "permissions": { "read": ["projects", "work"], "ops": ["work.fields", "work.move"] },
+  "contributes": {
+    "brief": true,
+    "settings_panel": true,
+    "work_panel": true,
+    "deadlines": true,
+    "project_cards": [
+      { "key": "week", "name": "This week's channels", "size": "wide" },
+      { "key": "coming", "name": "Coming up", "size": "wide" },
+      { "key": "apps", "name": "By app", "size": "small" }
+    ],
+    "work_fields": [
+      { "key": "post_to", "name": "Post to", "type": "label", "icon": "sparkle", "on_card": true },
+      { "key": "format", "name": "Format", "type": "choice", "icon": "grid", "on_card": true },
+      { "key": "promotes", "name": "Promotes", "type": "choice", "icon": "target", "on_card": true }
+    ],
+    "events": ["work.created"]
+  }
+}
