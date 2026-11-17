@@ -20,7 +20,7 @@ import (
 // plugin folder into a bundle file Enplace can install.
 func pluginCmd(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: enplace-plugin keygen|pack|publish")
+		return errors.New("usage: enplace-plugin keygen|pack|publish|vendor")
 	}
 	switch args[0] {
 	case "keygen":
@@ -29,6 +29,8 @@ func pluginCmd(args []string) error {
 		return packCmd(args[1:])
 	case "publish":
 		return publishCmd(args[1:])
+	case "vendor":
+		return vendorCmd(args[1:])
 	}
 	return fmt.Errorf("unknown plugin command %q", args[0])
 }
@@ -108,8 +110,9 @@ func signingKey(file string) (ed25519.PrivateKey, error) {
 	return ed25519.NewKeyFromSeed(raw), nil
 }
 
-// collect reads manifest.json, assets/ and skills/ from a plugin folder. Source
-// code (like logic/) stays out of the bundle.
+// collect reads manifest.json, its README, icon and LICENSE, and assets/,
+// icons/ and skills/ from a plugin folder. Source code (like logic/) and
+// upstream.json stay out of the bundle.
 func collect(dir string) (map[string][]byte, error) {
 	files := map[string][]byte{}
 	m, err := os.ReadFile(filepath.Join(dir, "manifest.json"))
@@ -126,7 +129,7 @@ func collect(dir string) (map[string][]byte, error) {
 		return nil, fmt.Errorf("%s: name its kind, one of %s", filepath.Join(dir, "manifest.json"), strings.Join(bundle.KindNames(), ", "))
 	}
 	files["manifest.json"] = m
-	for _, extra := range []string{"README.md", "icon.svg"} {
+	for _, extra := range []string{"README.md", "icon.svg", "LICENSE"} {
 		if b, err := os.ReadFile(filepath.Join(dir, extra)); err == nil {
 			files[extra] = b
 		}

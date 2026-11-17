@@ -2,7 +2,7 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "app",
   "name": "App Store",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "kind": "service",
   "author": "Enplace",
   "summary": "Follow an app on the App Store: its icon, live version, review, rating, reviews and downloads.",
@@ -11,7 +11,7 @@
   "icon": "app",
   "card_settings": ["app_store"],
   "suggest_for": ["app"],
-  "requires": [ { "id": "releases", "version": "^2.7.0", "optional": true } ],
+  "requires": [ { "id": "releases", "version": "^3.0.0", "optional": true } ],
   "permissions": { "read": ["projects"], "ops": ["project.icon"], "hosts": ["itunes.apple.com", "api.appstoreconnect.apple.com"] },
   "settings": [
     { "key": "app_store", "name": "App Store app", "type": "text", "scope": "project", "help": "Its bundle ID like com.example.app, its App Store link or its App Store ID. Or search for it above." },

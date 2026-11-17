@@ -36,6 +36,14 @@ type Manifest struct {
 	Summary     string `json:"summary,omitempty"`
 	Description string `json:"description,omitempty"`
 	Homepage    string `json:"homepage,omitempty"`
+	// License is the SPDX id of the licence the plugin's files come under,
+	// like MIT. A plugin made from someone else's work says theirs, and
+	// keeps their LICENSE file beside the manifest.
+	License string `json:"license,omitempty"`
+	// Upstream is where a plugin's skills come from when they're someone
+	// else's, shared on GitHub: the store credits the repo, and
+	// enplace-plugin vendor copies them in from it.
+	Upstream *Upstream `json:"upstream,omitempty"`
 
 	// How it looks.
 
@@ -75,6 +83,10 @@ type Manifest struct {
 	// Default: new workspaces start with it. Only honoured for the plugins
 	// that come with Enplace.
 	Default bool `json:"default,omitempty"`
+	// ReplacedBy names the plugin that now does what this one did, like
+	// "claude" for "claude-code". The store stops offering this one, and
+	// Enplace moves what it has set up over to the new one.
+	ReplacedBy string `json:"replaced_by,omitempty"`
 	// Base marks a plugin that only exists to be extended, like the sync
 	// engine work sources build on. It's never switched on by itself: its
 	// settings, contributions and permissions only take effect folded into
@@ -106,6 +118,31 @@ type Manifest struct {
 	CardSettings []string `json:"card_settings,omitempty"`
 	// Contributes are the pieces of Enplace the plugin fills.
 	Contributes Contributes `json:"contributes"`
+}
+
+// Upstream is the GitHub repo, and the commit in it, a plugin's skills
+// were copied from.
+type Upstream struct {
+	// Repo is the repo's https://github.com/owner/name link.
+	Repo string `json:"repo"`
+	// Commit is the full commit id the skills were copied at.
+	Commit string `json:"commit"`
+}
+
+var (
+	upstreamRepoRe   = regexp.MustCompile(`^https://github\.com/[A-Za-z0-9-]{1,39}/[A-Za-z0-9._-]{1,100}$`)
+	upstreamCommitRe = regexp.MustCompile(`^[0-9a-f]{40}$`)
+	licenseRe        = regexp.MustCompile(`^[A-Za-z0-9.+-]{2,64}$`)
+)
+
+func (u *Upstream) check() error {
+	if !upstreamRepoRe.MatchString(u.Repo) {
+		return errors.New("upstream.repo is a https://github.com/owner/name link")
+	}
+	if !upstreamCommitRe.MatchString(u.Commit) {
+		return errors.New("upstream.commit is a full 40-character commit id")
+	}
+	return nil
 }
 
 // Inherit values (see Manifest.Inherit).
@@ -202,8 +239,10 @@ type Setting struct {
 	// Type: text, number, toggle, select, url, urls (one per line) or
 	// secret. Secrets are stored encrypted with the workspace's other
 	// secrets, never shown again, and only handed to the logic.
-	Type    string   `json:"type"`
-	Scope   string   `json:"scope"` // workspace or project
+	Type string `json:"type"`
+	// Scope: workspace, project, or agent (kept for each agent added
+	// from an agent plugin with ways, and asked for by one of them).
+	Scope   string   `json:"scope"`
 	Options []string `json:"options,omitempty"`
 	Default any      `json:"default,omitempty"`
 	Help    string   `json:"help,omitempty"`
@@ -223,6 +262,12 @@ type Setting struct {
 	// HideWhen names a toggle setting that, while it's on, makes this one
 	// not count, so it isn't shown (like dates taken from elsewhere).
 	HideWhen string `json:"hide_when,omitempty"`
+	// Choices names the logic action that lists what this setting can be
+	// set to, like the repos a token can see. Enplace shows them as a
+	// list to search and pick from; typing anything else still works. The
+	// action gets plugin.ChoicesArgs and answers with Data: a list of
+	// plugin.Choice. Only for text settings.
+	Choices string `json:"choices,omitempty"`
 }
 
 // SettingAllows is what choosing one option of a setting allows.
@@ -292,6 +337,9 @@ type Contributes struct {
 	// Runner makes the plugin a way to run work: Send hands a work item to
 	// the agent it reaches (see Runner).
 	Runner *Runner `json:"runner,omitempty"`
+	// Ways make the plugin one agent with several ways to connect, in
+	// place of Runner (see Way).
+	Ways []Way `json:"ways,omitempty"`
 	// Webhook lets an outside service tell the plugin something changed,
 	// for each project (or product) it's on: Enplace gives each one its
 	// own address and signing secret, checks every delivery's signature
@@ -496,6 +544,20 @@ func (m *Manifest) Check() error {
 	if len(m.Summary) > 200 || len(m.Description) > 2000 {
 		return errors.New("summary or description is too long")
 	}
+	if m.License != "" && !licenseRe.MatchString(m.License) {
+		return errors.New("license is an SPDX id, like MIT")
+	}
+	if m.Upstream != nil {
+		if err := m.Upstream.check(); err != nil {
+			return err
+		}
+		if m.License == "" {
+			return errors.New("a plugin with an upstream says its licence")
+		}
+	}
+	if m.ReplacedBy != "" && (!idRe.MatchString(m.ReplacedBy) || m.ReplacedBy == m.ID) {
+		return errors.New("replaced_by names another plugin's id")
+	}
 	if err := m.applyKind(); err != nil {
 		return err
 	}
@@ -610,11 +672,17 @@ func (m *Manifest) Check() error {
 		if a := s.Allows; a != nil && (s.Type != "select" || s.Scope != "project" || !slices.Contains(s.Options, a.When) || a.Action != "create") {
 			return fmt.Errorf("setting %s: allows needs a project select, one of its options, and the action create", s.Key)
 		}
+		if s.Choices != "" && (s.Type != "text" || !keyRe.MatchString(s.Choices)) {
+			return fmt.Errorf("setting %s: choices names an action, on a text setting", s.Key)
+		}
 		if s.Type == "secret" && s.Default != nil {
 			return fmt.Errorf("setting %s: a secret can't have a default", s.Key)
 		}
-		if s.Scope != "workspace" && s.Scope != "project" {
-			return fmt.Errorf("setting %s: scope must be workspace or project", s.Key)
+		if s.Scope != "workspace" && s.Scope != "project" && s.Scope != "agent" {
+			return fmt.Errorf("setting %s: scope must be workspace, project or agent", s.Key)
+		}
+		if s.Scope == "agent" && (len(m.Contributes.Ways) == 0 || s.Allows != nil || s.HideWhen != "") {
+			return fmt.Errorf("setting %s: an agent setting belongs to a plugin with ways, and is plain", s.Key)
 		}
 		if s.Scope == "project" && m.Scope == "workspace" {
 			return fmt.Errorf("setting %s is per project, but the plugin is workspace only", s.Key)
@@ -811,12 +879,16 @@ func HostAllowed(patterns []string, host string) bool {
 // PluginOps are the changes a plugin may ask for in its manifest.
 var PluginOps = []string{"work.create", "work.import", "work.update", "work.move", "work.note", "work.fields", "project.icon"}
 
+// MaxSkillDescription is the longest a skill's description can be, as for
+// Agent Skills.
+const MaxSkillDescription = 1024
+
 // checkSkills checks each skill's name and description, and that no name
 // repeats.
 func (c Contributes) checkSkills() error {
 	seen := map[string]bool{}
 	for _, k := range c.Skills {
-		if !idRe.MatchString(k.Name) || seen[k.Name] || k.Description == "" || len(k.Description) > 200 {
+		if !idRe.MatchString(k.Name) || seen[k.Name] || k.Description == "" || len(k.Description) > MaxSkillDescription {
 			return fmt.Errorf("bad or repeated skill %q", k.Name)
 		}
 		seen[k.Name] = true
@@ -879,6 +951,7 @@ func Merge(parent, child Manifest) Manifest {
 	if cc.Runner == nil {
 		out.Contributes.Runner = pc.Runner
 	}
+	out.Contributes.Ways = mergeBy(pc.Ways, cc.Ways, func(w Way) string { return w.Key })
 	out.Contributes.Calendar = pc.Calendar || cc.Calendar
 	out.Contributes.Deadlines = pc.Deadlines || cc.Deadlines
 	out.Contributes.SettingsPanel = pc.SettingsPanel || cc.SettingsPanel

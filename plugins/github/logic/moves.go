@@ -46,9 +46,13 @@ func (r *run) moveWork(ls Links) {
 	if m.Seen == nil {
 		m.Seen = map[string]map[string]string{}
 	}
+	// Keys belong to the whole project, so a repo moves any of its
+	// project's work, whichever product the item is on: a pull request in
+	// a product's own repo can finish general work, and the other way round.
+	home := r.home(r.pid)
 	byKey := map[string]plugin.Work{}
 	for _, w := range r.req.Work {
-		if w.ProjectID == r.pid {
+		if r.home(w.ProjectID) == home {
 			byKey[strings.ToUpper(w.Key)] = w
 		}
 	}
@@ -66,8 +70,12 @@ func (r *run) moveWork(ls Links) {
 			if l.Kind != "pr" || seen[l.URL] == l.State {
 				continue
 			}
+			_, known := seen[l.URL]
 			seen[l.URL] = l.State
-			if first && r.req.Now.Sub(l.At) > catchUp {
+			// A pull request seen for the first time that last changed long
+			// ago (when Enplace starts following, or a repo starts moving
+			// another product's work) was dealt with already.
+			if (first || !known) && r.req.Now.Sub(l.At) > catchUp {
 				continue
 			}
 			fresh = append(fresh, l)
@@ -84,6 +92,17 @@ func (r *run) moveWork(ls Links) {
 		}
 	}
 	r.res.SetProject(r.pid, keyMoves, m)
+}
+
+// home is the project a scope belongs to: a product's project, or the
+// project itself.
+func (r *run) home(scope string) string {
+	for _, p := range r.req.Projects {
+		if p.ID == scope && p.Parent != "" {
+			return p.Parent
+		}
+	}
+	return scope
 }
 
 // moveFor is the one move an item needs for what just happened to its pull

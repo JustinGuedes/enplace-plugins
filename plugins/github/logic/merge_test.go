@@ -109,3 +109,28 @@ func TestMergeAction(t *testing.T) {
 		}
 	}
 }
+
+// A draft can't merge: its strip says so and links to the pull request,
+// where it's marked ready for review (ENP-163).
+func TestDraftSaysMarkItReady(t *testing.T) {
+	l := Link{Kind: "pr", Number: 68, State: "draft", URL: "https://github.com/a/b/pull/68", Merge: "draft"}
+	if st := l.mergeStatus(); st != "draft" {
+		t.Fatalf("mergeStatus = %q, want draft", st)
+	}
+	b := strip(l)
+	var found bool
+	for _, x := range b.Buttons {
+		if x.Action == actMerge {
+			t.Fatal("a draft offered Merge")
+		}
+		if x.Action == actStatus {
+			found = true
+			if x.URL != l.URL || !strings.Contains(x.Label, "draft") || !strings.Contains(string(x.Args), `"state":"draft"`) {
+				t.Fatalf("draft status button = %+v", x)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("a draft had no pr.status button")
+	}
+}

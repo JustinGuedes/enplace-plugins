@@ -15,7 +15,9 @@ import (
 //
 //   - "prompt": the person runs the agent (Claude Code, Codex CLI, Gemini
 //     CLI…). Send copies Prompt; the agent works over MCP with its own key.
-//     Manifest only, no logic.
+//     Manifest only, no logic. With Open, Send also offers that link, for
+//     an agent in a browser or app (Codex on chatgpt.com) that can't reach
+//     Enplace: Enplace then marks the item as the agent's when it's sent.
 //   - "start": Enplace starts the agent somewhere else. The logic's Start
 //     action calls the outside service (only on the plugin's hosts, with its
 //     own secrets) and answers Data {"link": "https://…"}, the session to
@@ -39,13 +41,17 @@ type Runner struct {
 	Kind string `json:"kind"`
 	// Hint is a line on what it does, shown where Send offers it.
 	Hint string `json:"hint,omitempty"`
-	// Prompt is what Send hands the agent, with {key} and {title} filled in.
+	// Prompt is what Send hands the agent, with {key}, {title} and
+	// {details} (the item's description) filled in.
 	// Every kind may set it; prompt runners must.
 	Prompt string `json:"prompt,omitempty"`
 	// Connect names how the agent connects to Enplace's MCP, from the
 	// connect screen's list (claude_code, codex, gemini, cursor…), so
 	// Enplace can say whether one is connected and show the steps.
 	Connect string `json:"connect,omitempty"`
+	// Open is the https link Send offers after copying a prompt runner's
+	// prompt, where the person pastes it (like https://chatgpt.com/codex).
+	Open string `json:"open,omitempty"`
 	// Start, Stop and Message are the logic's actions for a start runner.
 	// Only Enplace calls them; they can't be pressed as buttons. Without
 	// Message, messages ride along on the agent's next Enplace tool call.
@@ -62,6 +68,21 @@ type Runner struct {
 	API       string        `json:"api,omitempty"`
 	KeySecret string        `json:"key_secret,omitempty"`
 	Models    []RunnerModel `json:"models,omitempty"`
+}
+
+// Way is one way to connect an agent, for an agent plugin that has
+// several: Claude on your Mac, in the cloud or on an API key. The person
+// picks one when they add the agent, and can add the same agent again,
+// another way or with other settings ("Claude · Work key"). Each way is a
+// runner of its own (see Runner) and may ask for settings kept per agent
+// (scope "agent"), so two API keys can live side by side.
+type Way struct {
+	// Key names the way within the plugin, like "mac", "cloud" or "api".
+	Key string `json:"key"`
+	// Settings are the plugin's agent settings this way asks for when the
+	// agent is set up, in order. Ready and KeySecret may name them.
+	Settings []string `json:"settings,omitempty"`
+	Runner
 }
 
 // RunnerModel is a model a loop runner can use, with its price in US
@@ -91,14 +112,62 @@ const (
 // RunnerAPIs are the wire formats Enplace can drive for a loop runner.
 var RunnerAPIs = []string{"anthropic"}
 
+var openRe = regexp.MustCompile(`^https://[a-z0-9.-]+\.[a-z]{2,}(/[A-Za-z0-9._~/-]*)?$`)
+
 var modelRe = regexp.MustCompile(`^[a-z0-9][a-z0-9._:-]{0,79}$`)
 
 func (m *Manifest) checkRunner() error {
-	r := m.Contributes.Runner
-	if r == nil {
-		return nil
+	c := m.Contributes
+	if c.Runner != nil && len(c.Ways) > 0 {
+		return errors.New("a plugin gives one runner or its ways, not both")
 	}
-	bad := func(f string, a ...any) error { return fmt.Errorf("runner: "+f, a...) }
+	if c.Runner != nil {
+		return m.checkRunnerFields(c.Runner, "runner", nil)
+	}
+	if len(c.Ways) > 8 {
+		return errors.New("ways: up to 8")
+	}
+	seen := map[string]bool{}
+	for i := range c.Ways {
+		w := &c.Ways[i]
+		if !keyRe.MatchString(w.Key) || len(w.Key) > 20 || seen[w.Key] {
+			return fmt.Errorf("bad or repeated way %q", w.Key)
+		}
+		seen[w.Key] = true
+		if w.Agent != c.Ways[0].Agent {
+			return fmt.Errorf("way %s: every way is the same agent (%s)", w.Key, c.Ways[0].Agent)
+		}
+		if w.Name == "" {
+			return fmt.Errorf("way %s needs a name, like \"On your Mac\"", w.Key)
+		}
+		for _, k := range w.Settings {
+			if !slices.ContainsFunc(m.Settings, func(s Setting) bool { return s.Key == k && s.Scope == "agent" }) {
+				return fmt.Errorf("way %s: settings: no agent setting %q", w.Key, k)
+			}
+		}
+		if err := m.checkRunnerFields(&w.Runner, "way "+w.Key, w.Settings); err != nil {
+			return err
+		}
+	}
+	for _, s := range m.Settings {
+		if s.Scope == "agent" && !slices.ContainsFunc(c.Ways, func(w Way) bool { return slices.Contains(w.Settings, s.Key) }) {
+			return fmt.Errorf("setting %s is per agent, but no way asks for it", s.Key)
+		}
+	}
+	return nil
+}
+
+// checkRunnerFields checks one runner, the plugin's own or one of its
+// ways; own are the agent settings a way asks for.
+func (m *Manifest) checkRunnerFields(r *Runner, label string, own []string) error {
+	bad := func(f string, a ...any) error { return fmt.Errorf(label+": "+f, a...) }
+	// mine is a setting the runner may use: the workspace's, or one of the
+	// way's own.
+	mine := func(k string, secret bool) bool {
+		return slices.ContainsFunc(m.Settings, func(s Setting) bool {
+			return s.Key == k && (!secret || s.Type == "secret") && (s.Scope == "workspace" || s.Scope == "agent" && slices.Contains(own, k))
+		})
+	}
 	if r.Agent == "" || len(r.Agent) > 30 || len(r.Name) > 40 || len(r.Hint) > 160 {
 		return bad("agent (1-30 characters), name (up to 40) and hint (up to 160)")
 	}
@@ -117,9 +186,12 @@ func (m *Manifest) checkRunner() error {
 	if r.MaxPerHour < 0 || r.MaxPerHour > 10000 {
 		return bad("max_per_hour is 0 to 10000")
 	}
+	if r.Open != "" && (r.Kind != RunnerPrompt || len(r.Open) > 200 || !openRe.MatchString(r.Open)) {
+		return bad("open is an https link, up to 200 characters, for a prompt runner")
+	}
 	for _, k := range r.Ready {
-		if !slices.ContainsFunc(m.Settings, func(s Setting) bool { return s.Key == k && s.Scope == "workspace" }) {
-			return bad("ready: no workspace setting %q", k)
+		if !mine(k, false) {
+			return bad("ready: no workspace setting, or setting of its own, %q", k)
 		}
 	}
 	for _, a := range []string{r.Start, r.Stop, r.Message} {
@@ -155,8 +227,8 @@ func (m *Manifest) checkRunner() error {
 		if r.Start != "" || r.Stop != "" || r.Message != "" {
 			return bad("a loop runner has no actions: Enplace runs it")
 		}
-		if !keyRe.MatchString(r.KeySecret) || !slices.ContainsFunc(m.Settings, func(s Setting) bool { return s.Key == r.KeySecret && s.Type == "secret" && s.Scope == "workspace" }) {
-			return bad("key_secret names one of its workspace secret settings")
+		if !keyRe.MatchString(r.KeySecret) || !mine(r.KeySecret, true) {
+			return bad("key_secret names one of its secret settings")
 		}
 		if len(r.Models) == 0 || len(r.Models) > 12 {
 			return bad("a loop runner lists 1-12 models")
@@ -177,7 +249,7 @@ func (m *Manifest) checkRunner() error {
 			}
 		}
 	default:
-		return errors.New(`runner: kind is "prompt", "start" or "loop"`)
+		return bad(`kind is "prompt", "start" or "loop"`)
 	}
 	return nil
 }
@@ -204,11 +276,14 @@ func (r *Runner) Title(pluginName string) string {
 	return pluginName
 }
 
-// FillPrompt is the prompt for one work item.
-func (r *Runner) FillPrompt(key, title string) string {
+// FillPrompt is the prompt for one work item; details is its description.
+func (r *Runner) FillPrompt(key, title, details string) string {
 	p := r.Prompt
 	if strings.TrimSpace(p) == "" {
 		p = "Enplace work item {key}: {title}\n\nUse the Enplace MCP: call start_work for {key}, do the work, post progress with add_note, then submit_for_review with a short report and any pull request link. When you change code, open a pull request titled \"{key}: what it does\" so Enplace links it. Pass your session link as session_url to start_work and submit_for_review."
 	}
-	return strings.NewReplacer("{key}", key, "{title}", title).Replace(p)
+	if strings.TrimSpace(details) == "" {
+		details = "(no description)"
+	}
+	return strings.NewReplacer("{key}", key, "{title}", title, "{details}", details).Replace(p)
 }

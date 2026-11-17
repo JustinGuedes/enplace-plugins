@@ -28,7 +28,9 @@ A plugin folder has:
   run on a schedule, hand people a file, and supply busy time for the
   calendar.
 - `skills/` (optional): Markdown skills the plugin gives agents, one file
-  each. A skill's front matter describes it (see Skills plugins below).
+  or one folder each. A skill's front matter describes it (see Skills
+  plugins below).
+- `LICENSE` (optional): the licence the plugin's files come under.
 - `assets/`, `README.md` (optional).
 
 ## Kinds
@@ -76,6 +78,62 @@ applies: writing an update, a report or a summary
 The front matter comes off before agents see the skill. A skill can be
 listed under `contributes.skills` instead; a listed skill wins.
 
+A skill can also be a folder, the way Agent Skills are shared:
+`skills/<name>/SKILL.md`, with the files it reads beside it (like
+`skills/tdd/tests.md`). Its SKILL.md can say `applies` (or
+`x-enplace-applies`, to stay a plain Agent Skill elsewhere); a folder
+skill that doesn't is given in full only to the roles it's on (`by role`),
+and everyone else sees one line about it.
+
+A skills plugin holds words and pictures only (Markdown, text, JSON, CSV,
+YAML and images): nothing an agent could be told to run. That's what lets
+packs update by themselves.
+
+### Packs of someone else's skills
+
+A pack can carry skills someone shares on GitHub, credited to them. The
+manifest names their repo, the commit the skills were copied at and their
+licence, and the folder keeps their `LICENSE`:
+
+```json
+{
+  "id": "engineering-skills",
+  "name": "Engineering",
+  "version": "1.0.0",
+  "kind": "skills",
+  "author": "Matt Pocock",
+  "license": "MIT",
+  "upstream": {
+    "repo": "https://github.com/mattpocock/skills",
+    "commit": "5863806dd4e15c63174bee4e7515a4256792ecfa"
+  }
+}
+```
+
+`upstream.json` beside it says which of the repo's skill folders to take:
+
+```json
+{ "skills": ["skills/engineering/*"], "except": ["ask-matt"] }
+```
+
+Don't edit the copied skills by hand. Copy them in, or move to the repo's
+newest commit, with:
+
+```sh
+go run ./cmd/enplace-plugin vendor plugins/engineering-skills           # the pinned commit
+go run ./cmd/enplace-plugin vendor plugins/engineering-skills --latest --bump
+```
+
+Only licences that let copies be shared are taken (MIT, Apache-2.0, BSD,
+ISC, CC0, CC-BY-4.0, Unlicense), and only words come over: scripts are left
+out, and said so. Every Monday the Upstream skills Action does this for
+each pack and opens a pull request with what changed, so nobody's agents
+follow new instructions before someone has read them.
+
+A repo whose licence doesn't allow copies (like a non-commercial one) can
+still be on the shelf as a link: a skills plugin with no skills, its
+`homepage` and its `license`.
+
 ## Levels, and flowing down
 
 Enplace has three levels, workspace › project › product, and each has its
@@ -106,6 +164,15 @@ switched on for the workspace first.
 card in Settings, like `["repo", "branch"]` for
 `justinguedes/enplace-server · main`. Without it the card shows the first
 setting that has a value.
+
+A text setting can offer a list to pick from with `"choices": "<action>"`,
+like GitHub's repos. Enplace runs that action when the person opens the
+list, with `plugin.ChoicesArgs` (the setting's key and the values on
+screen, saved or not), and the action answers with `plugin.Choices` as
+`Data`. The person searches and picks, or types something that isn't
+there. The call only reads: anything else the action answers is ignored.
+A card button with `"pick": "<setting>"` opens the same list in place, so
+a card like "No repo linked yet" can be set up without leaving it.
 
 ## The plugin's icon
 
@@ -406,18 +473,48 @@ Obsidian vault plugin works this way with the Enplace plugin for Obsidian.
 ### The code a project ships
 
 A plugin that reads a project's code (GitHub now; GitLab or Bitbucket could
-follow) publishes `public.code` for the project, so Release cycle can say
-how the code compares with the release it plans:
+follow) publishes `public.code` for the project:
 
 ```json
 {"provider": "github", "repo": "owner/name", "url": "https://github.com/owner/name",
- "branch": "main", "file": "ios/project.yml", "version": "1.5",
- "tag": "v1.4", "tag_version": "1.4", "ahead": 12, "sha": "…",
+ "branch": "main", "tag": "v1.4", "tag_version": "1.4", "ahead": 12, "sha": "…",
  "commit_at": "…", "checked_at": "…"}
 ```
 
-`plugins/github/versionfile` finds and reads version files without knowing
-where they come from, so another code host plugin can use it as it is.
+The version itself is the Versions plugin's. It asks the code plugin for
+files, on the project or on each of its products, and the code plugin reads
+them at each new commit and shares them on the project:
+
+```json
+"public.want":  {"patterns": ["project.yml", "*version*.xcconfig", "package.json"],
+                 "skip": ["node_modules"], "max_depth": 4, "read": 3,
+                 "paths": ["Version.xcconfig"], "grep": ["MARKETING_VERSION"]}
+"public.files": {"sha": "…", "matched": ["Version.xcconfig"],
+                 "files": [{"path": "Version.xcconfig", "text": "MARKETING_VERSION = 1.5"}]}
+```
+
+`matched` are the files whose names match a pattern (case doesn't matter),
+best first: the pattern they match, then how near the root they are. The
+code plugin reads the best `read` of them and every one of `paths`; a file
+it can't find comes back with `"missing": true`, and a big one as just its
+lines that say one of `grep`, with `"partial": true`.
+
+To bump the version, Versions asks for a pull request, and the code plugin
+opens it once per `id`, from a branch off the head of the project's branch,
+with each edit made (every place `old` is, with `all`), and says how it went:
+
+```json
+"public.bump":  {"id": "v1", "title": "Bump the version to 1.6", "body": "…",
+                 "branch": "enplace/version-1.6",
+                 "edits": [{"path": "Version.xcconfig", "old": "MARKETING_VERSION = 1.5",
+                            "new": "MARKETING_VERSION = 1.6", "all": true}]}
+"public.bumps": {"v1": {"state": "opened", "number": 31, "url": "…"}}
+```
+
+Versions publishes the version and how releases are numbered as
+`public.versions` (`{"version": "1.5", "build": "42", "file": "Version.xcconfig",
+"style": "short", "bump": "minor"}`), which Release cycle numbers its
+releases by and compares with the release it plans.
 
 A code plugin also says what each work item's code needs, in the same
 shape whatever the host, so Enplace's screens and brief never name a host.

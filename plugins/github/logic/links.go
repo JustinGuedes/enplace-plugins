@@ -456,10 +456,14 @@ const actMerge = "pr.merge"
 const actStatus = "pr.status"
 
 // mergeStatus is why an open pull request can't merge now, in one word
-// the card understands: conflicts, behind, failing, blocked, waiting
-// (checks still running) or checking (GitHub hasn't said yet). Empty
+// the card understands: draft, conflicts, behind, failing, blocked,
+// waiting (checks still running) or checking (GitHub hasn't said yet). Empty
 // when it can merge, or isn't open.
 func (l Link) mergeStatus() string {
+	if l.Kind == "pr" && l.State == "draft" {
+		// GitHub won't merge a draft until it's marked ready for review.
+		return "draft"
+	}
 	if l.Kind != "pr" || l.State != "open" || l.canMerge() {
 		return ""
 	}
@@ -489,6 +493,8 @@ func (l Link) statusButton(st string) plugin.Button {
 	}
 	label, url := "", l.URL
 	switch st {
+	case "draft":
+		label = fmt.Sprintf("#%d is a draft: mark it ready for review on GitHub to merge it", l.Number)
 	case "conflicts":
 		label, url = fmt.Sprintf("#%d has conflicts with %s", l.Number, base), l.URL+"/conflicts"
 	case "failing":

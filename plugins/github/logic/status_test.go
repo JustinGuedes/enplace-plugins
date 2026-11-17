@@ -44,7 +44,7 @@ func TestStatusSaysWhyNoMerge(t *testing.T) {
 		{pr("unstable", pass, runC), "waiting", "/pull/9", "Checks running"},
 		{pr(""), "checking", "/pull/9", "Open"},
 		{pr("unknown"), "checking", "/pull/9", "Open"},
-		{Link{Kind: "pr", Number: 9, State: "draft", Merge: "dirty"}, "", "", "Draft"},
+		{Link{Kind: "pr", Number: 9, State: "draft", Merge: "dirty"}, "draft", "", "Draft"}, // mark it ready first (ENP-163)
 		{Link{Kind: "pr", Number: 9, State: "merged"}, "", "", "Merged"},
 	} {
 		b := strip(c.l)

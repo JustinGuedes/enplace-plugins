@@ -1,0 +1,13 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "film-styles",
+  "name": "Lemo-Opuscar film styles",
+  "version": "1.0.0",
+  "kind": "skills",
+  "author": "Lemomo",
+  "summary": "99 film styles made in code, with their own setup. Its write-ups are non-commercial, so it's a link to the repo, not a copy.",
+  "homepage": "https://github.com/lemomo-ai/lemo-opuscar",
+  "license": "CC-BY-NC-4.0",
+  "colour": "#c9b6ff",
+  "icon": "image"
+}

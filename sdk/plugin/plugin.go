@@ -187,7 +187,7 @@ type Project struct {
 	On     bool   `json:"on"`
 	// Product is set for a product: its key, and ProductName its own name
 	// ("Apple app"). Parent is the project it's in. ProductType is what it
-	// is (app, website, physical, service or other) and ProductStage where
+	// is (app, website, physical, service, channel or other) and ProductStage where
 	// it is (idea, building, live or retired).
 	Product      string `json:"product,omitempty"`
 	ProductName  string `json:"product_name,omitempty"`
@@ -670,6 +670,41 @@ type Button struct {
 	Icon string `json:"icon,omitempty"`
 	Key  string `json:"key,omitempty"`
 	Open string `json:"open,omitempty"`
+	// Pick, instead of running anything, opens the list of one of the
+	// plugin's settings that has choices, right where the button is, and
+	// saves what the person picks for the project the card is on.
+	Pick string `json:"pick,omitempty"`
+}
+
+// ChoicesArgs are the args of a setting's choices action (Setting.Choices
+// in the manifest).
+type ChoicesArgs struct {
+	// Setting is the key of the setting the list is for.
+	Setting string `json:"setting"`
+	// Values are the settings as the person has them on screen, saved or
+	// not, so one list can follow another (a repo's branches).
+	Values map[string]any `json:"values,omitempty"`
+}
+
+// Choice is one thing a setting with choices can be set to.
+type Choice struct {
+	// Value is what the setting is saved as, like owner/name.
+	Value string `json:"value"`
+	// Label is what people read, if it differs from Value.
+	Label string `json:"label,omitempty"`
+	// Detail is a few words beside it, like "2 hours ago".
+	Detail string `json:"detail,omitempty"`
+	// Badge is one short word that stands out, like "Private".
+	Badge string `json:"badge,omitempty"`
+	// Group puts choices under a heading, like the repo's owner.
+	Group string `json:"group,omitempty"`
+}
+
+// Choices is a choices action's answer (Response.Data). Note says why the
+// list is empty or short, like "Add a token to see private repos".
+type Choices struct {
+	Choices []Choice `json:"choices"`
+	Note    string   `json:"note,omitempty"`
 }
 
 // Op is a change to ask Enplace for, like {"kind":"work.create",...}.

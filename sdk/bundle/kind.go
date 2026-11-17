@@ -3,6 +3,7 @@ package bundle
 import (
 	"encoding/json"
 	"fmt"
+	"path"
 	"slices"
 	"sort"
 	"strings"
@@ -18,7 +19,8 @@ const (
 	// manifest needn't list them.
 	KindSkills = "skills"
 	// KindAgent does work items for people (Send to Claude, Codex…):
-	// contributes.runner, on the workspace.
+	// contributes.runner, or contributes.ways for one agent with several
+	// ways to connect, on the workspace.
 	KindAgent = "agent"
 	// KindSource keeps a project's work in step with another tool, like
 	// Linear or GitHub Issues. It builds on the work-sync plugin.
@@ -31,6 +33,9 @@ const (
 	// says where it goes with Levels.
 	KindExtension = "extension"
 )
+
+// SkillFileTypes are the kinds of file a skills plugin's skills may hold.
+var SkillFileTypes = []string{".md", ".txt", ".json", ".csv", ".tsv", ".yaml", ".yml", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
 
 // kindRule is what a kind fills in and allows.
 type kindRule struct {
@@ -49,7 +54,7 @@ var kinds = map[string]kindRule{
 	},
 	KindAgent: {
 		scope:  "workspace",
-		pieces: []string{"runner"},
+		pieces: []string{"runner", "ways"},
 	},
 	KindSource: {
 		scope: "project", levels: []string{"project", "product"}, inherit: InheritOffer,
@@ -109,8 +114,8 @@ func (m *Manifest) applyKind() error {
 			return fmt.Errorf("a %s plugin doesn't contribute %s", m.Kind, p)
 		}
 	}
-	if m.Kind == KindAgent && m.Contributes.Runner == nil {
-		return fmt.Errorf("an agent plugin needs contributes.runner")
+	if m.Kind == KindAgent && m.Contributes.Runner == nil && len(m.Contributes.Ways) == 0 {
+		return fmt.Errorf("an agent plugin needs contributes.runner or contributes.ways")
 	}
 	return nil
 }
@@ -136,8 +141,18 @@ func (c Contributes) pieces() ([]string, error) {
 // checkKindFiles checks the files a kind allows: a skills plugin has no
 // logic. It runs where the files are known, packing and reading.
 func checkKindFiles(m *Manifest, files map[string][]byte) error {
-	if m.Kind == KindSkills && HasLogic(files) {
+	if m.Kind != KindSkills {
+		return nil
+	}
+	if HasLogic(files) {
 		return fmt.Errorf("a skills plugin has no logic: remove logic.wasm")
+	}
+	// Words only: nothing an agent could be told to run comes with a skill
+	// pack, so packs can update by themselves.
+	for p := range files {
+		if strings.HasPrefix(p, "skills/") && !slices.Contains(SkillFileTypes, strings.ToLower(path.Ext(p))) {
+			return fmt.Errorf("%s: a skills plugin holds words and pictures only (%s)", p, strings.Join(SkillFileTypes, " "))
+		}
 	}
 	return nil
 }

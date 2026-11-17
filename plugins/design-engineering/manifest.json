@@ -1,0 +1,17 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "design-engineering",
+  "name": "Design engineering",
+  "version": "1.0.0",
+  "kind": "skills",
+  "author": "Emil Kowalski",
+  "summary": "Apple-style design, animation and UI polish: springs, depth, gestures and restraint.",
+  "homepage": "https://github.com/emilkowalski/skills",
+  "license": "MIT",
+  "upstream": {
+    "repo": "https://github.com/emilkowalski/skills",
+    "commit": "64eb3deb9a5fbfa041faf783e0bc3fd635872e9c"
+  },
+  "colour": "#9ad0ec",
+  "icon": "palette"
+}

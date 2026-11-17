@@ -19,7 +19,8 @@
           "contributes": {
             "propertyNames": {
               "enum": [
-                "runner"
+                "runner",
+                "ways"
               ]
             }
           }
@@ -348,6 +349,9 @@
             "name": {
               "type": "string"
             },
+            "open": {
+              "type": "string"
+            },
             "pays": {
               "type": "string"
             },
@@ -438,6 +442,24 @@
               },
               "project": {
                 "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "ways": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "settings": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
               }
             },
             "type": "object"
@@ -594,6 +616,9 @@
       "type": "array",
       "uniqueItems": true
     },
+    "license": {
+      "type": "string"
+    },
     "name": {
       "type": "string"
     },
@@ -626,6 +651,9 @@
         }
       },
       "type": "object"
+    },
+    "replaced_by": {
+      "type": "string"
     },
     "requires": {
       "items": {
@@ -667,6 +695,9 @@
               }
             },
             "type": "object"
+          },
+          "choices": {
+            "type": "string"
           },
           "default": {},
           "fetch": {
@@ -715,6 +746,18 @@
     },
     "summary": {
       "type": "string"
+    },
+    "upstream": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "type": "string"
+        },
+        "repo": {
+          "type": "string"
+        }
+      },
+      "type": "object"
     },
     "version": {
       "type": "string"

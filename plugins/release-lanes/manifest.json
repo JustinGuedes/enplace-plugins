@@ -2,7 +2,7 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "release-lanes",
   "name": "Release lanes",
-  "version": "2.4.2",
+  "version": "2.4.3",
   "kind": "extension",
   "author": "Enplace",
   "summary": "See work grouped by the release it ships in.",
@@ -12,7 +12,7 @@
   "inherit": "down",
   "levels": ["project", "product"],
   "suggest_for": ["app", "website"],
-  "requires": [ { "id": "releases", "version": "^2.7.0" } ],
+  "requires": [ { "id": "releases", "version": "^3.0.0" } ],
   "permissions": { "read": ["projects", "work"] },
   "contributes": {
     "work_views": [ { "key": "lanes", "name": "Lanes", "icon": "lanes" } ]

@@ -38,11 +38,9 @@ One manifest format, with a `kind` that fills in the rest:
 
 ### Agents
 
-- [Claude on your API key](plugins/claude-api): Enplace runs Claude itself on your own Anthropic API key, up to the caps you set.
-- [Claude in the cloud](plugins/claude-cloud): Send work to your own Claude Code task on claude.ai, so it runs with your laptop closed.
-- [Claude Code](plugins/claude-code): Send work to Claude Code on your own computer, on your Claude plan.
-- [Codex CLI](plugins/codex-cli): Send work to the Codex CLI on your own computer, on your own plan.
-- [Gemini CLI](plugins/gemini-cli): Send work to the Gemini CLI on your own computer, on your own plan.
+- [Claude](plugins/claude): Send work to Claude: on your Mac, in the cloud on claude.ai, or on your own API key.
+- [Codex](plugins/codex): Send work to Codex: on your Mac with the Codex CLI, or in the cloud on chatgpt.com.
+- [Gemini](plugins/gemini): Send work to Gemini on your Mac with the Gemini CLI, on your own plan.
 
 ### Work sources
 
@@ -53,23 +51,31 @@ One manifest format, with a `kind` that fills in the rest:
 ### Services
 
 - [App Store](plugins/app): Follow an app on the App Store: its icon, live version, review, rating, reviews and downloads.
-- [GitHub](plugins/github): Link a project to its GitHub repo, and see the version in the code beside the release plan.
+- [GitHub](plugins/github): Link a project to its GitHub repo: pull requests move work, and Versions reads and bumps the version.
 - [Google Play](plugins/google-play): Keep an app's Google Play listing beside the product: its package, page and live version.
 - [Uptime](plugins/website): Check a website is up every 15 minutes, with how fast it answered, its page title and its icon.
 
 ### Extensions
 
 - [Calendar feeds](plugins/calendar-feeds): Show your calendars on the timeline so plans fit around meetings.
+- [Content](plugins/content): Plan videos and posts for your channels: where each one posts, when, what it promotes, and whether this week's slots are filled.
 - [Markdown export](plugins/markdown-export): Download a project's work as Markdown files with front matter.
 - [Release lanes](plugins/release-lanes): See work grouped by the release it ships in.
 - [Release cycle](plugins/releases): Releases on a cadence, with ship rules at cut-off, or deploys as work is done.
+- [Versions](plugins/versions): Where a project's version lives, how it's numbered, and bumping it in the code.
 - [Work sync](plugins/work-sync): The shared engine work sources build on, like Linear, GitHub Issues and Obsidian.
 - [XP](plugins/xp): Turn finished work into XP, levels, streaks, quests and badges.
 
 ### Skill packs
 
+- [Design engineering](plugins/design-engineering): Apple-style design, animation and UI polish: springs, depth, gestures and restraint.
+- [Engineering](plugins/engineering-skills): Grill a plan, build test first, review code and diagnose bugs: the process a good engineer follows.
+- [Lemo-Opuscar film styles](plugins/film-styles): 99 film styles made in code, with their own setup. Its write-ups are non-commercial, so it's a link to the repo, not a copy.
+- [Humanizer](plugins/humanizer): Takes the signs of AI writing out of a draft without changing what it says.
+- [Marketing](plugins/marketing-skills): SEO audits, copywriting, launches, pricing, emails and ads for the things you ship.
 - [Plain-words writing](plugins/plain-words): Skills for writing that people read once and act on: updates, release notes and replies.
 - [Ship an app](plugins/ship-an-app): Skills for getting an iPhone or Android app out: TestFlight builds, store screenshots and review notes.
+- [Short video](plugins/short-video): Skills for short videos and posts: hooks, 30-second scripts, captions and hashtags, and one video cut for TikTok, Reels and Shorts.
 
 <!-- /plugins -->
 

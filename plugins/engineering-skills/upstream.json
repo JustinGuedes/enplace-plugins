@@ -1,0 +1,1 @@
+{"skills": ["skills/engineering/*", "skills/productivity/*"], "except": ["ask-matt", "setup-matt-pocock-skills", "wizard"]}
