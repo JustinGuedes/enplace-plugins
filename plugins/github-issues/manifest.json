@@ -2,7 +2,7 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "github-issues",
   "name": "GitHub Issues",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "kind": "source",
   "author": "Enplace",
   "summary": "Use a repository's issues as a project's work.",
@@ -10,7 +10,7 @@
   "colour": "#f2f2f0",
   "icon": "link",
   "suggest_for": [],
-  "requires": [ { "id": "work-sync", "version": "^1.1.0" }, { "id": "github", "version": "^1.0.0", "optional": true } ],
+  "requires": [ { "id": "work-sync", "version": "^1.1.0" }, { "id": "github", "version": "^2.0.0", "optional": true } ],
   "card_settings": ["repo", "direction"],
   "contributes": {
     "project_cards": [ { "key": "tray", "name": "From GitHub", "size": "wide", "where": "work" } ]
