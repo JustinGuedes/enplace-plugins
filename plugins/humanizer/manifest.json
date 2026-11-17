@@ -1,0 +1,17 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "humanizer",
+  "name": "Humanizer",
+  "version": "1.0.0",
+  "kind": "skills",
+  "author": "blader",
+  "summary": "Takes the signs of AI writing out of a draft without changing what it says.",
+  "homepage": "https://github.com/blader/humanizer",
+  "license": "MIT",
+  "upstream": {
+    "repo": "https://github.com/blader/humanizer",
+    "commit": "b48c832f0f809c1b5658edbb838c2521b72f2413"
+  },
+  "colour": "#a3e4c1",
+  "icon": "pen"
+}

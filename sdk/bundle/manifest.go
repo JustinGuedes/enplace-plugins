@@ -36,6 +36,14 @@ type Manifest struct {
 	Summary     string `json:"summary,omitempty"`
 	Description string `json:"description,omitempty"`
 	Homepage    string `json:"homepage,omitempty"`
+	// License is the SPDX id of the licence the plugin's files come under,
+	// like MIT. A plugin made from someone else's work says theirs, and
+	// keeps their LICENSE file beside the manifest.
+	License string `json:"license,omitempty"`
+	// Upstream is where a plugin's skills come from when they're someone
+	// else's, shared on GitHub: the store credits the repo, and
+	// enplace-plugin vendor copies them in from it.
+	Upstream *Upstream `json:"upstream,omitempty"`
 
 	// How it looks.
 
@@ -110,6 +118,31 @@ type Manifest struct {
 	CardSettings []string `json:"card_settings,omitempty"`
 	// Contributes are the pieces of Enplace the plugin fills.
 	Contributes Contributes `json:"contributes"`
+}
+
+// Upstream is the GitHub repo, and the commit in it, a plugin's skills
+// were copied from.
+type Upstream struct {
+	// Repo is the repo's https://github.com/owner/name link.
+	Repo string `json:"repo"`
+	// Commit is the full commit id the skills were copied at.
+	Commit string `json:"commit"`
+}
+
+var (
+	upstreamRepoRe   = regexp.MustCompile(`^https://github\.com/[A-Za-z0-9-]{1,39}/[A-Za-z0-9._-]{1,100}$`)
+	upstreamCommitRe = regexp.MustCompile(`^[0-9a-f]{40}$`)
+	licenseRe        = regexp.MustCompile(`^[A-Za-z0-9.+-]{2,64}$`)
+)
+
+func (u *Upstream) check() error {
+	if !upstreamRepoRe.MatchString(u.Repo) {
+		return errors.New("upstream.repo is a https://github.com/owner/name link")
+	}
+	if !upstreamCommitRe.MatchString(u.Commit) {
+		return errors.New("upstream.commit is a full 40-character commit id")
+	}
+	return nil
 }
 
 // Inherit values (see Manifest.Inherit).
@@ -505,6 +538,17 @@ func (m *Manifest) Check() error {
 	if len(m.Summary) > 200 || len(m.Description) > 2000 {
 		return errors.New("summary or description is too long")
 	}
+	if m.License != "" && !licenseRe.MatchString(m.License) {
+		return errors.New("license is an SPDX id, like MIT")
+	}
+	if m.Upstream != nil {
+		if err := m.Upstream.check(); err != nil {
+			return err
+		}
+		if m.License == "" {
+			return errors.New("a plugin with an upstream says its licence")
+		}
+	}
 	if m.ReplacedBy != "" && (!idRe.MatchString(m.ReplacedBy) || m.ReplacedBy == m.ID) {
 		return errors.New("replaced_by names another plugin's id")
 	}
@@ -826,12 +870,16 @@ func HostAllowed(patterns []string, host string) bool {
 // PluginOps are the changes a plugin may ask for in its manifest.
 var PluginOps = []string{"work.create", "work.import", "work.update", "work.move", "work.note", "work.fields", "project.icon"}
 
+// MaxSkillDescription is the longest a skill's description can be, as for
+// Agent Skills.
+const MaxSkillDescription = 1024
+
 // checkSkills checks each skill's name and description, and that no name
 // repeats.
 func (c Contributes) checkSkills() error {
 	seen := map[string]bool{}
 	for _, k := range c.Skills {
-		if !idRe.MatchString(k.Name) || seen[k.Name] || k.Description == "" || len(k.Description) > 200 {
+		if !idRe.MatchString(k.Name) || seen[k.Name] || k.Description == "" || len(k.Description) > MaxSkillDescription {
 			return fmt.Errorf("bad or repeated skill %q", k.Name)
 		}
 		seen[k.Name] = true

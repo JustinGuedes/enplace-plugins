@@ -3,6 +3,7 @@ package bundle
 import (
 	"encoding/json"
 	"fmt"
+	"path"
 	"slices"
 	"sort"
 	"strings"
@@ -32,6 +33,9 @@ const (
 	// says where it goes with Levels.
 	KindExtension = "extension"
 )
+
+// SkillFileTypes are the kinds of file a skills plugin's skills may hold.
+var SkillFileTypes = []string{".md", ".txt", ".json", ".csv", ".tsv", ".yaml", ".yml", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
 
 // kindRule is what a kind fills in and allows.
 type kindRule struct {
@@ -137,8 +141,18 @@ func (c Contributes) pieces() ([]string, error) {
 // checkKindFiles checks the files a kind allows: a skills plugin has no
 // logic. It runs where the files are known, packing and reading.
 func checkKindFiles(m *Manifest, files map[string][]byte) error {
-	if m.Kind == KindSkills && HasLogic(files) {
+	if m.Kind != KindSkills {
+		return nil
+	}
+	if HasLogic(files) {
 		return fmt.Errorf("a skills plugin has no logic: remove logic.wasm")
+	}
+	// Words only: nothing an agent could be told to run comes with a skill
+	// pack, so packs can update by themselves.
+	for p := range files {
+		if strings.HasPrefix(p, "skills/") && !slices.Contains(SkillFileTypes, strings.ToLower(path.Ext(p))) {
+			return fmt.Errorf("%s: a skills plugin holds words and pictures only (%s)", p, strings.Join(SkillFileTypes, " "))
+		}
 	}
 	return nil
 }

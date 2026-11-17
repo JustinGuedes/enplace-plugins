@@ -1,0 +1,55 @@
+# Once a week, looks at the GitHub repo each skill pack was copied from.
+# When one changed, it copies the new skills in, bumps the pack's version
+# and opens a pull request showing what changed. Nothing reaches anyone's
+# agents until that pull request is read and merged; then Publish ships it.
+#
+# Needs "Allow GitHub Actions to create and approve pull requests" on
+# (Settings → Actions → General). Pull requests opened this way don't run
+# the Publish check themselves: it runs on main once merged.
+name: Upstream skills
+
+on:
+  schedule:
+    - cron: '17 6 * * 1' # Mondays, 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Copy in what changed, one pull request per pack
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "Justin Guedes"
+          git config user.email "justin.guedes@gmail.com"
+          go build -o /tmp/enplace-plugin ./cmd/enplace-plugin
+          for upstream in plugins/*/upstream.json; do
+            dir=$(dirname "$upstream"); id=$(basename "$dir")
+            git checkout -q main
+            /tmp/enplace-plugin vendor "$dir" --latest --bump --summary /tmp/summary.md
+            if [ ! -f /tmp/summary.md ]; then
+              git checkout -q -- "$dir" # only the commit moved: nothing to read
+              continue
+            fi
+            branch="upstream/$id"
+            title="Update $id skills from upstream"
+            git checkout -q -B "$branch"
+            git add "$dir"
+            git commit -q -m "$title"
+            git push -q -f origin "$branch"
+            if [ -z "$(gh pr list --head "$branch" --state open --json number --jq '.[].number')" ]; then
+              gh pr create --base main --head "$branch" --title "$title" --body-file /tmp/summary.md
+            else
+              gh pr edit "$branch" --body-file /tmp/summary.md
+            fi
+            rm /tmp/summary.md
+          done

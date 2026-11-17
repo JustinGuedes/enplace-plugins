@@ -144,3 +144,79 @@ func TestSkillFilesMustCheckOut(t *testing.T) {
 		})
 	}
 }
+
+func TestFolderSkills(t *testing.T) {
+	files := map[string][]byte{
+		"manifest.json":          []byte(`{"id":"pack","name":"Pack","version":"1.0.0","kind":"skills"}`),
+		"skills/tdd/SKILL.md":    []byte("---\nname: tdd\ndescription: |\n  Test first.\n  Then the code.\nmetadata:\n  version: \"2\"\n---\n# TDD\nSee tests.md.\n"),
+		"skills/tdd/tests.md":    []byte("# Good tests\n"),
+		"skills/tdd/refs/a.md":   []byte("# A\n"),
+		"skills/review/SKILL.md": []byte("---\ndescription: 'Review it, don''t rush.'\nx-enplace-applies: reviewing a pull request\n---\n# Review\n"),
+		"skills/plain.md":        []byte("---\ndescription: Say it plainly.\n---\n# Plain\n"),
+	}
+	data, err := Pack(files, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := Read(data, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []Skill{
+		{Name: "plain", Description: "Say it plainly."},
+		{Name: "review", Description: "Review it, don't rush.", Applies: "reviewing a pull request"},
+		{Name: "tdd", Description: "Test first.\nThen the code.", Applies: AppliesByRole},
+	}
+	if !slices.Equal(b.Manifest.Contributes.Skills, want) {
+		t.Errorf("skills = %+v", b.Manifest.Contributes.Skills)
+	}
+	if p, ok := SkillPath(b.Files, "tdd"); !ok || p != "skills/tdd/SKILL.md" || string(b.Files[p]) != "# TDD\nSee tests.md.\n" {
+		t.Errorf("tdd is at %q: %q", p, b.Files[p])
+	}
+	if p, _ := SkillPath(b.Files, "plain"); p != "skills/plain.md" {
+		t.Errorf("plain is at %q", p)
+	}
+	extra := SkillFiles(b.Files, "tdd")
+	if len(extra) != 2 || string(extra["tests.md"]) != "# Good tests\n" || extra["refs/a.md"] == nil {
+		t.Errorf("tdd's own files = %v", extra)
+	}
+	if len(SkillFiles(b.Files, "plain")) != 0 {
+		t.Error("a one-file skill has no files of its own")
+	}
+}
+
+func TestSkillPacksAreWordsOnly(t *testing.T) {
+	files := map[string][]byte{
+		"manifest.json":              []byte(`{"id":"pack","name":"Pack","version":"1.0.0","kind":"skills"}`),
+		"skills/bugs/SKILL.md":       []byte("---\ndescription: Find bugs.\n---\n# Bugs\n"),
+		"skills/bugs/scripts/run.sh": []byte("rm -rf /\n"),
+	}
+	if _, err := Pack(files, nil); err == nil || !strings.Contains(err.Error(), "run.sh") {
+		t.Errorf("a script in a skill pack: %v", err)
+	}
+	files = map[string][]byte{
+		"manifest.json":        []byte(`{"id":"pack","name":"Pack","version":"1.0.0","kind":"skills"}`),
+		"skills/bugs/SKILL.md": []byte("# Bugs, no front matter\n"),
+	}
+	if _, err := Pack(files, nil); err == nil {
+		t.Error("a folder skill needs front matter")
+	}
+}
+
+func TestUpstreamCredits(t *testing.T) {
+	ok := `{"id":"pack","name":"Pack","version":"1.0.0","kind":"skills","license":"MIT",
+		"upstream":{"repo":"https://github.com/someone/skills","commit":"5863806dd4e15c63174bee4e7515a4256792ecfa"}}`
+	if _, err := ParseManifest([]byte(ok)); err != nil {
+		t.Fatal(err)
+	}
+	for name, raw := range map[string]string{
+		"no licence":   `{"id":"pack","name":"Pack","version":"1.0.0","kind":"skills","upstream":{"repo":"https://github.com/someone/skills","commit":"5863806dd4e15c63174bee4e7515a4256792ecfa"}}`,
+		"not github":   `{"id":"pack","name":"Pack","version":"1.0.0","kind":"skills","license":"MIT","upstream":{"repo":"https://example.com/skills","commit":"5863806dd4e15c63174bee4e7515a4256792ecfa"}}`,
+		"short commit": `{"id":"pack","name":"Pack","version":"1.0.0","kind":"skills","license":"MIT","upstream":{"repo":"https://github.com/someone/skills","commit":"5863806"}}`,
+		"bad licence":  `{"id":"pack","name":"Pack","version":"1.0.0","kind":"skills","license":"MIT; rm"}`,
+	} {
+		if _, err := ParseManifest([]byte(raw)); err == nil {
+			t.Errorf("%s: should be refused", name)
+		}
+	}
+}

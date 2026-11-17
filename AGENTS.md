@@ -10,6 +10,8 @@
   GitHub Pages. Nothing is committed back to main.
 - Changing `sdk/` changes what the server builds against: the server's
   `go.mod` then needs the new version, in a PR there.
+- Packs copied from someone's GitHub repo (`upstream` in the manifest) are
+  changed only with `enplace-plugin vendor`, never by hand.
 - Give a new plugin a `kind` when one fits, and let the kind fill in what
   it can. Test logic with `sdk/plugin/plugintest`: every plugin has a smoke
   test, and behaviour worth keeping gets its own test.

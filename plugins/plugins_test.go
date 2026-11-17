@@ -58,7 +58,10 @@ func TestEveryPluginPacks(t *testing.T) {
 			}
 			skills := skillFiles(t, id)
 			for name, body := range skills {
-				files["skills/"+name+".md"] = body
+				files[name] = body
+			}
+			if b, err := os.ReadFile(filepath.Join(id, "LICENSE")); err == nil {
+				files["LICENSE"] = b
 			}
 			if _, err := os.Stat(filepath.Join(id, "logic")); err == nil {
 				// The real logic is built for WASI in CI; any bytes stand in here.
@@ -85,9 +88,18 @@ func TestEveryPluginPacks(t *testing.T) {
 			for _, sk := range b.Manifest.Contributes.Skills {
 				listed = append(listed, sk.Name)
 			}
-			for name := range skills {
-				if !slices.Contains(listed, name) {
-					t.Errorf("skills/%s.md is neither listed nor has front matter with a description", name)
+			for p := range skills {
+				name, ok := skillName(p)
+				if ok && !slices.Contains(listed, name) {
+					t.Errorf("%s is neither listed nor has front matter with a description", p)
+				}
+			}
+			if m.Upstream != nil {
+				if _, err := os.Stat(filepath.Join(id, "LICENSE")); err != nil {
+					t.Error("a pack copied from someone's repo keeps their LICENSE beside the manifest")
+				}
+				if _, err := os.Stat(filepath.Join(id, "upstream.json")); err != nil {
+					t.Error("say which of the repo's skills to take in upstream.json")
 				}
 			}
 		})
@@ -112,20 +124,17 @@ func iconFiles(t *testing.T, id string) map[string][]byte {
 	return out
 }
 
+// skillFiles are every file under the plugin's skills/, by its path in the
+// bundle.
 func skillFiles(t *testing.T, id string) map[string][]byte {
 	t.Helper()
 	out := map[string][]byte{}
-	root := filepath.Join(id, "skills")
-	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(filepath.Join(id, "skills"), func(p string, d fs.DirEntry, err error) error {
 		if os.IsNotExist(err) {
 			return fs.SkipDir
 		}
 		if err != nil || d.IsDir() {
 			return err
-		}
-		if !strings.HasSuffix(p, ".md") {
-			t.Errorf("%s: skills are Markdown files", p)
-			return nil
 		}
 		b, err := os.ReadFile(p)
 		if err != nil {
@@ -134,11 +143,25 @@ func skillFiles(t *testing.T, id string) map[string][]byte {
 		if strings.TrimSpace(string(b)) == "" {
 			t.Errorf("%s is empty", p)
 		}
-		out[strings.TrimSuffix(filepath.Base(p), ".md")] = b
+		rel, _ := filepath.Rel(id, p)
+		out[filepath.ToSlash(rel)] = b
 		return nil
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return out
+}
+
+// skillName is the skill a file is, when it's one: skills/<name>.md or
+// skills/<name>/SKILL.md.
+func skillName(p string) (string, bool) {
+	parts := strings.Split(p, "/")
+	switch {
+	case len(parts) == 2 && strings.HasSuffix(parts[1], ".md"):
+		return strings.TrimSuffix(parts[1], ".md"), true
+	case len(parts) == 3 && parts[2] == bundle.SkillFile:
+		return parts[1], true
+	}
+	return "", false
 }

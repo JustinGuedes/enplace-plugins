@@ -616,6 +616,9 @@
       "type": "array",
       "uniqueItems": true
     },
+    "license": {
+      "type": "string"
+    },
     "name": {
       "type": "string"
     },
@@ -740,6 +743,18 @@
     },
     "summary": {
       "type": "string"
+    },
+    "upstream": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "type": "string"
+        },
+        "repo": {
+          "type": "string"
+        }
+      },
+      "type": "object"
     },
     "version": {
       "type": "string"
