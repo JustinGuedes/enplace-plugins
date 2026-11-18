@@ -425,6 +425,9 @@ type Option struct {
 	// offered for new work (a release that shipped). Goals for a closed
 	// choice are over.
 	Closed bool `json:"closed,omitempty"`
+	// Day is the day the choice stands for, YYYY-MM-DD, when it has one
+	// (the day a release ships), so Enplace can put it on the calendar.
+	Day string `json:"day,omitempty"`
 }
 
 // View is a work view: groups of work, in order. Enplace draws the work
