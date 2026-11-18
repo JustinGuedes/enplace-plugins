@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/JustinGuedes/enplace-plugins/plugins/releases/cycle"
@@ -74,4 +75,30 @@ func TestReleaseChoicesCarryTheirShipDay(t *testing.T) {
 		}
 	}
 	t.Fatalf("no choice for %s in %+v", rels[0].ID, out.Fields)
+}
+
+func TestReleasesPageLeadsWithTheNextRelease(t *testing.T) {
+	req := plugintest.Request(plugin.HookSchedule)
+	req.Plugin.ID = "releases"
+	req.ProjectSettings = map[string]map[string]any{plugintest.ProjectID: {}}
+	res := plugintest.Call(t, handle, req)
+	rels := planned(t, req)
+
+	req.Hook, req.Page, req.State = plugin.HookPage, "releases", *res.State
+	pg := plugintest.Call(t, handle, req).Page
+	if pg == nil || !strings.HasPrefix(pg.Title, rels[0].Version+" ships ") {
+		t.Fatalf("title %+v", pg)
+	}
+	if pg.Blocks[0].Type != plugin.BlockStats || pg.Blocks[0].Tone != "figs" || pg.Blocks[0].Items[0].Title != "done" {
+		t.Fatalf("figures %+v", pg.Blocks[0])
+	}
+	heads := []string{}
+	for _, b := range pg.Blocks {
+		if b.Type == plugin.BlockHeading {
+			heads = append(heads, b.Text)
+		}
+	}
+	if len(heads) < 2 || heads[0] != "Next release" || heads[1] != "After that" {
+		t.Fatalf("headings %v", heads)
+	}
 }

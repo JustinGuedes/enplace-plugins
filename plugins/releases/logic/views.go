@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -361,6 +362,10 @@ func (c *cycleRun) projectPage(p *project) *plugin.Page {
 	if p.continuous && !p.onlyContinuous() {
 		head.Text += " Site work ships as soon as it's done."
 	}
+	if figs := c.figures(p); figs != nil {
+		pg.Blocks = append(pg.Blocks, *figs)
+	}
+	pg.Title = c.headline(p)
 	pg.Blocks = append(pg.Blocks, head)
 	if line := c.codeLine(p, p.next(c.today.Format(day))); line != nil {
 		pg.Blocks = append(pg.Blocks, *line)
@@ -376,6 +381,18 @@ func (c *cycleRun) projectPage(p *project) *plugin.Page {
 	}
 	var past, deployed []cycle.Release
 	first := true
+	// The first release is the next one; the rest come after it.
+	rels := 0
+	release := func(b plugin.Block) {
+		switch rels {
+		case 0:
+			pg.Blocks = append(pg.Blocks, plugin.Block{Type: plugin.BlockHeading, Text: "Next release"})
+		case 1:
+			pg.Blocks = append(pg.Blocks, plugin.Block{Type: plugin.BlockHeading, Text: "After that"})
+		}
+		rels++
+		pg.Blocks = append(pg.Blocks, b)
+	}
 	// Products with cycles of their own ship beside the project's: a day
 	// they share shows as one section.
 	theirs := c.productReleases(p)
@@ -395,14 +412,14 @@ func (c *cycleRun) projectPage(p *project) *plugin.Page {
 				rels = append([]coming{{p.Project, *own}}, rels...)
 			}
 			t := c.group(rels)[0]
-			pg.Blocks = append(pg.Blocks, c.sharedSection(p, t, mine, !first))
+			release(c.sharedSection(p, t, mine, !first))
 			first = false
 			if mine != nil {
 				own = nil
 			}
 		}
 		if own != nil {
-			pg.Blocks = append(pg.Blocks, c.section(p, *own, !first))
+			release(c.section(p, *own, !first))
 			first = false
 		}
 	}
@@ -450,7 +467,7 @@ func (c *cycleRun) projectPage(p *project) *plugin.Page {
 			}
 			items = append(items, it)
 		}
-		pg.Blocks = append(pg.Blocks, plugin.Block{Type: plugin.BlockHeading, Text: "Earlier"}, plugin.Block{Type: plugin.BlockList, Items: items})
+		pg.Blocks = append(pg.Blocks, plugin.Block{Type: plugin.BlockHeading, Text: "Shipped"}, plugin.Block{Type: plugin.BlockList, Items: items})
 	}
 	return pg
 }
@@ -504,4 +521,45 @@ func (c *cycleRun) allPage() *plugin.Page {
 	}
 	pg.Blocks = append(pg.Blocks, plugin.Block{Type: plugin.BlockList, Items: items})
 	return pg
+}
+
+// headline answers the Releases page in a few words: when the next one ships.
+func (c *cycleRun) headline(p *project) string {
+	r := p.next(c.today.Format(day))
+	switch {
+	case p.onlyContinuous():
+		return "Ships when done"
+	case r == nil:
+		return "Nothing planned"
+	}
+	when := c.dayWord(r.ShipDate)
+	if t, err := time.Parse(day, r.ShipDate); err == nil {
+		if days := int(t.Sub(c.today).Hours() / 24); days > 1 && days < 7 {
+			when = t.Format("Monday")
+		} else if days >= 7 {
+			when = "on " + t.Format("2 Jan")
+		}
+	}
+	return r.Version + " ships " + when
+}
+
+// figures sum up the next release under the headline: how much is done,
+// the cut-off and, with Versions, the next build.
+func (c *cycleRun) figures(p *project) *plugin.Block {
+	r := p.next(c.today.Format(day))
+	if r == nil || p.onlyContinuous() {
+		return nil
+	}
+	b := plugin.Block{Type: plugin.BlockStats, Tone: "figs"}
+	b.Items = append(b.Items, plugin.Item{Title: "done", Value: fmt.Sprintf("%d of %d", r.Done, r.Total), Done: r.Total > 0})
+	if r.Cutoff != "" && r.Cutoff >= c.today.Format(day) {
+		w := c.dayWord(r.Cutoff)
+		b.Items = append(b.Items, plugin.Item{Title: "cut-off", Value: strings.ToUpper(w[:1]) + w[1:]})
+	}
+	if v := c.versionsPlugin(p.ID); v != nil {
+		if n, err := strconv.Atoi(v.Build); err == nil {
+			b.Items = append(b.Items, plugin.Item{Title: "next build", Value: strconv.Itoa(n + 1)})
+		}
+	}
+	return &b
 }
