@@ -524,7 +524,7 @@ const (
 	BlockHeading  = "heading"  // Text, Sub
 	BlockText     = "text"     // Text, Tone
 	BlockStat     = "stat"     // Label, Value, Sub
-	BlockStats    = "stats"    // Items: Title (label), Value, Sub, Icon
+	BlockStats    = "stats"    // Items: Title (label), Value, Sub, Icon; Tone "figs" at the top of a page draws them as figures under its title, Done ones in green
 	BlockProgress = "progress" // Label, Value, Progress, Sub
 	BlockRing     = "ring"     // Label, Value, Progress, Sub: a big ring with a number
 	BlockList     = "list"     // Items: Title, Sub, Value, Icon, Done, Progress, Button
