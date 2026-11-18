@@ -2,7 +2,7 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "obsidian",
   "name": "Obsidian vault",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "kind": "source",
   "author": "Enplace",
   "summary": "Keep a project's work as Markdown notes in your Obsidian vault.",
@@ -24,7 +24,7 @@
       "service": "Obsidian",
       "about": "The Enplace plugin for Obsidian sends your notes here and writes back what changed, every few seconds while Obsidian is open.",
       "steps": [
-        "Put the Enplace plugin for Obsidian in the vault (.obsidian/plugins/enplace), then switch it on under Settings › Community plugins.",
+        "Get the Enplace plugin for Obsidian with Download for Obsidian above (it isn't in Obsidian's plugin browser yet), unzip it into the vault's .obsidian/plugins folder, then switch it on under Settings › Community plugins.",
         "In its settings, press Connect a project and paste both.",
         "Your notes appear in Enplace/<project>/Work in the vault. To sync a folder you already keep instead, set Use an existing folder below before you connect."
       ]
