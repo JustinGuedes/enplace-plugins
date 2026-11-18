@@ -20,6 +20,7 @@ var kindHeadings = []struct{ kind, heading string }{
 	{bundle.KindService, "Services"},
 	{bundle.KindExtension, "Extensions"},
 	{bundle.KindSkills, "Skill packs"},
+	{bundle.KindRole, "Roles"},
 }
 
 const (

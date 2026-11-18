@@ -31,6 +31,30 @@
       "if": {
         "properties": {
           "kind": {
+            "const": "role"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "contributes": {
+            "propertyNames": {
+              "enum": [
+                "role",
+                "skills"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
             "const": "service"
           }
         },
@@ -285,6 +309,48 @@
         },
         "recall": {
           "type": "boolean"
+        },
+        "role": {
+          "additionalProperties": false,
+          "properties": {
+            "about": {
+              "type": "string"
+            },
+            "brief": {
+              "type": "string"
+            },
+            "icon": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "takes": {
+              "additionalProperties": false,
+              "properties": {
+                "anything": {
+                  "type": "boolean"
+                },
+                "tags": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "type": "object"
+            },
+            "tone": {
+              "type": "string"
+            },
+            "uses": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
         },
         "runner": {
           "additionalProperties": false,
@@ -600,6 +666,7 @@
       "enum": [
         "agent",
         "extension",
+        "role",
         "service",
         "skills",
         "source"

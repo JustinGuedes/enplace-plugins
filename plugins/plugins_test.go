@@ -165,3 +165,28 @@ func skillName(p string) (string, bool) {
 	}
 	return "", false
 }
+
+// A role is built from skills that exist: every plugin it uses is a
+// skills plugin here.
+func TestRolesUseSkillsPlugins(t *testing.T) {
+	for _, id := range folders(t) {
+		raw, err := os.ReadFile(filepath.Join(id, "manifest.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		m, err := bundle.ParseManifest(raw)
+		if err != nil || m.Kind != bundle.KindRole {
+			continue
+		}
+		for _, use := range m.Contributes.Role.Uses {
+			raw, err := os.ReadFile(filepath.Join(use, "manifest.json"))
+			if err != nil {
+				t.Errorf("%s uses %s, which isn't a plugin here", id, use)
+				continue
+			}
+			if u, err := bundle.ParseManifest(raw); err != nil || u.Kind != bundle.KindSkills {
+				t.Errorf("%s uses %s, which isn't a skills plugin", id, use)
+			}
+		}
+	}
+}

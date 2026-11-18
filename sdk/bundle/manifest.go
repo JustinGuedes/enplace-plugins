@@ -340,6 +340,8 @@ type Contributes struct {
 	// Ways make the plugin one agent with several ways to connect, in
 	// place of Runner (see Way).
 	Ways []Way `json:"ways,omitempty"`
+	// Role makes the plugin a role on the person's team (KindRole).
+	Role *Role `json:"role,omitempty"`
 	// Webhook lets an outside service tell the plugin something changed,
 	// for each project (or product) it's on: Enplace gives each one its
 	// own address and signing secret, checks every delivery's signature
@@ -841,6 +843,9 @@ func (m *Manifest) Check() error {
 	if err := c.checkSkills(); err != nil {
 		return err
 	}
+	if err := c.Role.check(); err != nil {
+		return err
+	}
 	if err := m.checkRunner(); err != nil {
 		return err
 	}
@@ -950,6 +955,9 @@ func Merge(parent, child Manifest) Manifest {
 	}
 	if cc.Runner == nil {
 		out.Contributes.Runner = pc.Runner
+	}
+	if cc.Role == nil {
+		out.Contributes.Role = pc.Role
 	}
 	out.Contributes.Ways = mergeBy(pc.Ways, cc.Ways, func(w Way) string { return w.Key })
 	out.Contributes.Calendar = pc.Calendar || cc.Calendar

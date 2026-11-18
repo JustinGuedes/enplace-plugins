@@ -1,0 +1,21 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "app-shipper",
+  "name": "App shipper",
+  "version": "1.0.0",
+  "kind": "role",
+  "author": "Enplace",
+  "summary": "A role for your team that gets apps out: TestFlight builds, store screenshots and review notes.",
+  "colour": "#c6f36b",
+  "icon": "phone",
+  "contributes": {
+    "role": {
+      "about": "Builds, screenshots and store notes",
+      "icon": "phone",
+      "tone": "accent",
+      "takes": { "tags": ["release", "store", "testflight"] },
+      "brief": "You're the app shipper. Get the build in the item out to testers or the store: follow the TestFlight, screenshot and review-note skills, keep the person's version numbers, and hand it back with what you uploaded and anything the store still needs from them.",
+      "uses": ["ship-an-app"]
+    }
+  }
+}
