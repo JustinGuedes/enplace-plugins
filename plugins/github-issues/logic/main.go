@@ -9,6 +9,7 @@ package main
 import (
 	"cmp"
 	"net/url"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -236,7 +237,7 @@ func (src *source) item(s *worksync.Sync, is issue) worksync.Item {
 		it.Assignee = "@" + is.Assignee.Login
 	}
 	if is.Milestone != nil && is.Milestone.Title != "" {
-		it.Assignee = strings.TrimPrefix(strings.Join([]string{it.Assignee, "milestone " + is.Milestone.Title}, " · "), " · ")
+		it.Info = "milestone " + is.Milestone.Title
 	}
 	filtered := filter(s)
 	if src.raw == nil {
@@ -344,6 +345,15 @@ func (src *source) Update(s *worksync.Sync, it worksync.Item, ch worksync.Change
 		}
 		body["labels"] = out
 	}
+	if ch.Assignee != nil {
+		if *ch.Assignee == "" {
+			body["assignees"] = []string{}
+		} else if l := login(*ch.Assignee); l != "" {
+			// GitHub leaves out anyone who can't be assigned here, and
+			// the issue keeps what it says.
+			body["assignees"] = []string{l}
+		}
+	}
 	if len(body) == 0 {
 		return it, nil
 	}
@@ -370,11 +380,26 @@ func (src *source) Create(s *worksync.Sync, w plugin.Work, it worksync.Item) (wo
 	if len(labels) > 0 {
 		body["labels"] = labels
 	}
+	if l := login(w.Assignee); l != "" {
+		body["assignees"] = []string{l}
+	}
 	is, err := c.send("POST", "/issues", body)
 	if err != nil {
 		return it, err
 	}
 	return src.item(s, *is), nil
+}
+
+var loginRe = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$`)
+
+// login is an assignee as a GitHub login: "@sam" or "sam". A name with
+// spaces, or an email, isn't one, so it's left as GitHub has it.
+func login(who string) string {
+	l := strings.TrimPrefix(strings.TrimSpace(who), "@")
+	if !loginRe.MatchString(l) {
+		return ""
+	}
+	return l
 }
 
 // Close closes the issue of work deleted in Enplace, as not planned.

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -57,6 +58,19 @@ type teamInfo struct {
 type person struct {
 	Name        string `json:"name"`
 	DisplayName string `json:"displayName"`
+	Email       string `json:"email,omitempty"`
+}
+
+// who is the person as Enplace matches them: "Sam Rivera <sam@acme.dev>".
+func (p *person) who() string {
+	if p == nil {
+		return ""
+	}
+	name := cmp.Or(p.Name, p.DisplayName)
+	if p.Email == "" {
+		return name
+	}
+	return strings.TrimSpace(name + " <" + p.Email + ">")
 }
 
 func (p *person) String() string {
@@ -105,7 +119,7 @@ type issue struct {
 }
 
 const issueFields = `id identifier title description url priority dueDate estimate updatedAt archivedAt trashed
-state { id name type position } labels(first: 50) { nodes { id name } } assignee { name displayName } creator { name displayName }
+state { id name type position } labels(first: 50) { nodes { id name } } assignee { name displayName email } creator { name displayName }
 parent { identifier } project { name } comments(last: 10) { nodes { body createdAt user { name displayName } } }`
 
 type gqlError struct {
@@ -288,6 +302,37 @@ func (c *client) update(id string, input map[string]any) (*issue, error) {
 		return nil, errors.New("Linear didn't take the change")
 	}
 	return d.R.Issue, nil
+}
+
+// user finds a workspace member by email, else by name; "" when there's
+// no one (or more than one) like that.
+func (c *client) user(name, email string) (string, error) {
+	var filter map[string]any
+	switch {
+	case email != "":
+		filter = map[string]any{"email": map[string]any{"eqIgnoreCase": email}}
+	case name != "":
+		filter = map[string]any{"or": []any{
+			map[string]any{"name": map[string]any{"eqIgnoreCase": name}},
+			map[string]any{"displayName": map[string]any{"eqIgnoreCase": name}},
+		}}
+	default:
+		return "", nil
+	}
+	var d struct {
+		Users struct {
+			Nodes []struct {
+				ID string `json:"id"`
+			} `json:"nodes"`
+		} `json:"users"`
+	}
+	if err := c.do(`query Users($filter: UserFilter) { users(filter: $filter, first: 2) { nodes { id } } }`, map[string]any{"filter": filter}, &d); err != nil {
+		return "", err
+	}
+	if len(d.Users.Nodes) != 1 {
+		return "", nil
+	}
+	return d.Users.Nodes[0].ID, nil
 }
 
 // create opens an issue.

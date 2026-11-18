@@ -174,6 +174,9 @@ func (w *world) approve(res *plugin.Response) {
 		if d, ok := in["due"].(string); ok {
 			wk.Due = d
 		}
+		if a, ok := in["assignee"].(string); ok {
+			wk.Assignee = a
+		}
 		if tags, ok := in["tags"].([]any); ok {
 			for _, x := range tags {
 				wk.Tags = append(wk.Tags, x.(string))

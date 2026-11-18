@@ -2,6 +2,7 @@ package worksync
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +14,8 @@ type memSource struct {
 	items   map[string]Item
 	updates []Change
 	now     time.Time
+	// people are the assignees it knows; nil knows everyone.
+	people []string
 }
 
 func (m *memSource) List(*Sync) ([]Item, bool, error) {
@@ -31,6 +34,9 @@ func (m *memSource) Update(_ *Sync, it Item, ch Change) (Item, error) {
 	}
 	if ch.Priority != nil {
 		it.Priority = *ch.Priority
+	}
+	if ch.Assignee != nil && (m.people == nil || *ch.Assignee == "" || slices.Contains(m.people, *ch.Assignee)) {
+		it.Assignee = *ch.Assignee
 	}
 	it.UpdatedAt = m.now
 	m.items[it.ID] = it
@@ -199,5 +205,62 @@ func TestSourceFieldsComeIn(t *testing.T) {
 	f := ops(res, "work.fields")
 	if len(f) != 1 || f[0]["fields"].(map[string]any)["src.points"] != "5" || len(src.updates) != 0 {
 		t.Fatalf("points: ops %+v updates %+v", res.Ops, src.updates)
+	}
+}
+
+// The assignee comes in, goes out and comes back in like the title, and a
+// person the source doesn't know doesn't bounce back as a change outside.
+func TestAssigneeSyncs(t *testing.T) {
+	src := &memSource{items: map[string]Item{
+		"a": {ID: "a", Ref: "A-1", Title: "One", Status: "Todo", Assignee: "Byron", UpdatedAt: t0},
+	}, now: t0, people: []string{"Byron", "Sam"}}
+	cfg := Config{Name: "Mem", Source: src}
+	set := map[string]any{}
+	res, _ := Handle(request(plugin.State{}, set, nil, t0), cfg)
+	imp := ops(res, "work.import")
+	if len(imp) != 1 || imp[0]["items"].([]any)[0].(map[string]any)["assignee"] != "Byron" {
+		t.Fatalf("import %+v", res.Ops)
+	}
+	st := next(plugin.State{}, res)
+	work := []plugin.Work{{ID: "w1", ProjectID: "p1", Title: "One", Stage: "todo", StageKind: "todo", Assignee: "byron", Fields: map[string]string{"src.link": "A-1"}, UpdatedAt: t0}}
+	res, _ = Handle(request(st, set, work, t0.Add(time.Minute)), cfg)
+	if len(res.Ops) != 0 || len(src.updates) != 0 {
+		t.Fatalf("same person, other case: ops %+v updates %+v", res.Ops, src.updates)
+	}
+	st = next(st, res)
+
+	// Changed in Enplace: it goes out, with the member's email.
+	work[0].Assignee, work[0].AssigneeEmail, work[0].UpdatedAt = "Sam", "sam@example.com", t0.Add(2*time.Minute)
+	src.now = t0.Add(3 * time.Minute)
+	res, _ = Handle(request(st, set, work, t0.Add(3*time.Minute)), cfg)
+	if len(src.updates) != 1 || *src.updates[0].Assignee != "Sam" || src.updates[0].AssigneeEmail != "sam@example.com" || src.items["a"].Assignee != "Sam" {
+		t.Fatalf("out: %+v", src.updates)
+	}
+	st = next(st, res)
+
+	// Changed outside: it comes in.
+	it := src.items["a"]
+	it.Assignee, it.UpdatedAt = "", t0.Add(4*time.Minute)
+	src.items["a"] = it
+	res, _ = Handle(request(st, set, work, t0.Add(5*time.Minute)), cfg)
+	up := ops(res, "work.update")
+	if len(up) != 1 || up[0]["assignee"] != "" {
+		t.Fatalf("in: %+v", res.Ops)
+	}
+	st = next(st, res)
+	work[0].Assignee, work[0].AssigneeEmail = "", ""
+
+	// Someone the source doesn't know: it keeps nobody, and the next run
+	// doesn't take the person's pick away.
+	work[0].Assignee, work[0].UpdatedAt = "Justin Guedes", t0.Add(6*time.Minute)
+	src.now = t0.Add(7 * time.Minute)
+	res, _ = Handle(request(st, set, work, t0.Add(7*time.Minute)), cfg)
+	if src.items["a"].Assignee != "" || len(ops(res, "work.update")) != 0 {
+		t.Fatalf("unknown person: outside %q ops %+v", src.items["a"].Assignee, res.Ops)
+	}
+	st = next(st, res)
+	res, _ = Handle(request(st, set, work, t0.Add(8*time.Minute)), cfg)
+	if len(ops(res, "work.update")) != 0 {
+		t.Fatalf("the pick bounced back: %+v", res.Ops)
 	}
 }

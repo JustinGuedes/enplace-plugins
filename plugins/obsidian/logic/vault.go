@@ -161,7 +161,7 @@ func (v *vault) ref(n *note, p string) string {
 func (v *vault) item(s *worksync.Sync, c *copyOf) worksync.Item {
 	n := parseNote(c.Text)
 	it := worksync.Item{ID: c.Path, Ref: v.ref(n, c.Path), Title: cmp.Or(n.heading, stem(c.Path)), Body: n.body,
-		Priority: n.priority(), Labels: n.list("tags"), Due: n.due(), UpdatedAt: c.Mod, Deleted: c.Gone}
+		Priority: n.priority(), Labels: n.list("tags"), Due: n.due(), Assignee: n.value("assignee"), UpdatedAt: c.Mod, Deleted: c.Gone}
 	if l := s.Links()[c.Path]; l != nil && l.Ref != "" {
 		it.Ref = l.Ref
 	}
@@ -291,6 +291,13 @@ func (v *vault) Update(s *worksync.Sync, it worksync.Item, ch worksync.Change) (
 		}
 		n.set("due", due, keep)
 	}
+	if ch.Assignee != nil {
+		var who any
+		if *ch.Assignee != "" {
+			who = *ch.Assignee
+		}
+		n.set("assignee", who, keep)
+	}
 	if text := n.String(); text != c.Text {
 		if v.dir != "" && n.find("updated") != nil {
 			n.set("updated", v.today(s), false)
@@ -349,6 +356,9 @@ func (v *vault) Create(s *worksync.Sync, w plugin.Work, _ worksync.Item) (worksy
 	}
 	if w.Due != "" {
 		n.set("due", w.Due, false)
+	}
+	if w.Assignee != "" {
+		n.set("assignee", w.Assignee, false)
 	}
 	p := v.freePath(fileName(w.Key, w.Title))
 	c := &copyOf{Path: p, Text: n.String(), Mod: s.Req.Now}

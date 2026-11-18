@@ -244,6 +244,14 @@ type Work struct {
 	// Product is the key of the project's product the work is for. To a
 	// plugin on that product, ProjectID is already the product's.
 	Product string `json:"product,omitempty"`
+	// Assignee is who the work is for: a member's name, or the name it was
+	// given (by a person, or by a source as that source names them). Empty
+	// is nobody, and work handed to agents. AssigneeEmail is the member's
+	// email when it's a member.
+	Assignee      string `json:"assignee,omitempty"`
+	AssigneeEmail string `json:"assignee_email,omitempty"`
+	// ForAgent says agents do it (the assignee "Agent" in Enplace).
+	ForAgent bool `json:"for_agent,omitempty"`
 }
 
 // Done reports whether the item is finished.
