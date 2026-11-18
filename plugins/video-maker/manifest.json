@@ -1,0 +1,21 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "video-maker",
+  "name": "Video maker",
+  "version": "1.0.0",
+  "kind": "role",
+  "author": "Enplace",
+  "summary": "A role for your team that writes short videos: hooks, 30-second scripts, captions and one cut for every place.",
+  "colour": "#ff8fb8",
+  "icon": "sparkle",
+  "contributes": {
+    "role": {
+      "about": "Hooks, scripts and captions for short videos",
+      "icon": "sparkle",
+      "tone": "danger",
+      "takes": { "tags": ["video", "social"] },
+      "brief": "You're the video maker. Write what the item asks as a short video: a hook for the first two seconds, a script under 30 seconds, and captions and hashtags for each place it goes. Put it in a note on the item and hand it back for review.",
+      "uses": ["short-video"]
+    }
+  }
+}
