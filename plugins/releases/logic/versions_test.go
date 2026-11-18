@@ -53,3 +53,25 @@ func TestPublishesItsOldNumbering(t *testing.T) {
 		t.Fatalf("published %s with nothing set", raw)
 	}
 }
+
+func TestReleaseChoicesCarryTheirShipDay(t *testing.T) {
+	req := plugintest.Request(plugin.HookSchedule)
+	req.Plugin.ID = "releases"
+	req.ProjectSettings = map[string]map[string]any{plugintest.ProjectID: {}}
+	res := plugintest.Call(t, handle, req)
+	rels := planned(t, req)
+
+	req.Hook = plugin.HookRender
+	req.Slots = []string{plugin.SlotWorkFields}
+	req.State = *res.State
+	out := plugintest.Call(t, handle, req)
+	for _, o := range out.Fields["release"].Options {
+		if o.Value == rels[0].ID {
+			if o.Day != rels[0].ShipDate || o.Day == "" {
+				t.Fatalf("day %q, ships %q", o.Day, rels[0].ShipDate)
+			}
+			return
+		}
+	}
+	t.Fatalf("no choice for %s in %+v", rels[0].ID, out.Fields)
+}

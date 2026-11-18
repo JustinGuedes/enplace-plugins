@@ -1,8 +1,8 @@
 {
   "$schema": "../../schema/manifest.schema.json",
   "id": "releases",
-  "name": "Release cycle",
-  "version": "3.0.0",
+  "name": "Releases",
+  "version": "3.1.0",
   "kind": "extension",
   "author": "Enplace",
   "summary": "Releases on a cadence, with ship rules at cut-off, or deploys as work is done.",

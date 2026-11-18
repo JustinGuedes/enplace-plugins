@@ -154,7 +154,7 @@ func (c *cycleRun) fields(p *project) map[string]plugin.FieldState {
 	today := c.today.Format(day)
 	var past []plugin.Option
 	for _, r := range p.rels {
-		o := plugin.Option{Value: r.ID, Label: r.Version, Short: r.Version, Sub: cycle.StateNames[r.State] + " · ships " + c.shortDate(r.ShipDate)}
+		o := plugin.Option{Value: r.ID, Label: r.Version, Short: r.Version, Sub: cycle.StateNames[r.State] + " · ships " + c.shortDate(r.ShipDate), Day: r.ShipDate}
 		if !r.Open() || r.ShipDate < today {
 			o.Closed = !r.Open()
 			if !r.Open() {
