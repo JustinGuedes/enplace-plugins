@@ -436,12 +436,18 @@ type Option struct {
 	// Day is the day the choice stands for, YYYY-MM-DD, when it has one
 	// (the day a release ships), so Enplace can put it on the calendar.
 	Day string `json:"day,omitempty"`
+	// Colour tints the choice where a card shows it, as #rrggbb (a lane
+	// of an outside board, like a red Blocked).
+	Colour string `json:"colour,omitempty"`
 }
 
 // View is a work view: groups of work, in order. Enplace draws the work
 // cards itself; dragging a card into a group sets the group's fields on it.
 type View struct {
 	Groups []Group `json:"groups"`
+	// Columns lays the groups out side by side, like the lanes of a
+	// board, instead of one under another.
+	Columns bool `json:"columns,omitempty"`
 }
 
 // Group is one lane of a view.
@@ -463,6 +469,9 @@ type Group struct {
 	Empty string `json:"empty,omitempty"`
 	// Add offers a quick-add box with this placeholder.
 	Add string `json:"add,omitempty"`
+	// Colour marks the group's title, as #rrggbb (a lane's colour on an
+	// outside board).
+	Colour string `json:"colour,omitempty"`
 }
 
 // ProjectStatus is a project's status line and progress ring.
@@ -729,8 +738,8 @@ type Op struct {
 	Params    any    `json:"params"`
 	// Asked marks a change the person asked for just now, by pressing a
 	// button that names it (a tray's "Accept"). In an action's response,
-	// Enplace takes the press as their approval for adding work
-	// (work.create, work.import): it doesn't wait in Approvals a second
+	// Enplace takes the press as their approval for adding or moving work
+	// (work.create, work.import, work.move): it doesn't wait in Approvals a second
 	// time. A Never rule still refuses it, and it's recorded as decided by
 	// them.
 	Asked bool `json:"asked,omitempty"`

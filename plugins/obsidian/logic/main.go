@@ -42,14 +42,29 @@ const (
 )
 
 func config(req *plugin.Request, v *vault) worksync.Config {
+	render := func(s *worksync.Sync, slot string) []plugin.Block {
+		if slot == plugin.SlotSettingsPanel {
+			return boardPanel(s, v)
+		}
+		return nil
+	}
+	act := func(s *worksync.Sync, name string, args json.RawMessage) error {
+		switch name {
+		case "obsidian.board":
+			pickBoard(s, args)
+		case "obsidian.lanes":
+			pickLanes(s, v, args)
+		}
+		return nil
+	}
 	if v.dir != "" {
 		// The person's own folder: Enplace never adds a note to it.
 		// Their folder is their whole record, so finished notes come in too.
-		return worksync.Config{Name: name, Noun: "note", Source: ownNotes{v}, Done: true}
+		return worksync.Config{Name: name, Noun: "note", Source: ownNotes{v}, Done: true, Render: render, Action: act, Stages: lanePicks}
 	}
 	// Every open work item gets a note unless the person said not to.
 	mirror := req.ProjectSettings[v.pid]["create_outside"] != false
-	return worksync.Config{Name: name, Noun: "note", Source: v, Mirror: mirror}
+	return worksync.Config{Name: name, Noun: "note", Source: v, Mirror: mirror, Render: render, Action: act}
 }
 
 // ownNotes is the vault without Create, for a folder of the person's
@@ -64,6 +79,13 @@ func (o ownNotes) Update(s *worksync.Sync, it worksync.Item, ch worksync.Change)
 func handle(req *plugin.Request) (*plugin.Response, error) {
 	if req.Hook == plugin.HookWebhook {
 		return exchange(req), nil
+	}
+	if req.Hook == plugin.HookView {
+		res := &plugin.Response{}
+		if req.View == viewBoard && req.ProjectID != "" {
+			res.View = boardView(req)
+		}
+		return res, nil
 	}
 	pid := req.ProjectID
 	if req.WorkID != "" {
@@ -95,6 +117,9 @@ func handle(req *plugin.Request) (*plugin.Response, error) {
 	if out.State != nil || len(v.dirty) > 0 {
 		v.res = out
 		v.save()
+	}
+	if req.Hook == plugin.HookRender && slices.Contains(req.Slots, plugin.SlotWorkFields) && pid != "" {
+		out.Fields = map[string]plugin.FieldState{laneField: laneFieldState(req, pid)}
 	}
 	waitingLine(req, out, pid)
 	folderLine(out, pid, v.dir)
@@ -151,6 +176,9 @@ type call struct {
 	// deleted while Obsidian was closed is found.
 	All    []string `json:"all,omitempty"`
 	Client string   `json:"client,omitempty"`
+	// Boards, when sent, are the vault's boards (Bases kanban views):
+	// sent when they change.
+	Boards []board `json:"boards,omitempty"`
 }
 
 type change struct {
@@ -232,6 +260,9 @@ func exchange(req *plugin.Request) *plugin.Response {
 		return res
 	}
 
+	if in.Boards != nil {
+		takeBoards(res, pid, in.Boards)
+	}
 	v := loadVault(req, res, pid)
 	v.since = in.Since
 	s := worksync.Open(req, res, config(req, v), pid)

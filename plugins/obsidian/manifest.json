@@ -2,11 +2,11 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "obsidian",
   "name": "Obsidian vault",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "kind": "source",
   "author": "Enplace",
   "summary": "Keep a project's work as Markdown notes in your Obsidian vault.",
-  "description": "Each work item is a note in your vault, in an Enplace folder with one folder per project, and the two stay in step both ways while Obsidian is open. The note's properties hold its stage, priority, assignee, tags and due date, and its first heading is the title. Change the stage in Obsidian and the work moves; edit the work here and the note is rewritten, keeping any properties of your own. A new note in the folder becomes work (through Approvals) and gets its key written in. Deleting a note marks the work done; nothing is ever deleted. To use a folder of notes you already keep instead, name it under \"Use an existing folder\": its notes come in as work and stay in step both ways, read in their own properties (status, id, P1-style priorities, quoted keys too), and Enplace never adds, moves or deletes a note there. It works through the Enplace plugin for Obsidian, which you connect with this project's address and secret, so it syncs on any device that runs Obsidian.",
+  "description": "Each work item is a note in your vault, in an Enplace folder with one folder per project, and the two stay in step both ways while Obsidian is open. The note's properties hold its stage, priority, assignee, tags and due date, and its first heading is the title. Change the stage in Obsidian and the work moves; edit the work here and the note is rewritten, keeping any properties of your own. A new note in the folder becomes work (through Approvals) and gets its key written in. Deleting a note marks the work done; nothing is ever deleted. To use a folder of notes you already keep instead, name it under \"Use an existing folder\": its notes come in as work and stay in step both ways, read in their own properties (status, id, P1-style priorities, quoted keys too), and Enplace never adds, moves or deletes a note there. If the vault has a board for that folder (a Bases file with a Kanban view), its lanes come in too: each item shows the lane its note is in, coloured as in Obsidian, and Work gets an Obsidian board view with the same lanes in the same order, where dragging a card moves its note to that lane. It works through the Enplace plugin for Obsidian, which you connect with this project's address and secret, so it syncs on any device that runs Obsidian.",
   "colour": "#b79cff",
   "icon": "doc",
   "scope": "project",
@@ -17,6 +17,9 @@
   "requires": [ { "id": "work-sync", "version": "^1.1.0" } ],
   "card_settings": ["direction"],
   "contributes": {
+    "settings_panel": true,
+    "work_fields": [ { "key": "lane", "name": "Obsidian lane", "type": "choice", "icon": "lanes", "on_card": true } ],
+    "work_views": [ { "key": "board", "name": "Obsidian board", "icon": "lanes" } ],
     "webhook": {
       "signature_header": "X-Enplace-Signature",
       "signature_prefix": "sha256=",

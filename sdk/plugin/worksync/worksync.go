@@ -173,6 +173,10 @@ type Config struct {
 	// stage, for a source that is the person's whole record of the work
 	// (like their own folder of notes). Otherwise finished items stay out.
 	Done bool
+	// Stages are the source's own picks of where outside statuses go,
+	// status to a stage's key, name or kind (like lanes picked one by one
+	// in its settings panel). They win over the "stages" setting.
+	Stages func(s *Sync) map[string]string
 }
 
 func (s *Sync) skips(field string) bool { return slices.Contains(s.cfg.Skip, field) }
@@ -535,6 +539,19 @@ func (s *Sync) op(kind string, params any) bool {
 	}
 	s.ops++
 	s.Res.Ops = append(s.Res.Ops, plugin.Op{Kind: kind, ProjectID: s.ProjectID, Params: params, Asked: s.asked})
+	return true
+}
+
+// Move files moving work to a stage because the person just asked for
+// it, in an action (like a choice saved in the source's panel), within
+// the run's limit of changes. Their press is their approval.
+func (s *Sync) Move(workID, stage, reason string) bool {
+	if s.ops >= maxOps {
+		return false
+	}
+	s.ops++
+	s.Res.Ops = append(s.Res.Ops, plugin.Op{Kind: "work.move", ProjectID: s.ProjectID, Asked: true,
+		Params: map[string]any{"id": workID, "stage": stage, "reason": reason}})
 	return true
 }
 

@@ -136,7 +136,8 @@
                 "tools",
                 "webhook",
                 "work_fields",
-                "work_panel"
+                "work_panel",
+                "work_views"
               ]
             }
           }
