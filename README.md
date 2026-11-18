@@ -63,7 +63,7 @@ One manifest format, with a `kind` that fills in the rest:
 - [Content](plugins/content): Plan videos and posts for your channels: where each one posts, when, what it promotes, and whether this week's slots are filled.
 - [Markdown export](plugins/markdown-export): Download a project's work as Markdown files with front matter.
 - [Release lanes](plugins/release-lanes): See work grouped by the release it ships in.
-- [Release cycle](plugins/releases): Releases on a cadence, with ship rules at cut-off, or deploys as work is done.
+- [Releases](plugins/releases): Releases on a cadence, with ship rules at cut-off, or deploys as work is done.
 - [Versions](plugins/versions): Where a project's version lives, how it's numbered, and bumping it in the code.
 - [Work sync](plugins/work-sync): The shared engine work sources build on, like Linear, GitHub Issues and Obsidian.
 - [XP](plugins/xp): Turn finished work into XP, levels, streaks, quests and badges.
