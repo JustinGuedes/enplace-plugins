@@ -39,6 +39,11 @@ type copyOf struct {
 	Mod time.Time `json:"m"`
 	// Gone says it was deleted in the vault.
 	Gone bool `json:"g,omitempty"`
+	// Lane is the note's lane as both sides last agreed, so a lane changed
+	// in Enplace can be told from one changed in the vault.
+	Lane string `json:"l,omitempty"`
+	// LaneAt is when they agreed on it: a lane changed in Enplace is newer.
+	LaneAt time.Time `json:"la,omitzero"`
 }
 
 // seen is the last exchange with Obsidian.
@@ -65,6 +70,9 @@ type vault struct {
 	// and the note's own property names and values are kept.
 	dir string
 	tz  string
+	// laneList caches lanes() for one call.
+	laneList []lane
+	laneSet  bool
 }
 
 func loadVault(req *plugin.Request, res *plugin.Response, pid string) *vault {
@@ -170,7 +178,17 @@ func (v *vault) item(s *worksync.Sync, c *copyOf) worksync.Item {
 	if st := stageKey(s, raw); st != "" && !s.Mapped(raw) {
 		it.Stage, it.StatusKind = st, s.StageKind(st)
 	}
+	if v.dir != "" && raw != "" {
+		it.Fields = map[string]string{laneField: laneOf(v.cachedLanes(s.Req), raw)}
+	}
 	return it
+}
+
+func (v *vault) cachedLanes(req *plugin.Request) []lane {
+	if !v.laneSet {
+		v.laneList, v.laneSet = v.lanes(req), true
+	}
+	return v.laneList
 }
 
 // stageKey is the project's stage a note names, by key or name.
@@ -218,6 +236,7 @@ func (v *vault) List(s *worksync.Sync) ([]worksync.Item, bool, error) {
 	}
 	slices.Sort(paths)
 	v.stamp(s)
+	v.reconcileLanes(s)
 	items := make([]worksync.Item, 0, len(paths))
 	for _, p := range paths {
 		items = append(items, v.item(s, v.notes[p]))
@@ -265,10 +284,24 @@ func (v *vault) Update(s *worksync.Sync, it worksync.Item, ch worksync.Change) (
 	if ch.StatusKind != nil || ch.Status != nil {
 		if st := v.stageFor(s, it, ch); st != "" {
 			if v.dir != "" {
-				// Their own status: the mapped one, or the stage's name.
-				st = s.StageName(st)
-				if ch.Status != nil && *ch.Status != "" {
+				// Their own status: the lane the note is in when it already
+				// goes to that stage, else the mapped one, the board's
+				// first lane for that stage, or the stage's name.
+				cur := n.value(v.stageProp(n))
+				switch {
+				case cur != "" && s.StageFor(worksync.Item{Status: cur}) == st:
+					st = cur
+				case ch.Status != nil && *ch.Status != "":
 					st = *ch.Status
+				default:
+					name := s.StageName(st)
+					for _, l := range v.cachedLanes(s.Req) {
+						if s.StageFor(worksync.Item{Status: l.Name}) == st {
+							name = l.Name
+							break
+						}
+					}
+					st = name
 				}
 			}
 			n.set(v.stageProp(n), st, false)

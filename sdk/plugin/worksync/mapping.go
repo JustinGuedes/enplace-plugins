@@ -1,7 +1,10 @@
 package worksync
 
 import (
+	"sort"
 	"strings"
+
+	"github.com/JustinGuedes/enplace-plugins/sdk/plugin"
 )
 
 // The "stages" setting maps outside statuses to the project's stages, one
@@ -15,6 +18,19 @@ type pair struct{ outside, stage string }
 func (s *Sync) pairs() []pair {
 	raw := strings.NewReplacer(";", "\n", ",", "\n").Replace(s.Setting("stages"))
 	var out []pair
+	if s.cfg.Stages != nil {
+		picks := s.cfg.Stages(s)
+		keys := make([]string, 0, len(picks))
+		for k := range picks {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			if a, b := strings.TrimSpace(k), strings.TrimSpace(picks[k]); a != "" && b != "" {
+				out = append(out, pair{a, b})
+			}
+		}
+	}
 	for _, line := range strings.Split(raw, "\n") {
 		a, b, ok := strings.Cut(line, "=")
 		if !ok {
@@ -96,6 +112,14 @@ func (s *Sync) statusFor(stage string) (name, kind string) {
 // project's mapping or its kind, for a source's settings panel.
 func (s *Sync) StageFor(it Item) string { return s.stageFor(it) }
 
+// Stages are the project's stages, in order.
+func (s *Sync) Stages() []plugin.Stage {
+	if s.project == nil {
+		return nil
+	}
+	return s.project.Stages
+}
+
 // StageName is a stage key's name in the project.
 func (s *Sync) StageName(key string) string { return s.stageName(key) }
 
@@ -136,7 +160,7 @@ func GuessKind(status string) string {
 		return "done"
 	case has("review", "qa", "testing", "verify"):
 		return "review"
-	case has("progress", "doing", "started", "active", "working", "building"):
+	case has("progress", "doing", "started", "active", "working", "building", "blocked", "stuck", "waiting"):
 		return "doing"
 	}
 	return "todo"
@@ -155,7 +179,7 @@ func (s *Sync) StageKind(key string) string {
 	return ""
 }
 
-// Mapped reports whether the "stages" setting names this outside status,
+// Mapped reports whether the "stages" setting (or the source's own picks) names this outside status,
 // so a source can tell a status-like label from an ordinary one.
 func (s *Sync) Mapped(status string) bool {
 	for _, p := range s.pairs() {

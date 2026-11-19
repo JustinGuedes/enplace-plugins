@@ -154,7 +154,7 @@ func TestSyncRules(t *testing.T) {
 }
 
 func TestGuessKind(t *testing.T) {
-	for status, want := range map[string]string{"Backlog": "todo", "In Progress": "doing", "In Review": "review", "Canceled": "done", "Done": "done", "": "todo"} {
+	for status, want := range map[string]string{"Backlog": "todo", "Ready": "todo", "In Progress": "doing", "Blocked": "doing", "In Review": "review", "Canceled": "done", "Done": "done", "": "todo"} {
 		if got := GuessKind(status); got != want {
 			t.Errorf("%q: %s, want %s", status, got, want)
 		}
