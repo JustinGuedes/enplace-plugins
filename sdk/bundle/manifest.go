@@ -268,12 +268,62 @@ type Setting struct {
 	// action gets plugin.ChoicesArgs and answers with Data: a list of
 	// plugin.Choice. Only for text settings.
 	Choices string `json:"choices,omitempty"`
+	// ShareWith lets other plugins use this secret, by their ids, like the
+	// GitHub plugin's token for GitHub Issues. Each must ask for it with
+	// From. A secret is otherwise the plugin's alone, even when another
+	// plugin has a setting with the same key.
+	ShareWith []string `json:"share_with,omitempty"`
+	// From uses another plugin's secret with the same key and scope, set
+	// once for both, when that plugin shares it (ShareWith). It names a
+	// plugin in Requires.
+	From string `json:"from,omitempty"`
+}
+
+// Owner is the id of the plugin whose secret a setting holds: From when
+// it uses another plugin's, otherwise the plugin's own.
+func (s Setting) Owner(pluginID string) string {
+	if s.From != "" {
+		return s.From
+	}
+	return pluginID
+}
+
+// Shares reports whether this secret setting lets the plugin id use it.
+func (s Setting) Shares(id string) bool {
+	return s.Type == "secret" && s.From == "" && slices.Contains(s.ShareWith, id)
 }
 
 // SettingAllows is what choosing one option of a setting allows.
 type SettingAllows struct {
 	When   string `json:"when"`
 	Action string `json:"action"` // "create": adding work
+}
+
+// checkSharing checks a setting's ShareWith and From: only workspace and
+// project secrets are shared, From names a plugin it requires, and a
+// setting either shares or borrows, not both.
+func checkSharing(id string, s Setting, deps map[string]bool) error {
+	if len(s.ShareWith) == 0 && s.From == "" {
+		return nil
+	}
+	if s.Type != "secret" || s.Scope == "agent" {
+		return fmt.Errorf("setting %s: only workspace and project secrets are shared", s.Key)
+	}
+	if s.From != "" && len(s.ShareWith) > 0 {
+		return fmt.Errorf("setting %s: a secret from another plugin can't be shared on", s.Key)
+	}
+	if s.From != "" && (s.From == id || !deps[s.From]) {
+		return fmt.Errorf("setting %s: from must name a plugin in requires", s.Key)
+	}
+	if len(s.ShareWith) > 8 {
+		return fmt.Errorf("setting %s: share with at most 8 plugins", s.Key)
+	}
+	for i, o := range s.ShareWith {
+		if !idRe.MatchString(o) || o == id || slices.Contains(s.ShareWith[:i], o) {
+			return fmt.Errorf("setting %s: bad or repeated share_with %q", s.Key, o)
+		}
+	}
+	return nil
 }
 
 // Setting types.
@@ -691,6 +741,9 @@ func (m *Manifest) Check() error {
 		}
 		if s.Level != "" && (s.Scope != "project" || (s.Level != "project" && s.Level != "product")) {
 			return fmt.Errorf("setting %s: level must be project or product, on a project setting", s.Key)
+		}
+		if err := checkSharing(m.ID, s, deps); err != nil {
+			return err
 		}
 		if s.HideWhen != "" && !slices.ContainsFunc(m.Settings, func(o Setting) bool {
 			return o.Key == s.HideWhen && o.Type == "toggle" && o.Key != s.Key && o.Scope == s.Scope
