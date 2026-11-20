@@ -774,6 +774,9 @@
           "fetch": {
             "type": "boolean"
           },
+          "from": {
+            "type": "string"
+          },
           "help": {
             "type": "string"
           },
@@ -800,6 +803,12 @@
           },
           "scope": {
             "type": "string"
+          },
+          "share_with": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "type": {
             "type": "string"

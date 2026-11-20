@@ -207,6 +207,21 @@ there. The call only reads: anything else the action answers is ignored.
 A card button with `"pick": "<setting>"` opens the same list in place, so
 a card like "No repo linked yet" can be set up without leaving it.
 
+A secret setting (`"type": "secret"`) is the plugin's alone: Enplace
+keeps it encrypted and hands it only to this plugin's logic, even when
+another plugin has a secret with the same key. Two plugins that use the
+same account share one on purpose, and both say so. The plugin that owns
+it lists the others on the setting, and each of them names the owner
+with `from` (and lists it in `requires`):
+
+```json
+{"key": "token", "type": "secret", "scope": "workspace", "share_with": ["github-issues"]}
+{"key": "token", "type": "secret", "scope": "workspace", "from": "github"}
+```
+
+The key and scope match. The person sets it once, on either plugin's
+page. Without both halves each plugin keeps its own.
+
 ### A product's details
 
 Some things are true of a product whatever plugin asks: an app's name,

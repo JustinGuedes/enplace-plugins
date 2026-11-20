@@ -2,7 +2,7 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "app",
   "name": "App Store",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "kind": "service",
   "author": "Enplace",
   "summary": "Follow an app on the App Store: its icon, live version, review, rating, reviews and downloads.",
@@ -16,9 +16,9 @@
   "settings": [
     { "key": "app_store", "detail": "app.bundle_id", "name": "App Store app", "type": "text", "scope": "project", "help": "Its bundle ID like com.example.app, its App Store link or its App Store ID. Or search for it above." },
     { "key": "overview", "name": "On the project's overview", "type": "select", "scope": "project", "options": ["One summary card", "A card for each number", "No statistics"], "default": "One summary card", "help": "How the app's downloads, rating and reviews show on the overview. The App page always has all of it." },
-    { "key": "asc_issuer_id", "name": "Issuer ID", "type": "secret", "scope": "workspace", "help": "App Store Connect → Users and Access → Integrations → App Store Connect API." },
-    { "key": "asc_key_id", "name": "Key ID", "type": "secret", "scope": "workspace", "help": "The ID of the key you generated there." },
-    { "key": "asc_private_key", "name": "Private key (.p8)", "type": "secret", "scope": "workspace", "multiline": true, "help": "Paste the whole .p8 file, including the BEGIN and END lines." },
+    { "key": "asc_issuer_id", "name": "Issuer ID", "type": "secret", "scope": "workspace", "share_with": ["testflight", "xcode-cloud"], "help": "App Store Connect → Users and Access → Integrations → App Store Connect API." },
+    { "key": "asc_key_id", "name": "Key ID", "type": "secret", "scope": "workspace", "share_with": ["testflight", "xcode-cloud"], "help": "The ID of the key you generated there." },
+    { "key": "asc_private_key", "name": "Private key (.p8)", "type": "secret", "scope": "workspace", "share_with": ["testflight", "xcode-cloud"], "multiline": true, "help": "Paste the whole .p8 file, including the BEGIN and END lines." },
     { "key": "asc_vendor", "name": "Vendor number", "type": "text", "scope": "workspace", "help": "For downloads and purchases. App Store Connect → Payments and Financial Reports, the number beside your name at the top. The key above also needs the Sales, Finance or Admin role." }
   ],
   "contributes": {

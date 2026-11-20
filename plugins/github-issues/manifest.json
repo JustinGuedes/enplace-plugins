@@ -2,7 +2,7 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "github-issues",
   "name": "GitHub Issues",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "kind": "source",
   "author": "Enplace",
   "summary": "Use a repository's issues as a project's work.",
@@ -21,6 +21,6 @@
     { "key": "new_issues", "name": "New issues", "type": "select", "scope": "project", "options": ["Wait in the tray", "Ask me in Approvals", "Add automatically"], "default": "Wait in the tray", "allows": { "when": "Add automatically", "action": "create" }, "help": "Wait in the tray puts new issues in a From GitHub tray at the top of the project's work, to Accept or Skip; issues you open yourself, and ones with a label below, skip it. Ask me in Approvals sends each one to Approvals. Add automatically lets GitHub Issues add work to this project without asking, which shows in Permissions." },
     { "key": "bring_labels", "name": "Bring straight in when labelled", "type": "text", "scope": "project", "help": "Labels, split by commas, like enplace: issues with any of them skip the tray." },
     { "key": "labels", "name": "Only issues labelled", "type": "text", "scope": "project", "help": "Blank brings in every open issue. Or labels, split by commas, like enplace: only issues with all of them come in, and new issues made from here get them." },
-    { "key": "token", "name": "GitHub token", "type": "secret", "scope": "workspace", "help": "The same token as the GitHub plugin's. Public repos can be read without one; changing issues needs a fine-grained token with Issues read and write." }
+    { "key": "token", "name": "GitHub token", "type": "secret", "scope": "workspace", "from": "github", "help": "The GitHub plugin's token, set once for both. Public repos can be read without one; changing issues needs a fine-grained token with Issues read and write." }
   ]
 }

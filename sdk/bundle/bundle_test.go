@@ -88,6 +88,12 @@ func TestManifestChecks(t *testing.T) {
 		`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"f","name":"F","type":"text","scope":"project"},{"key":"d","name":"D","type":"text","scope":"project","hide_when":"f"}]}`,
 		`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"r","name":"R","type":"toggle","scope":"project","choices":"repos"}]}`,
 		`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"r","name":"R","type":"text","scope":"project","choices":"Bad Name"}]}`,
+		// Sharing a secret: only secrets, from a required plugin, not both ways.
+		`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"t","name":"T","type":"text","scope":"workspace","share_with":["other"]}]}`,
+		`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"t","name":"T","type":"secret","scope":"workspace","from":"other"}]}`,
+		`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"t","name":"T","type":"secret","scope":"workspace","share_with":["ok"]}]}`,
+		`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"t","name":"T","type":"secret","scope":"workspace","share_with":["a","a"]}]}`,
+		`{"id":"ok","name":"x","version":"1.0.0","scope":"project","requires":[{"id":"other"}],"settings":[{"key":"t","name":"T","type":"secret","scope":"workspace","from":"other","share_with":["a"]}]}`,
 		`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"n","name":"N","type":"text","scope":"project","detail":"app.nope"}]}`,
 		`{"id":"ok","name":"x","version":"1.0.0","scope":"both","settings":[{"key":"n","name":"N","type":"text","scope":"workspace","detail":"app.name"}]}`,
 		`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"n","name":"N","type":"toggle","scope":"project","detail":"app.name"}]}`,
@@ -100,6 +106,9 @@ func TestManifestChecks(t *testing.T) {
 	}
 	if _, err := ParseManifest([]byte(`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"f","name":"F","type":"toggle","scope":"project","level":"product"},{"key":"d","name":"D","type":"text","scope":"project","hide_when":"f"}]}`)); err != nil {
 		t.Errorf("a product toggle that hides a setting: %v", err)
+	}
+	if _, err := ParseManifest([]byte(`{"id":"ok","name":"x","version":"1.0.0","scope":"project","requires":[{"id":"other","optional":true}],"settings":[{"key":"t","name":"T","type":"secret","scope":"workspace","from":"other"},{"key":"u","name":"U","type":"secret","scope":"project","share_with":["third"]}]}`)); err != nil {
+		t.Errorf("secrets shared both ways: %v", err)
 	}
 	if _, err := ParseManifest([]byte(`{"id":"ok","name":"x","version":"1.0.0","scope":"project","contributes":{"project_cards":[{"key":"t","name":"T","where":"work"}]}}`)); err != nil {
 		t.Errorf("a work card: %v", err)
@@ -127,6 +136,17 @@ func TestVersions(t *testing.T) {
 		if got := Satisfies(c.v, c.r); got != c.ok {
 			t.Errorf("%s in %q = %v", c.v, c.r, got)
 		}
+	}
+}
+
+func TestSecretOwner(t *testing.T) {
+	own := Setting{Key: "token", Type: "secret", Scope: "workspace", ShareWith: []string{"issues"}}
+	borrowed := Setting{Key: "token", Type: "secret", Scope: "workspace", From: "github"}
+	if own.Owner("github") != "github" || borrowed.Owner("issues") != "github" {
+		t.Error("owner")
+	}
+	if !own.Shares("issues") || own.Shares("other") || borrowed.Shares("issues") {
+		t.Error("shares")
 	}
 }
 
