@@ -7,6 +7,7 @@
 // It builds on Release cycle without sharing code: it publishes what's live
 // ("public.version") and each version's state ("public.store_versions") for
 // the product, and the cycle numbers from there and follows the review.
+// It also says which app it is ("public.app"), for TestFlight.
 // Google Play is a plugin of its own.
 package main
 
@@ -230,6 +231,12 @@ func (r *run) refresh() {
 		r.gather(in, connected, maxFetched-1-fetched)
 	}
 	r.res.SetProject(r.pid, "info", in)
+	// Which app this is, for plugins that build on App (TestFlight).
+	if in.BundleID != "" || in.AppStoreID != "" {
+		r.res.SetProject(r.pid, "public.app", map[string]string{"bundle_id": in.BundleID, "app_store_id": in.AppStoreID, "name": in.Name})
+	} else {
+		r.res.SetProject(r.pid, "public.app", nil)
+	}
 	if live := in.Version; live != "" {
 		r.res.SetProject(r.pid, "public.version", map[string]string{"version": live, "store": "App Store"})
 	} else {

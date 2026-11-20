@@ -2,7 +2,7 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "app",
   "name": "App Store",
-  "version": "3.1.2",
+  "version": "3.2.0",
   "kind": "service",
   "author": "Enplace",
   "summary": "Follow an app on the App Store: its icon, live version, review, rating, reviews and downloads.",

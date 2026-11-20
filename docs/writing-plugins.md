@@ -583,6 +583,36 @@ trust them.
 Working on one plugin only touches its own folder, so several plugins can be
 built at once without conflicts, and each ships its own updates.
 
+### Builds on a CI service
+
+A CI plugin (Xcode Cloud now; GitHub Actions could follow) shares its runs
+for the project, in the same shape whatever the service:
+
+```json
+"public.ci": {"provider": "xcode-cloud", "name": "Xcode Cloud", "ready": true,
+              "runs": [{"id": "…", "number": 8, "workflow": "TestFlight", "branch": "main",
+                        "commit": "…", "message": "…", "status": "running",
+                        "created": "…", "finished": "…"}],
+              "requests": {"testflight-1763640000": {"state": "started", "run": 8, "at": "…", "by": "testflight"}}}
+```
+
+`status` is `queued`, `running`, `passed`, `failed` or `cancelled`. `ready`
+says the service is set up for the project and can start a build.
+
+Another plugin asks for a build by publishing one request, and the CI
+plugin starts one run per `id` and answers in `requests` (`started` with the
+run's number, or `failed` with an `error`). A request more than an hour
+old is never started, so switching a CI plugin on doesn't run old ones.
+TestFlight asks this way when Xcode Cloud makes its builds:
+
+```json
+"public.ci_request": {"id": "testflight-1763640000", "reason": "A build for TestFlight",
+                      "at": "…", "workflow": "", "branch": ""}
+```
+
+`workflow` and `branch` are optional; the CI plugin's own settings fill
+them in.
+
 ## The store, and publishing plugins
 
 Settings → Plugins has a store. The plugins in this repo are always on
