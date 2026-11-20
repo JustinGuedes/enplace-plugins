@@ -6,6 +6,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
+	"strings"
 	"testing"
 )
 
@@ -93,6 +94,12 @@ func TestManifestChecks(t *testing.T) {
 		`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"t","name":"T","type":"secret","scope":"workspace","share_with":["ok"]}]}`,
 		`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"t","name":"T","type":"secret","scope":"workspace","share_with":["a","a"]}]}`,
 		`{"id":"ok","name":"x","version":"1.0.0","scope":"project","requires":[{"id":"other"}],"settings":[{"key":"t","name":"T","type":"secret","scope":"workspace","from":"other","share_with":["a"]}]}`,
+		`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"n","name":"N","type":"text","scope":"project","detail":"app.nope"}]}`,
+		`{"id":"ok","name":"x","version":"1.0.0","scope":"both","settings":[{"key":"n","name":"N","type":"text","scope":"workspace","detail":"app.name"}]}`,
+		`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"n","name":"N","type":"toggle","scope":"project","detail":"app.name"}]}`,
+	}
+	if _, err := ParseManifest([]byte(`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"n","name":"N","type":"text","scope":"project","detail":"app.name"}]}`)); err != nil {
+		t.Errorf("a setting that is a shared detail: %v", err)
 	}
 	if _, err := ParseManifest([]byte(`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"r","name":"R","type":"text","scope":"project","choices":"repos"}]}`)); err != nil {
 		t.Errorf("a text setting with choices: %v", err)
@@ -140,5 +147,24 @@ func TestSecretOwner(t *testing.T) {
 	}
 	if !own.Shares("issues") || own.Shares("other") || borrowed.Shares("issues") {
 		t.Error("shares")
+	}
+}
+
+func TestDetails(t *testing.T) {
+	seen := map[string]bool{}
+	for _, d := range Details {
+		if seen[d.Key] || !strings.HasPrefix(d.Key, "app.") || d.Name == "" || d.Help == "" || d.Max <= 0 || len(d.For) == 0 {
+			t.Errorf("bad detail %+v", d)
+		}
+		if d.Type != "text" && d.Type != "url" && d.Type != "email" {
+			t.Errorf("%s: type %q", d.Key, d.Type)
+		}
+		seen[d.Key] = true
+	}
+	if len(DetailsFor("app")) != len(Details) || len(DetailsFor("website")) != 0 {
+		t.Error("DetailsFor")
+	}
+	if d, ok := DetailFor("app.bundle_id"); !ok || d.Name != "Bundle ID" {
+		t.Error("DetailFor")
 	}
 }

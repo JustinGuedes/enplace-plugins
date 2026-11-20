@@ -222,6 +222,28 @@ with `from` (and lists it in `requires`):
 The key and scope match. The person sets it once, on either plugin's
 page. Without both halves each plugin keeps its own.
 
+### A product's details
+
+Some things are true of a product whatever plugin asks: an app's name,
+its bundle ID, its description, its privacy policy link. Enplace keeps
+these once per product as its details (`bundle.Details` lists them, like
+`app.name` or `app.bundle_id`). They're drafted and asked while the
+project is planned, and the person changes them in the product's
+settings, under App details.
+
+A project setting that is one of them says so with `"detail": "<key>"`:
+
+```json
+{ "key": "package_name", "name": "Package name", "type": "text", "scope": "project", "detail": "app.package_name" }
+```
+
+Enplace then keeps its value with the product's details, not the
+plugin's own settings: the plugin reads it from `ProjectSettings` as
+usual, but setting it anywhere changes it for every plugin that names it.
+Only text and url settings can be details, with no default. A plugin that
+keeps a store in step (a store listing's text) names the details it
+copies, so the person types them once.
+
 ## The plugin's icon
 
 Every plugin draws its own icon, so each one is recognisable across
@@ -597,6 +619,36 @@ trust them.
 
 Working on one plugin only touches its own folder, so several plugins can be
 built at once without conflicts, and each ships its own updates.
+
+### Builds on a CI service
+
+A CI plugin (Xcode Cloud now; GitHub Actions could follow) shares its runs
+for the project, in the same shape whatever the service:
+
+```json
+"public.ci": {"provider": "xcode-cloud", "name": "Xcode Cloud", "ready": true,
+              "runs": [{"id": "…", "number": 8, "workflow": "TestFlight", "branch": "main",
+                        "commit": "…", "message": "…", "status": "running",
+                        "created": "…", "finished": "…"}],
+              "requests": {"testflight-1763640000": {"state": "started", "run": 8, "at": "…", "by": "testflight"}}}
+```
+
+`status` is `queued`, `running`, `passed`, `failed` or `cancelled`. `ready`
+says the service is set up for the project and can start a build.
+
+Another plugin asks for a build by publishing one request, and the CI
+plugin starts one run per `id` and answers in `requests` (`started` with the
+run's number, or `failed` with an `error`). A request more than an hour
+old is never started, so switching a CI plugin on doesn't run old ones.
+TestFlight asks this way when Xcode Cloud makes its builds:
+
+```json
+"public.ci_request": {"id": "testflight-1763640000", "reason": "A build for TestFlight",
+                      "at": "…", "workflow": "", "branch": ""}
+```
+
+`workflow` and `branch` are optional; the CI plugin's own settings fill
+them in.
 
 ## The store, and publishing plugins
 
