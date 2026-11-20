@@ -268,6 +268,12 @@ type Setting struct {
 	// action gets plugin.ChoicesArgs and answers with Data: a list of
 	// plugin.Choice. Only for text settings.
 	Choices string `json:"choices,omitempty"`
+	// Detail names one of the product's shared Details (like "app.name")
+	// that this setting is: Enplace keeps its value with the product's
+	// details instead of the plugin's own settings, so it's typed once
+	// and every plugin naming it sees the same. Only for project text or
+	// url settings.
+	Detail string `json:"detail,omitempty"`
 }
 
 // SettingAllows is what choosing one option of a setting allows.
@@ -676,6 +682,11 @@ func (m *Manifest) Check() error {
 		}
 		if s.Choices != "" && (s.Type != "text" || !keyRe.MatchString(s.Choices)) {
 			return fmt.Errorf("setting %s: choices names an action, on a text setting", s.Key)
+		}
+		if s.Detail != "" {
+			if _, ok := DetailFor(s.Detail); !ok || s.Scope != "project" || (s.Type != "text" && s.Type != "url") || s.Default != nil || s.Choices != "" {
+				return fmt.Errorf("setting %s: detail names one of the shared details, on a project text or url setting with no default", s.Key)
+			}
 		}
 		if s.Type == "secret" && s.Default != nil {
 			return fmt.Errorf("setting %s: a secret can't have a default", s.Key)

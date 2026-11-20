@@ -1,0 +1,41 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "testflight",
+  "name": "TestFlight",
+  "version": "1.0.0",
+  "kind": "service",
+  "author": "Enplace",
+  "summary": "Get an iPhone app's builds onto your own phone with TestFlight, and see each build through.",
+  "description": "Goes on an app product beside the App Store plugin, and uses its bundle ID and App Store Connect key, so there's nothing to enter twice. It makes a private tester group with you in it that gets every build, with no wait for Apple's review, and shows each build as Apple processes it until it's ready on your phone. Press Send to TestFlight and Xcode Cloud builds it (with the Xcode Cloud plugin), or an agent on your Mac builds and uploads it, with the version from Versions and the next build number; or upload from Xcode yourself. It writes each build's What to test from the work done since the last one, and shares the builds with Release cycle.",
+  "colour": "#4fa3ff",
+  "icon": "app",
+  "card_settings": ["testers", "builds"],
+  "suggest_for": ["app"],
+  "requires": [
+    { "id": "app", "version": "^3.2.0" },
+    { "id": "xcode-cloud", "version": "^1.0.0", "optional": true },
+    { "id": "versions", "version": "^1.0.0", "optional": true },
+    { "id": "releases", "version": "^3.0.0", "optional": true }
+  ],
+  "permissions": { "read": ["projects", "work"], "ops": ["work.create"], "hosts": ["api.appstoreconnect.apple.com"] },
+  "settings": [
+    { "key": "app_name", "name": "App name", "type": "text", "scope": "project", "level": "product", "detail": "app.name", "help": "The name to give the app in App Store Connect." },
+    { "key": "sku", "name": "SKU", "type": "text", "scope": "project", "level": "product", "detail": "app.sku", "help": "Your own code for the app in App Store Connect." },
+    { "key": "language", "name": "Language", "type": "text", "scope": "project", "level": "product", "detail": "app.language", "help": "The app's main language, like en-US." },
+    { "key": "testers", "name": "Who gets every build", "type": "text", "scope": "project", "help": "The email you sign in to App Store Connect with. Add more with commas; each one must be a user on your App Store Connect team." },
+    { "key": "builds", "name": "Who makes builds", "type": "select", "scope": "project", "options": ["Xcode Cloud", "An agent on my Mac", "I upload from Xcode"], "default": "Xcode Cloud", "help": "Xcode Cloud: Send to TestFlight starts a build there, through the Xcode Cloud plugin. An agent on my Mac: it files a work item for an agent on your Mac to build and upload the app. Or upload from Xcode yourself and Enplace does the rest." },
+    { "key": "group", "name": "Tester group", "type": "text", "scope": "project", "default": "Me", "help": "The TestFlight group Enplace makes and keeps. It's internal: every build reaches it with no review by Apple." },
+    { "key": "what_to_test", "name": "Write What to test", "type": "toggle", "scope": "project", "default": true, "help": "Fills in a new build's What to test from the work finished since the build before it, when it's empty." },
+    { "key": "asc_issuer_id", "name": "Issuer ID", "type": "secret", "scope": "workspace", "help": "The same key as the App Store plugin's: set it once, there or here. App Store Connect → Users and Access → Integrations → App Store Connect API." },
+    { "key": "asc_key_id", "name": "Key ID", "type": "secret", "scope": "workspace", "help": "The ID of the key you generated there. It needs the App Manager or Admin role to look after TestFlight." },
+    { "key": "asc_private_key", "name": "Private key (.p8)", "type": "secret", "scope": "workspace", "multiline": true, "help": "Paste the whole .p8 file, including the BEGIN and END lines." }
+  ],
+  "contributes": {
+    "project_cards": [ { "key": "testflight", "name": "TestFlight", "size": "wide" } ],
+    "schedule": { "every": 15, "per": "project" },
+    "settings_panel": true,
+    "tools": [
+      { "name": "get_testflight", "description": "An app product's TestFlight: its latest builds (version, build number, state, What to test, when they expire), the tester group and each tester's state, the next build number, and what's left to set up.", "action": "tool_testflight", "project": true }
+    ]
+  }
+}

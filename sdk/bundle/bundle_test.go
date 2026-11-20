@@ -6,6 +6,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
+	"strings"
 	"testing"
 )
 
@@ -87,6 +88,12 @@ func TestManifestChecks(t *testing.T) {
 		`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"f","name":"F","type":"text","scope":"project"},{"key":"d","name":"D","type":"text","scope":"project","hide_when":"f"}]}`,
 		`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"r","name":"R","type":"toggle","scope":"project","choices":"repos"}]}`,
 		`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"r","name":"R","type":"text","scope":"project","choices":"Bad Name"}]}`,
+		`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"n","name":"N","type":"text","scope":"project","detail":"app.nope"}]}`,
+		`{"id":"ok","name":"x","version":"1.0.0","scope":"both","settings":[{"key":"n","name":"N","type":"text","scope":"workspace","detail":"app.name"}]}`,
+		`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"n","name":"N","type":"toggle","scope":"project","detail":"app.name"}]}`,
+	}
+	if _, err := ParseManifest([]byte(`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"n","name":"N","type":"text","scope":"project","detail":"app.name"}]}`)); err != nil {
+		t.Errorf("a setting that is a shared detail: %v", err)
 	}
 	if _, err := ParseManifest([]byte(`{"id":"ok","name":"x","version":"1.0.0","scope":"project","settings":[{"key":"r","name":"R","type":"text","scope":"project","choices":"repos"}]}`)); err != nil {
 		t.Errorf("a text setting with choices: %v", err)
@@ -120,5 +127,24 @@ func TestVersions(t *testing.T) {
 		if got := Satisfies(c.v, c.r); got != c.ok {
 			t.Errorf("%s in %q = %v", c.v, c.r, got)
 		}
+	}
+}
+
+func TestDetails(t *testing.T) {
+	seen := map[string]bool{}
+	for _, d := range Details {
+		if seen[d.Key] || !strings.HasPrefix(d.Key, "app.") || d.Name == "" || d.Help == "" || d.Max <= 0 || len(d.For) == 0 {
+			t.Errorf("bad detail %+v", d)
+		}
+		if d.Type != "text" && d.Type != "url" && d.Type != "email" {
+			t.Errorf("%s: type %q", d.Key, d.Type)
+		}
+		seen[d.Key] = true
+	}
+	if len(DetailsFor("app")) != len(Details) || len(DetailsFor("website")) != 0 {
+		t.Error("DetailsFor")
+	}
+	if d, ok := DetailFor("app.bundle_id"); !ok || d.Name != "Bundle ID" {
+		t.Error("DetailFor")
 	}
 }

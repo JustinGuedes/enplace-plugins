@@ -1,0 +1,31 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "xcode-cloud",
+  "name": "Xcode Cloud",
+  "version": "1.0.0",
+  "kind": "service",
+  "author": "Enplace",
+  "summary": "Apple's CI for an app: see each Xcode Cloud build and start one from Enplace.",
+  "description": "Goes on an app product beside the App Store plugin and uses its bundle ID and App Store Connect key. It shows the app's Xcode Cloud workflows and latest builds (which workflow, branch and commit, and whether it passed), and starts a workflow when you press Build, or when another plugin asks for one: TestFlight does, when Xcode Cloud makes its builds. It shares its runs in the same shape any CI plugin can, so Enplace can show checks wherever they come from.",
+  "colour": "#9ad0ec",
+  "icon": "cloud",
+  "card_settings": ["workflow", "branch"],
+  "suggest_for": ["app"],
+  "requires": [ { "id": "app", "version": "^3.2.0" } ],
+  "permissions": { "read": ["projects"], "hosts": ["api.appstoreconnect.apple.com"] },
+  "settings": [
+    { "key": "workflow", "name": "Workflow", "type": "text", "scope": "project", "help": "The workflow Enplace starts. Blank uses the first one that's switched on.", "choices": "workflows" },
+    { "key": "branch", "name": "Branch", "type": "text", "scope": "project", "help": "The branch it builds when Enplace starts it. Blank leaves it to the workflow." },
+    { "key": "asc_issuer_id", "name": "Issuer ID", "type": "secret", "scope": "workspace", "help": "The same key as the App Store plugin's: set it once, there or here. App Store Connect → Users and Access → Integrations → App Store Connect API." },
+    { "key": "asc_key_id", "name": "Key ID", "type": "secret", "scope": "workspace", "help": "The ID of the key you generated there. It needs the App Manager or Admin role to start builds." },
+    { "key": "asc_private_key", "name": "Private key (.p8)", "type": "secret", "scope": "workspace", "multiline": true, "help": "Paste the whole .p8 file, including the BEGIN and END lines." }
+  ],
+  "contributes": {
+    "project_cards": [ { "key": "ci", "name": "Xcode Cloud", "size": "wide" } ],
+    "schedule": { "every": 10, "per": "project" },
+    "settings_panel": true,
+    "tools": [
+      { "name": "get_ci_runs", "description": "An app product's Xcode Cloud: its workflows and latest builds (number, workflow, branch, commit, status: queued, running, passed, failed or cancelled).", "action": "tool_ci", "project": true }
+    ]
+  }
+}
