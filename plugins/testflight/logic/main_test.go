@@ -112,7 +112,7 @@ func TestStepsBeforeAnythingIsSetUp(t *testing.T) {
 	req.Slots = []string{plugin.SlotSettingsPanel, "project_card:testflight"}
 	res := plugintest.Call(t, handle, req)
 	list := res.Cards[plugin.SlotSettingsPanel][1]
-	if len(list.Items) != 7 || list.Items[0].Done || !strings.Contains(list.Items[5].Title, "Xcode Cloud") {
+	if len(list.Items) != 8 || list.Items[0].Done || !strings.Contains(list.Items[6].Title, "Xcode Cloud") {
 		t.Fatalf("steps %+v", list.Items)
 	}
 	if c := res.Cards["project_card:testflight"]; c[0].Value != "Not set up yet" || !strings.Contains(c[1].Text, "bundle ID") {
@@ -254,5 +254,58 @@ func TestSendFilesABuildForAnAgentOnTheMac(t *testing.T) {
 	req.Work = []plugin.Work{{ID: "w9", Key: "PLAN-20", ProjectID: pid, Tags: []string{"testflight"}, StageKind: "doing"}}
 	if res := plugintest.Call(t, handle, req); len(res.Ops) != 0 || !strings.Contains(res.Toast, "PLAN-20") {
 		t.Fatalf("second send %+v %q", res.Ops, res.Toast)
+	}
+}
+
+// Before the app is in App Store Connect, Enplace registers its bundle ID
+// and spells out adding it, from the product's App details.
+func TestRegistersTheBundleIDAndFillsInNewApp(t *testing.T) {
+	f := fake(t, map[string]string{
+		"GET /v1/apps":       `{"data":[]}`,
+		"GET /v1/bundleIds":  `{"data":[{"attributes":{"identifier":"com.guedio.planitold"}}]}`,
+		"POST /v1/bundleIds": `{"data":{"type":"bundleIds","id":"B1"}}`,
+	})
+	req := request(t, plugin.HookSchedule, map[string]any{"app_name": "Plan It", "sku": "PLANIT", "language": "en-US"})
+	res := plugintest.Call(t, handle, req)
+	s := stored(t, res)
+	if !s.IDReady || s.AppID != "" || !strings.Contains(f.bodies["POST /v1/bundleIds"], `"identifier":"com.guedio.planit"`) || !strings.Contains(f.bodies["POST /v1/bundleIds"], `"platform":"IOS"`) {
+		t.Fatalf("status %+v sent %v body %s", s, f.sent, f.bodies["POST /v1/bundleIds"])
+	}
+	// Once registered, it isn't asked again.
+	keep(req, res)
+	f.sent = nil
+	plugintest.Call(t, handle, req)
+	for _, k := range f.sent {
+		if strings.Contains(k, "bundleIds") {
+			t.Fatalf("asked again: %v", f.sent)
+		}
+	}
+	req.Hook, req.Slots = plugin.HookRender, []string{plugin.SlotSettingsPanel}
+	items := plugintest.Call(t, handle, req).Cards[plugin.SlotSettingsPanel][1].Items
+	if !items[2].Done || items[3].Done {
+		t.Fatalf("steps %+v", items)
+	}
+	for _, want := range []string{"Name: Plan It", "English (U.S.)", "pick com.guedio.planit", "SKU: PLANIT"} {
+		if !strings.Contains(items[3].Sub, want) {
+			t.Fatalf("new app %q lacks %q", items[3].Sub, want)
+		}
+	}
+}
+
+// A key that can't register bundle IDs says what to do.
+func TestBundleIDTheKeyCantRegister(t *testing.T) {
+	fake(t, map[string]string{"GET /v1/apps": `{"data":[]}`, "GET /v1/bundleIds": `{"data":[]}`})
+	plugin.HostFunc = func(next func([]byte) []byte) func([]byte) []byte {
+		return func(raw []byte) []byte {
+			if strings.Contains(string(raw), `"POST"`) && strings.Contains(string(raw), "bundleIds") {
+				out, _ := json.Marshal(map[string]any{"fetch": plugin.FetchResponse{Status: 403, Body: []byte(`{}`)}})
+				return out
+			}
+			return next(raw)
+		}
+	}(plugin.HostFunc)
+	s := stored(t, plugintest.Call(t, handle, request(t, plugin.HookSchedule, nil)))
+	if s.IDReady || len(s.Notes) != 1 || !strings.Contains(s.Notes[0], "Admin") {
+		t.Fatalf("status %+v", s)
 	}
 }

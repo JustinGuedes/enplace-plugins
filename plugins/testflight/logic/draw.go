@@ -30,9 +30,10 @@ func (r *run) steps(s *Status) []step {
 	}
 	keyOK := s.Keys && !strings.Contains(s.Error, "refused the key") && !strings.Contains(s.Error, "private key")
 	out := []step{
-		{"Give the app its bundle ID", "In this product's App Store plugin settings, type the app's bundle ID, like com.guedio.planit. It's the same one as in Xcode.", s.BundleID != ""},
+		{"Give the app its bundle ID", "In this product's App details, type the app's bundle ID, like com.guedio.planit. It's the same one as in Xcode.", s.BundleID != ""},
 		{"Add your App Store Connect key", "Make a key in App Store Connect (Users and Access → Integrations → App Store Connect API, role App Manager) and paste its three parts into the workspace's TestFlight (or App Store) settings. The guide shows each tap.", keyOK},
-		{"Add the app in App Store Connect", "On appstoreconnect.apple.com go to Apps, press +, then New App, and pick the bundle ID " + orDash(s.BundleID) + ".", s.AppID != ""},
+		{"Register the bundle ID", "Enplace does this for you once the key is in, so the app can be added.", s.AppID != "" || s.IDReady},
+		{"Add the app in App Store Connect", r.newAppHow(s), s.AppID != ""},
 		{"Say who gets every build", "Put the email you sign in to App Store Connect with in Who gets every build, below.", len(r.testers()) > 0 && invited},
 		{"Install TestFlight on your iPhone", "Get the free TestFlight app from the App Store, sign in with the same Apple ID and open the invite email.", onPhone},
 	}
@@ -44,6 +45,34 @@ func (r *run) steps(s *Status) []step {
 		out = append(out, step{"Get your Mac ready to build", "Xcode signed in to your Apple account, and the key's .p8 file in ~/.appstoreconnect/private_keys. The guide shows how.", len(s.Builds) > 0})
 	}
 	return append(out, step{"Send the first build", "Press Send to TestFlight, or upload one from Xcode.", len(s.Builds) > 0})
+}
+
+// newAppHow is how to add the app, filled in from the product's App
+// details so there's nothing to make up.
+func (r *run) newAppHow(s *Status) string {
+	missing := "(fill it in under App details)"
+	or := func(v string) string {
+		if v == "" {
+			return missing
+		}
+		return v
+	}
+	return "On appstoreconnect.apple.com go to Apps, press the blue +, then New App. Tick iOS. Name: " + or(r.appName(s)) +
+		". Primary language: " + or(language(r.setting("language"))) + ". Bundle ID: pick " + orDash(s.BundleID) +
+		". SKU: " + or(r.setting("sku")) + ". User access: Full Access. Press Create."
+}
+
+// language is how App Store Connect names a language code in its list.
+func language(code string) string {
+	names := map[string]string{
+		"en-us": "English (U.S.)", "en-gb": "English (U.K.)", "en-au": "English (Australia)", "en-ca": "English (Canada)",
+		"fr-fr": "French", "de-de": "German", "es-es": "Spanish (Spain)", "es-mx": "Spanish (Mexico)", "it": "Italian",
+		"ja": "Japanese", "nl-nl": "Dutch", "pt-br": "Portuguese (Brazil)", "pt-pt": "Portuguese (Portugal)", "af": "Afrikaans",
+	}
+	if n, ok := names[strings.ToLower(code)]; ok {
+		return n
+	}
+	return code
 }
 
 func orDash(s string) string {

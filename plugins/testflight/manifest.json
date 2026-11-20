@@ -19,6 +19,9 @@
   ],
   "permissions": { "read": ["projects", "work"], "ops": ["work.create"], "hosts": ["api.appstoreconnect.apple.com"] },
   "settings": [
+    { "key": "app_name", "name": "App name", "type": "text", "scope": "project", "level": "product", "detail": "app.name", "help": "The name to give the app in App Store Connect." },
+    { "key": "sku", "name": "SKU", "type": "text", "scope": "project", "level": "product", "detail": "app.sku", "help": "Your own code for the app in App Store Connect." },
+    { "key": "language", "name": "Language", "type": "text", "scope": "project", "level": "product", "detail": "app.language", "help": "The app's main language, like en-US." },
     { "key": "testers", "name": "Who gets every build", "type": "text", "scope": "project", "help": "The email you sign in to App Store Connect with. Add more with commas; each one must be a user on your App Store Connect team." },
     { "key": "builds", "name": "Who makes builds", "type": "select", "scope": "project", "options": ["Xcode Cloud", "An agent on my Mac", "I upload from Xcode"], "default": "Xcode Cloud", "help": "Xcode Cloud: Send to TestFlight starts a build there, through the Xcode Cloud plugin. An agent on my Mac: it files a work item for an agent on your Mac to build and upload the app. Or upload from Xcode yourself and Enplace does the rest." },
     { "key": "group", "name": "Tester group", "type": "text", "scope": "project", "default": "Me", "help": "The TestFlight group Enplace makes and keeps. It's internal: every build reaches it with no review by Apple." },

@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/JustinGuedes/enplace-plugins/plugins/app/store"
 	"github.com/JustinGuedes/enplace-plugins/plugins/testflight/beta"
 	"github.com/JustinGuedes/enplace-plugins/sdk/plugin"
 )
@@ -31,8 +32,11 @@ type Status struct {
 	AppName   string    `json:"app_name,omitempty"`
 	// Keys says the App Store Connect key is set; AppID that the app was
 	// found in App Store Connect.
-	Keys    bool          `json:"keys"`
-	AppID   string        `json:"app_id,omitempty"`
+	Keys  bool   `json:"keys"`
+	AppID string `json:"app_id,omitempty"`
+	// IDReady says Apple knows the bundle ID (Enplace registers it), so
+	// it can be picked when the app is added in App Store Connect.
+	IDReady bool          `json:"id_ready,omitempty"`
 	Group   *beta.Group   `json:"group,omitempty"`
 	Testers []beta.Tester `json:"testers,omitempty"`
 	Builds  []beta.Build  `json:"builds,omitempty"`
@@ -213,9 +217,12 @@ func (r *run) refresh() {
 		if err != nil {
 			s.Error = err.Error()
 			s.keep(was)
+			return
 		}
+		r.register(c, s, was)
 		return
 	}
+	s.IDReady = true
 	g, _, err := c.Group(s.AppID, r.group())
 	if err != nil {
 		s.Error = "Couldn't make the tester group: " + err.Error()
@@ -235,6 +242,37 @@ func (r *run) refresh() {
 	if r.on("what_to_test") {
 		r.writeWhatToTest(c, s)
 	}
+}
+
+// register makes sure Apple knows the bundle ID before the app is added,
+// so the person only has to pick it from the list.
+func (r *run) register(c *beta.Client, s *Status, was *Status) {
+	if was != nil && was.IDReady && was.BundleID == s.BundleID {
+		s.IDReady = true
+		return
+	}
+	made, err := c.BundleID(s.BundleID, r.appName(s))
+	if err != nil {
+		if e, ok := err.(*store.Error); ok && e.Status == 403 {
+			s.Notes = append(s.Notes, "The key can't register the bundle ID. Give it the Admin role in App Store Connect, or register "+s.BundleID+" yourself under Certificates, Identifiers & Profiles.")
+			return
+		}
+		s.Notes = append(s.Notes, "Couldn't register the bundle ID: "+err.Error())
+		return
+	}
+	s.IDReady = true
+	if made {
+		r.res.Log = "Registered the bundle ID " + s.BundleID + " with Apple"
+	}
+}
+
+// appName is what the app is called in App Store Connect: the product's
+// App details, else what the App Store plugin knows.
+func (r *run) appName(s *Status) string {
+	if n := r.setting("app_name"); n != "" {
+		return n
+	}
+	return s.AppName
 }
 
 // keep holds on to what was known through a hiccup.

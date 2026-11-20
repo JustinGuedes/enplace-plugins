@@ -768,6 +768,9 @@
             "type": "string"
           },
           "default": {},
+          "detail": {
+            "type": "string"
+          },
           "fetch": {
             "type": "boolean"
           },

@@ -97,3 +97,47 @@ func (c *Client) AppID(bundleID string) (string, error) {
 	}
 	return res.Data[0].ID, nil
 }
+
+// BundleID makes sure Apple knows the app's bundle ID (Certificates,
+// Identifiers & Profiles), so it shows up when the app is added in App
+// Store Connect. It says whether it registered it just now.
+func (c *Client) BundleID(identifier, name string) (bool, error) {
+	var res struct {
+		Data []struct {
+			Attributes struct {
+				Identifier string `json:"identifier"`
+			} `json:"attributes"`
+		} `json:"data"`
+	}
+	if err := c.Do("GET", "/v1/bundleIds?filter[identifier]="+url.QueryEscape(identifier)+"&fields[bundleIds]=identifier", nil, &res); err != nil {
+		return false, err
+	}
+	// The filter matches by prefix: only the same one counts.
+	for _, d := range res.Data {
+		if d.Attributes.Identifier == identifier {
+			return false, nil
+		}
+	}
+	if name == "" {
+		name = identifier
+	}
+	in := map[string]any{"data": map[string]any{"type": "bundleIds", "attributes": map[string]string{"identifier": identifier, "name": idName(name), "platform": "IOS"}}}
+	if err := c.Do("POST", "/v1/bundleIds", in, nil); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// idName is a name Apple takes for a bundle ID: letters, digits and spaces.
+func idName(s string) string {
+	out := []rune{}
+	for _, r := range s {
+		if r == ' ' || r >= '0' && r <= '9' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' {
+			out = append(out, r)
+		}
+	}
+	if len(out) == 0 {
+		return "App"
+	}
+	return string(out)
+}

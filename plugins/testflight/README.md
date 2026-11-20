@@ -26,22 +26,27 @@ You need: a Mac, an iPhone, and a paid Apple Developer account.
 
 ## Part 2. Tell Apple about your app
 
-1. In Xcode, click your app at the top of the list on the left, then **General**.
-   Copy the **Bundle Identifier** (like `com.guedio.planit`).
-2. In Enplace, paste it into the **App Store** settings of your app, under
-   **App Store app**.
-3. On **appstoreconnect.apple.com**, click **Apps**, then the blue **+**, then
+Enplace drafts your app's name, bundle ID, SKU and language while the
+project is planned. You'll find them, and can change them, in your app's
+settings under **App details**. Enplace registers the bundle ID with Apple
+for you, so the only thing left is adding the app (Apple has no way for
+Enplace to do it):
+
+1. Open the **TestFlight** settings on your app in Enplace. Step "Add the app
+   in App Store Connect" lists exactly what to type, from your App details.
+2. On **appstoreconnect.apple.com**, click **Apps**, then the blue **+**, then
    **New App**.
-4. Fill it in:
-   - **Platforms**: iOS.
-   - **Name**: your app's name. If Apple says it's taken, add a word.
-   - **Primary Language**: yours.
-   - **Bundle ID**: pick the one from step 1. Not in the list? Open the app in
-     Xcode, tick **Automatically manage signing** under **Signing & Capabilities**,
-     pick your team, wait a moment, then reload this page.
-   - **SKU**: any short name only you see, like `planit-ios`.
-   - **User Access**: Full Access.
-5. Click **Create**.
+3. Fill it in with what step 1 says: tick **iOS**, then the **Name**,
+   **Primary Language**, **Bundle ID** (pick it from the list) and **SKU**.
+   **User Access**: Full Access. If Apple says the name is taken, add a word,
+   and change the name in App details to match.
+4. Click **Create**. Within a few minutes the step ticks itself off.
+
+If Enplace says the key can't register the bundle ID, your key needs the
+**Admin** role, or you can register it yourself: on
+**developer.apple.com/account**, open **Identifiers**, press **+**, pick
+**App IDs**, then **App**, type the bundle ID from App details and press
+**Register**.
 
 ## Part 3. Get the builds on your iPhone
 

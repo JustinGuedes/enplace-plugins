@@ -14,7 +14,7 @@
   "requires": [ { "id": "releases", "version": "^3.0.0", "optional": true } ],
   "permissions": { "read": ["projects"], "ops": ["project.icon"], "hosts": ["itunes.apple.com", "api.appstoreconnect.apple.com"] },
   "settings": [
-    { "key": "app_store", "name": "App Store app", "type": "text", "scope": "project", "help": "Its bundle ID like com.example.app, its App Store link or its App Store ID. Or search for it above." },
+    { "key": "app_store", "detail": "app.bundle_id", "name": "App Store app", "type": "text", "scope": "project", "help": "Its bundle ID like com.example.app, its App Store link or its App Store ID. Or search for it above." },
     { "key": "overview", "name": "On the project's overview", "type": "select", "scope": "project", "options": ["One summary card", "A card for each number", "No statistics"], "default": "One summary card", "help": "How the app's downloads, rating and reviews show on the overview. The App page always has all of it." },
     { "key": "asc_issuer_id", "name": "Issuer ID", "type": "secret", "scope": "workspace", "help": "App Store Connect → Users and Access → Integrations → App Store Connect API." },
     { "key": "asc_key_id", "name": "Key ID", "type": "secret", "scope": "workspace", "help": "The ID of the key you generated there." },

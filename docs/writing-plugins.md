@@ -207,6 +207,28 @@ there. The call only reads: anything else the action answers is ignored.
 A card button with `"pick": "<setting>"` opens the same list in place, so
 a card like "No repo linked yet" can be set up without leaving it.
 
+### A product's details
+
+Some things are true of a product whatever plugin asks: an app's name,
+its bundle ID, its description, its privacy policy link. Enplace keeps
+these once per product as its details (`bundle.Details` lists them, like
+`app.name` or `app.bundle_id`). They're drafted and asked while the
+project is planned, and the person changes them in the product's
+settings, under App details.
+
+A project setting that is one of them says so with `"detail": "<key>"`:
+
+```json
+{ "key": "package_name", "name": "Package name", "type": "text", "scope": "project", "detail": "app.package_name" }
+```
+
+Enplace then keeps its value with the product's details, not the
+plugin's own settings: the plugin reads it from `ProjectSettings` as
+usual, but setting it anywhere changes it for every plugin that names it.
+Only text and url settings can be details, with no default. A plugin that
+keeps a store in step (a store listing's text) names the details it
+copies, so the person types them once.
+
 ## The plugin's icon
 
 Every plugin draws its own icon, so each one is recognisable across
