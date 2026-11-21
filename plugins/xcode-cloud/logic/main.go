@@ -7,6 +7,13 @@
 // contract any CI plugin can (docs/writing-plugins.md): another plugin asks
 // for a build with "public.ci_request", it starts one run per request, and
 // it shares its runs and how each request went as "public.ci".
+//
+// It's also a builder (the builds contract): when the app product's
+// "Builds come from" picks it, it answers the store builds App passes on
+// ("public.build_request") with its own workflow, "Enplace store build",
+// which it makes with Set it up and keeps right. It never knows who wanted
+// the build or what happens to it after: its "Builds it makes" setting
+// says what the archive is for, in Apple's words.
 package main
 
 import (
@@ -27,6 +34,9 @@ type Request struct {
 	Workflow string `json:"workflow,omitempty"`
 	Branch   string `json:"branch,omitempty"`
 	Reason   string `json:"reason,omitempty"`
+	// Store is a store build passed on by App (public.build_request),
+	// made with Enplace's own workflow.
+	Store bool `json:"-"`
 	// At is when it was asked: one older than an hour is never started,
 	// so switching the plugin on doesn't start an old build.
 	At time.Time `json:"at"`
@@ -43,16 +53,22 @@ type Answer struct {
 
 // Status is what the last check found, stored per product.
 type Status struct {
-	CheckedAt time.Time         `json:"checked_at"`
-	BundleID  string            `json:"bundle_id,omitempty"`
-	Keys      bool              `json:"keys"`
-	AppID     string            `json:"app_id,omitempty"`
-	ProductID string            `json:"product_id,omitempty"`
-	NotSetUp  bool              `json:"not_set_up,omitempty"`
-	Workflows []cloud.Workflow  `json:"workflows,omitempty"`
-	Runs      []cloud.Run       `json:"runs,omitempty"`
-	Requests  map[string]Answer `json:"requests,omitempty"`
-	Error     string            `json:"error,omitempty"`
+	CheckedAt time.Time        `json:"checked_at"`
+	BundleID  string           `json:"bundle_id,omitempty"`
+	Keys      bool             `json:"keys"`
+	AppID     string           `json:"app_id,omitempty"`
+	ProductID string           `json:"product_id,omitempty"`
+	NotSetUp  bool             `json:"not_set_up,omitempty"`
+	Workflows []cloud.Workflow `json:"workflows,omitempty"`
+	// Own is Enplace's workflow when it has one; Branch is the branch the
+	// Default workflow builds, for starting Own with no branch named.
+	Own    string `json:"own,omitempty"`
+	Branch string `json:"branch,omitempty"`
+	// SetUpError is why Set it up last failed.
+	SetUpError string            `json:"set_up_error,omitempty"`
+	Runs       []cloud.Run       `json:"runs,omitempty"`
+	Requests   map[string]Answer `json:"requests,omitempty"`
+	Error      string            `json:"error,omitempty"`
 }
 
 const keyStatus = "status"
@@ -143,7 +159,9 @@ func call(method, u string, headers map[string]string, body []byte) (int, []byte
 	return res.Status, res.Body, nil
 }
 
-// requests are the builds linked plugins ask for, by the plugin asking.
+// requests are the builds linked plugins ask for, by the plugin asking:
+// CI runs anyone asks for, and the store build App passes on when this
+// is the builder the app product picked.
 func (r *run) requests() map[string]Request {
 	out := map[string]Request{}
 	for id := range r.req.Peers {
@@ -152,7 +170,38 @@ func (r *run) requests() map[string]Request {
 			out[id] = q
 		}
 	}
+	if r.picked() {
+		var q Request
+		if r.peer("app", "public.build_request", &q) && q.ID != "" {
+			q.Store = true
+			out["app"] = q
+		}
+	}
 	return out
+}
+
+const selfID = "xcode-cloud"
+
+// picked says the app product's "Builds come from" is Xcode Cloud.
+func (r *run) picked() bool {
+	var a struct {
+		Builder struct {
+			ID string `json:"id"`
+		} `json:"builder"`
+	}
+	r.peer("app", "public.app", &a)
+	return a.Builder.ID == selfID
+}
+
+// audience is what the "Builds it makes" setting asks for.
+func (r *run) audience() string {
+	switch b := r.setting("makes"); {
+	case strings.HasPrefix(b, "TestFlight"):
+		return cloud.ForInternal
+	case strings.HasPrefix(b, "Don"):
+		return cloud.ForNobody
+	}
+	return cloud.ForStore
 }
 
 // refresh reads Xcode Cloud, starts what was asked for (start, from a
@@ -195,6 +244,13 @@ func (r *run) refresh(start *Request) {
 		s.Error = err.Error()
 		return
 	}
+	if was != nil {
+		s.Branch, s.SetUpError = was.Branch, was.SetUpError
+	}
+	if own, ok := cloud.Own(s.Workflows); ok {
+		s.Own = own.ID
+		r.keep(c, s, own)
+	}
 	for by, q := range r.requests() {
 		if _, done := s.Requests[q.ID]; !done && r.req.Now.Sub(q.At) < time.Hour {
 			a := r.start(c, s, q)
@@ -224,12 +280,15 @@ func (r *run) refresh(start *Request) {
 func (r *run) start(c *cloud.Client, s *Status, q Request) Answer {
 	a := Answer{At: r.req.Now}
 	want := q.Workflow
+	if want == "" && q.Store && s.Own != "" {
+		want = s.Own
+	}
 	if want == "" {
 		want = r.setting("workflow")
 	}
 	w, ok := cloud.Pick(s.Workflows, want)
 	if !ok {
-		a.State, a.Error = "failed", "no workflow to start: make one in Xcode, or pick one in the Xcode Cloud settings"
+		a.State, a.Error = "failed", "no workflow to start: press Set it up in the Xcode Cloud settings"
 		if want != "" {
 			a.Error = "Xcode Cloud has no workflow called " + want
 		}
@@ -238,6 +297,13 @@ func (r *run) start(c *cloud.Client, s *Status, q Request) Answer {
 	branch := q.Branch
 	if branch == "" {
 		branch = r.setting("branch")
+	}
+	if branch == "" && w.ID == s.Own {
+		// Enplace's workflow starts by hand, so it needs a branch.
+		branch = s.Branch
+		if branch == "" {
+			branch = "main"
+		}
 	}
 	n, err := c.Start(w.ID, branch)
 	if err != nil {
@@ -270,9 +336,29 @@ func (r *run) publish(s *Status) {
 		runs = []cloud.Run{}
 	}
 	r.res.SetProject(r.pid, "public.ci", map[string]any{
-		"provider": "xcode-cloud", "name": "Xcode Cloud", "ready": s.ProductID != "",
+		"provider": selfID, "name": "Xcode Cloud", "ready": s.ProductID != "",
 		"runs": runs, "requests": s.Requests, "checked_at": s.CheckedAt,
 	})
+	ready, note := r.builderReady(s)
+	r.res.SetProject(r.pid, "public.builder", map[string]any{
+		"name": "Xcode Cloud", "ready": ready, "note": note, "requests": s.Requests,
+	})
+}
+
+// builderReady says whether Xcode Cloud can make a store build now, and
+// if not, what's missing, in words for the person.
+func (r *run) builderReady(s *Status) (bool, string) {
+	switch {
+	case !s.Keys || s.BundleID == "" || s.AppID == "":
+		return false, "Xcode Cloud needs the app's bundle ID and App Store Connect key first."
+	case s.ProductID == "":
+		return false, "Connect Xcode Cloud once in Xcode: Product → Xcode Cloud → Create Workflow."
+	case r.audience() == cloud.ForNobody:
+		return false, "Xcode Cloud is set to make builds that aren't uploaded (Builds it makes)."
+	case s.Own == "" && r.setting("workflow") == "":
+		return false, "Press Set it up in the Xcode Cloud settings so Enplace can make its workflow."
+	}
+	return true, ""
 }
 
 func (r *run) action(a *plugin.Action) {
@@ -282,6 +368,8 @@ func (r *run) action(a *plugin.Action) {
 		if r.res.Toast == "" {
 			r.res.Toast = "Checked Xcode Cloud"
 		}
+	case "setup":
+		r.setUp()
 	case "start":
 		r.refresh(&Request{ID: fmt.Sprintf("button-%d", r.req.Now.Unix()), Reason: "Started from Enplace"})
 	case "workflows":

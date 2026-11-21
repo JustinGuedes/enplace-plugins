@@ -37,12 +37,16 @@ func (r *run) steps(s *Status) []step {
 		{"Say who gets every build", "Put the email you sign in to App Store Connect with in Who gets every build, below.", len(r.testers()) > 0 && invited},
 		{"Install TestFlight on your iPhone", "Get the free TestFlight app from the App Store, sign in with the same Apple ID and open the invite email.", onPhone},
 	}
-	switch r.mode() {
-	case byCloud:
-		c, ok := r.ci()
-		out = append(out, step{"Link Xcode Cloud", "Switch on the Xcode Cloud plugin on this app and follow its steps. Its workflow needs a TestFlight (Internal Testing Only) post-action.", ok && c.Ready})
-	case byMac:
+	switch b := r.builder(); b.ID {
+	case byHand:
+	case "mac":
 		out = append(out, step{"Get your Mac ready to build", "Xcode signed in to your Apple account, and the key's .p8 file in ~/.appstoreconnect/private_keys. The guide shows how.", len(s.Builds) > 0})
+	default:
+		how := b.Note
+		if how == "" {
+			how = "Follow the steps in the " + b.Name + " plugin's settings."
+		}
+		out = append(out, step{"Get " + b.Name + " ready", how, b.Ready})
 	}
 	return append(out, step{"Send the first build", "Press Send to TestFlight, or upload one from Xcode.", len(s.Builds) > 0})
 }
@@ -136,22 +140,12 @@ func (r *run) buildSub(b beta.Build) string {
 
 func (r *run) buttons(s *Status) []plugin.Button {
 	btns := []plugin.Button{}
-	switch r.mode() {
-	case byCloud:
-		switch n, _ := r.building(); {
-		case n > 0:
-			btns = append(btns, plugin.Button{Label: fmt.Sprintf("Xcode Cloud is on build %d", n), Action: "refresh"})
-		case n < 0:
-			btns = append(btns, plugin.Button{Label: "Asked Xcode Cloud", Action: "refresh"})
-		default:
-			btns = append(btns, plugin.Button{Label: "Send to TestFlight", Action: "send", Confirm: "Start an Xcode Cloud build for TestFlight?"})
-		}
-	case byMac:
-		if w := r.open(); w != nil {
-			btns = append(btns, plugin.Button{Label: "Building: " + w.Key, Href: "/w/" + strings.ToLower(w.Key)})
+	if b := r.builder(); b.ID != byHand {
+		if where, _ := r.building(s); where != "" {
+			btns = append(btns, plugin.Button{Label: where, Action: "refresh"})
 		} else {
 			v, n := r.next(s)
-			btns = append(btns, plugin.Button{Label: "Send to TestFlight", Action: "send", Confirm: "Build " + v + " (" + n + ") on your Mac and upload it?"})
+			btns = append(btns, plugin.Button{Label: "Send to TestFlight", Action: "send", Confirm: "Ask " + b.Name + " for " + v + " (" + n + ")?"})
 		}
 	}
 	return append(btns, plugin.Button{Label: "Check now", Action: "refresh"}, plugin.Button{Label: "App Store Connect", URL: "https://appstoreconnect.apple.com/apps"})
@@ -172,8 +166,8 @@ func (r *run) overview() []plugin.Block {
 	if s.Error != "" {
 		blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: "App Store Connect: " + s.Error, Tone: "warn"})
 	}
-	if _, failed := r.building(); failed != "" && r.mode() == byCloud {
-		blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: "Xcode Cloud didn't start the build: " + failed, Tone: "warn"})
+	if _, failed := r.building(s); failed != "" {
+		blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: r.builder().Name + " didn't start the build: " + failed, Tone: "warn"})
 	}
 	if len(s.Builds) == 0 {
 		blocks = append(blocks, plugin.Block{Type: plugin.BlockStat, Value: "No builds yet", Sub: "Send one to see it here."})
@@ -260,7 +254,7 @@ func (r *run) panel() []plugin.Block {
 func (r *run) tool() map[string]any {
 	s := r.status()
 	version, number := r.next(s)
-	out := map[string]any{"set_up": false, "next_version": version, "next_build": number, "builds_by": r.mode()}
+	out := map[string]any{"set_up": false, "next_version": version, "next_build": number, "builds_by": r.builder().Name}
 	todo := []string{}
 	for _, st := range r.steps(s) {
 		if !st.Done {
@@ -279,8 +273,8 @@ func (r *run) tool() map[string]any {
 	if s.Error != "" {
 		out["error"] = s.Error
 	}
-	if w := r.open(); w != nil {
-		out["build_in_flight"] = w.Key
+	if where, _ := r.building(s); where != "" {
+		out["build_in_flight"] = where
 	}
 	return out
 }

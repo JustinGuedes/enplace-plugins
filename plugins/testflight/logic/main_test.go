@@ -112,7 +112,7 @@ func TestStepsBeforeAnythingIsSetUp(t *testing.T) {
 	req.Slots = []string{plugin.SlotSettingsPanel, "project_card:testflight"}
 	res := plugintest.Call(t, handle, req)
 	list := res.Cards[plugin.SlotSettingsPanel][1]
-	if len(list.Items) != 8 || list.Items[0].Done || !strings.Contains(list.Items[6].Title, "Xcode Cloud") {
+	if len(list.Items) != 7 || list.Items[0].Done {
 		t.Fatalf("steps %+v", list.Items)
 	}
 	if c := res.Cards["project_card:testflight"]; c[0].Value != "Not set up yet" || !strings.Contains(c[1].Text, "bundle ID") {
@@ -206,54 +206,53 @@ func readyStatus(req *plugin.Request, builds ...beta.Build) {
 	req.State.PutProject(pid, keyStatus, &Status{BundleID: "com.guedio.planit", AppName: "Plan It", Keys: true, AppID: "900", Builds: builds})
 }
 
-func TestSendAsksXcodeCloud(t *testing.T) {
+// TestFlight asks whoever App's Builds come from picks, and never names
+// them: here a builder called Xcode Cloud.
+func TestSendAsksTheBuilder(t *testing.T) {
 	req := request(t, plugin.HookAction, nil)
-	readyStatus(req)
+	readyStatus(req, beta.Build{ID: "b12", Version: "1.0", Number: "12"})
+	publish(req, "versions", "public.versions", map[string]string{"version": "1.1", "build": "5"})
 	req.Action = &plugin.Action{Name: "send"}
-	if res := plugintest.Call(t, handle, req); !strings.Contains(res.Toast, "Xcode Cloud plugin") {
-		t.Fatalf("without Xcode Cloud: %q", res.Toast)
+	if res := plugintest.Call(t, handle, req); !strings.Contains(res.Toast, "Product → Archive") {
+		t.Fatalf("without a builder: %q", res.Toast)
 	}
-	publish(req, "xcode-cloud", "public.ci", map[string]any{"ready": true})
+	publish(req, "app", "public.build", map[string]any{"id": "xcode-cloud", "name": "Xcode Cloud", "ready": false, "note": "Press Set it up."})
+	if res := plugintest.Call(t, handle, req); !strings.Contains(res.Toast, "Set it up") {
+		t.Fatalf("not ready: %q", res.Toast)
+	}
+	publish(req, "app", "public.build", map[string]any{"id": "xcode-cloud", "name": "Xcode Cloud", "ready": true})
 	res := plugintest.Call(t, handle, req)
 	var q map[string]any
-	if !res.State.GetProject(pid, "public.ci_request", &q) || !strings.HasPrefix(q["id"].(string), "testflight-") {
+	if !res.State.GetProject(pid, "public.build_request", &q) || !strings.HasPrefix(q["id"].(string), "testflight-") || q["version"] != "1.1" || q["build"] != "13" {
 		t.Fatalf("request %v (%q)", q, res.Toast)
 	}
 	keep(req, res)
 
-	// While it's asked, or running, it isn't asked again.
-	if res := plugintest.Call(t, handle, req); !strings.Contains(res.Toast, "already") {
+	// While it's asked, or building, it isn't asked again.
+	if res := plugintest.Call(t, handle, req); !strings.Contains(res.Toast, "Asked Xcode Cloud") {
 		t.Fatalf("asked twice: %q", res.Toast)
 	}
-	publish(req, "xcode-cloud", "public.ci", map[string]any{"ready": true,
-		"requests": map[string]any{q["id"].(string): map[string]any{"state": "started", "run": 7}},
-		"runs":     []map[string]any{{"number": 7, "status": "running"}}})
+	publish(req, "app", "public.build", map[string]any{"id": "xcode-cloud", "name": "Xcode Cloud", "ready": true,
+		"requests": map[string]any{q["id"].(string): map[string]any{"state": "started", "run": 7}}})
 	req.Hook, req.Slots = plugin.HookRender, []string{"project_card:testflight"}
 	card := plugintest.Call(t, handle, req).Cards["project_card:testflight"]
 	if last := card[len(card)-1]; last.Buttons[0].Label != "Xcode Cloud is on build 7" {
 		t.Fatalf("buttons %+v", last.Buttons)
 	}
-}
 
-func TestSendFilesABuildForAnAgentOnTheMac(t *testing.T) {
-	req := request(t, plugin.HookAction, map[string]any{"builds": "An agent on my Mac"})
-	readyStatus(req, beta.Build{ID: "b12", Version: "1.0", Number: "12"})
-	publish(req, "versions", "public.versions", map[string]string{"version": "1.1", "build": "5"})
-	req.Action = &plugin.Action{Name: "send"}
-	res := plugintest.Call(t, handle, req)
-	if len(res.Ops) != 1 || res.Ops[0].Kind != "work.create" || !res.Ops[0].Asked {
-		t.Fatalf("ops %+v", res.Ops)
-	}
-	p := res.Ops[0].Params.(map[string]any)
-	body := p["body"].(string)
-	if p["title"] != "Upload Plan It 1.1 (13) to TestFlight" || !strings.Contains(body, "upload-to-testflight") || !strings.Contains(body, "AuthKey_KEY1.p8") || strings.Contains(body, "PRIVATE KEY") {
-		t.Fatalf("item %v", p)
+	// An agent's work item shows by its key.
+	publish(req, "app", "public.build", map[string]any{"id": "mac", "name": "An agent on my Mac", "ready": true,
+		"requests": map[string]any{q["id"].(string): map[string]any{"state": "started", "work": "PLAN-20"}}})
+	card = plugintest.Call(t, handle, req).Cards["project_card:testflight"]
+	if last := card[len(card)-1]; last.Buttons[0].Label != "Building: PLAN-20" {
+		t.Fatalf("buttons %+v", last.Buttons)
 	}
 
-	// One in flight is enough.
-	req.Work = []plugin.Work{{ID: "w9", Key: "PLAN-20", ProjectID: pid, Tags: []string{"testflight"}, StageKind: "doing"}}
-	if res := plugintest.Call(t, handle, req); len(res.Ops) != 0 || !strings.Contains(res.Toast, "PLAN-20") {
-		t.Fatalf("second send %+v %q", res.Ops, res.Toast)
+	// Once a newer build is in App Store Connect, it can send again.
+	readyStatus(req, beta.Build{ID: "b13", Version: "1.1", Number: "13", Uploaded: plugintest.Now.Add(time.Minute)})
+	card = plugintest.Call(t, handle, req).Cards["project_card:testflight"]
+	if last := card[len(card)-1]; last.Buttons[0].Action != "send" {
+		t.Fatalf("buttons %+v", last.Buttons)
 	}
 }
 

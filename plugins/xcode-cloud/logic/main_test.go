@@ -145,7 +145,7 @@ func TestAnAppWithoutXcodeCloud(t *testing.T) {
 	req.State.PutProject(pid, keyStatus, s)
 	req.Hook, req.Slots = plugin.HookRender, []string{"project_card:ci", plugin.SlotSettingsPanel}
 	out := plugintest.Call(t, handle, req)
-	if c := out.Cards["project_card:ci"]; c[0].Value != "Not set up yet" || !strings.Contains(c[1].Text, "Switch Xcode Cloud on") {
+	if c := out.Cards["project_card:ci"]; c[0].Value != "Not set up yet" || !strings.Contains(c[1].Text, "Connect Xcode Cloud once") {
 		t.Fatalf("card %+v", c)
 	}
 	if items := out.Cards[plugin.SlotSettingsPanel][1].Items; !items[0].Done || !items[1].Done || items[2].Done {
