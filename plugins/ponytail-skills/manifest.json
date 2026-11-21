@@ -1,0 +1,17 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "ponytail-skills",
+  "name": "Ponytail",
+  "version": "1.0.0",
+  "kind": "skills",
+  "author": "Dietrich Gebert",
+  "summary": "Lazy senior dev mode: the smallest change that fully solves the task, plus reviews that ask whether every line is needed.",
+  "homepage": "https://github.com/DietrichGebert/ponytail",
+  "license": "MIT",
+  "upstream": {
+    "repo": "https://github.com/DietrichGebert/ponytail",
+    "commit": "96608e078b2d5ea607c5c3b8b5a54d1c1fba6846"
+  },
+  "colour": "#d9d4c7",
+  "icon": "code"
+}

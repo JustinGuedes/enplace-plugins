@@ -1,0 +1,17 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "superpowers-skills",
+  "name": "Superpowers",
+  "version": "1.0.0",
+  "kind": "skills",
+  "author": "Jesse Vincent",
+  "summary": "Process for coding agents: evidence before claiming done, systematic debugging, plans, and taking code review well.",
+  "homepage": "https://github.com/obra/superpowers",
+  "license": "MIT",
+  "upstream": {
+    "repo": "https://github.com/obra/superpowers",
+    "commit": "22f0b463e7a5e579904dd6211a520321035526f7"
+  },
+  "colour": "#ff8f70",
+  "icon": "star"
+}

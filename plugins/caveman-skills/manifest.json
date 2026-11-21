@@ -1,0 +1,17 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "caveman-skills",
+  "name": "Caveman",
+  "version": "1.0.0",
+  "kind": "skills",
+  "author": "Julius Brussee",
+  "summary": "Say less and stay in scope: a terse voice that keeps every fact, and small skills that stop work once it's proven.",
+  "homepage": "https://github.com/JuliusBrussee/caveman",
+  "license": "Apache-2.0",
+  "upstream": {
+    "repo": "https://github.com/JuliusBrussee/caveman",
+    "commit": "a192894723a8f47e7f504c7b5041967ff1f18e55"
+  },
+  "colour": "#f0a63c",
+  "icon": "sparkle"
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "agent-skills",
+  "name": "Agent skills",
+  "version": "1.0.0",
+  "kind": "skills",
+  "author": "Addy Osmani",
+  "summary": "Engineering habits for agents: ship and launch safely, build in thin slices, plan tasks, harden security and simplify code.",
+  "homepage": "https://github.com/addyosmani/agent-skills",
+  "license": "MIT",
+  "upstream": {
+    "repo": "https://github.com/addyosmani/agent-skills",
+    "commit": "8c99fa36d90068c82d547f7c12a9d67a3e95f4ee"
+  },
+  "colour": "#9be38f",
+  "icon": "rocket"
+}
