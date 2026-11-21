@@ -337,7 +337,7 @@ func (r *run) publish(s *Status) {
 	}
 	r.res.SetProject(r.pid, "public.ci", map[string]any{
 		"provider": selfID, "name": "Xcode Cloud", "ready": s.ProductID != "",
-		"runs": runs, "requests": s.Requests, "checked_at": s.CheckedAt,
+		"runs": runs, "requests": s.Requests,
 	})
 	ready, note := r.builderReady(s)
 	r.res.SetProject(r.pid, "public.builder", map[string]any{
