@@ -17,6 +17,10 @@ const (
 	perItem = 8
 	// maxItems is how many work items keep links.
 	maxItems = 300
+	// maxBytes is about how much the links may take once stored: Enplace
+	// turns away a key over its limit, and with it the whole check, so no
+	// link or move is saved (ENP-320). The items linked longest ago go first.
+	maxBytes = 160 << 10
 	// maxDetails is how many open pull requests get their size, checks and
 	// merge state read each run: the ones read longest ago (or never) go
 	// first, so none is left out for good (ENP-105).
@@ -35,7 +39,7 @@ type Link struct {
 	SHA    string    `json:"sha,omitempty"`
 	At     time.Time `json:"at"`
 	// Opened is when a pull request was opened.
-	Opened time.Time `json:"opened,omitempty"`
+	Opened time.Time `json:"opened,omitzero"`
 	// Adds and Dels are a pull request's lines added and taken out, and
 	// Checks the checks on its latest commit, read while it's open.
 	Adds   int     `json:"adds,omitempty"`
@@ -48,7 +52,7 @@ type Link struct {
 	// Read is when the details above were last read from GitHub. It stays
 	// empty while GitHub is still working out the merge state, so the next
 	// run asks again first.
-	Read time.Time `json:"read,omitempty"`
+	Read time.Time `json:"read,omitzero"`
 }
 
 // Check is one check on a pull request: pass, fail or run (not done yet).
@@ -136,7 +140,8 @@ func (ls Links) add(keys []string, l Link) {
 			if nl.Adds == 0 && nl.Dels == 0 && nl.Checks == nil {
 				nl.Adds, nl.Dels, nl.Checks = x.Adds, x.Dels, x.Checks
 			}
-			if nl.Merge == "" && nl.SHA == x.SHA {
+			// Whether it can merge only matters while it's open.
+			if nl.Merge == "" && nl.SHA == x.SHA && nl.open() {
 				nl.Merge, nl.Base, nl.Read = x.Merge, x.Base, x.Read
 			}
 			if nl.Opened.IsZero() {
@@ -152,22 +157,34 @@ func (ls Links) add(keys []string, l Link) {
 	}
 }
 
-// trim keeps the work items with the newest links.
+// open is a pull request that hasn't merged or closed.
+func (l Link) open() bool {
+	return l.Kind == "pr" && (l.State == "open" || l.State == "draft")
+}
+
+// trim keeps the work items with the newest links: at most maxItems of
+// them, in about maxBytes.
 func (ls Links) trim() {
-	if len(ls) <= maxItems {
-		return
-	}
 	type kv struct {
-		k  string
-		at time.Time
+		k    string
+		at   time.Time
+		size int
 	}
 	var all []kv
+	total := 2
 	for k, v := range ls {
-		all = append(all, kv{k, v[0].At})
+		raw, _ := json.Marshal(v)
+		size := len(k) + len(raw) + 4
+		total += size
+		all = append(all, kv{k, v[0].At, size})
+	}
+	if len(all) <= maxItems && total <= maxBytes {
+		return
 	}
 	sort.Slice(all, func(i, j int) bool { return all[i].at.After(all[j].at) })
-	for _, x := range all[maxItems:] {
-		delete(ls, x.k)
+	for i := len(all) - 1; i > 0 && (i >= maxItems || total > maxBytes); i-- {
+		total -= all[i].size
+		delete(ls, all[i].k)
 	}
 }
 

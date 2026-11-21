@@ -2,7 +2,7 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "github",
   "name": "GitHub",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "kind": "service",
   "author": "Enplace",
   "summary": "Link a project to its GitHub repo: pull requests move work, and Versions reads and bumps the version.",
