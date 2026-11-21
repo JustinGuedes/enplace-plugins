@@ -52,7 +52,7 @@ func TestBuilderPickedOrFound(t *testing.T) {
 		t.Fatalf("a builder that's gone: %+v", b)
 	}
 	c := r.builderChoices()
-	if len(c.Choices) != 3 || c.Choices[0].Value != "Xcode Cloud" || c.Choices[0].Badge != "Not ready" || c.Choices[2].Value != byHand {
+	if len(c.Choices) != 3 || c.Choices[0].Value != "Xcode Cloud" || c.Choices[0].Badge != "Not set up" || c.Choices[2].Value != byHand {
 		t.Fatalf("choices %+v", c)
 	}
 }

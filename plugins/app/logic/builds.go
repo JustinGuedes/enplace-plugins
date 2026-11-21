@@ -266,10 +266,9 @@ func macBody(bundleID string, q BuildRequest, sec map[string]string) string {
 func (r *run) builderChoices() plugin.Choices {
 	out := plugin.Choices{Choices: []plugin.Choice{}}
 	for _, b := range r.builders() {
-		c := plugin.Choice{Value: b.Name, Detail: "Plugin"}
+		c := plugin.Choice{Value: b.Name, Detail: "In the cloud"}
 		if !b.Ready {
-			c.Badge = "Not ready"
-			c.Detail = b.Note
+			c.Badge = "Not set up"
 		}
 		out.Choices = append(out.Choices, c)
 	}
@@ -277,7 +276,7 @@ func (r *run) builderChoices() plugin.Choices {
 		out.Note = "Add a plugin that makes builds, like Xcode Cloud, to build in the cloud."
 	}
 	out.Choices = append(out.Choices,
-		plugin.Choice{Value: byMac, Detail: "Files a work item for an agent on your Mac"},
-		plugin.Choice{Value: byHand, Detail: "Product → Archive in Xcode, then Distribute App"})
+		plugin.Choice{Value: byMac, Detail: "A work item"},
+		plugin.Choice{Value: byHand, Detail: "You, in Xcode"})
 	return out
 }
