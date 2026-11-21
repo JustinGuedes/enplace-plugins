@@ -1,9 +1,11 @@
 // Command logic is the TestFlight plugin (id "testflight"): it gets an app
 // product's builds onto the person's own phone.
 //
-// A build is made by Xcode Cloud (asked for through the CI contract,
-// "public.ci_request", which the Xcode Cloud plugin answers), by an agent
-// on the person's Mac (a work item), or by the person in Xcode.
+// It asks for a build through the builds contract ("public.build_request")
+// and never knows who makes it: the App Store plugin's Builds come from
+// picks a builder (Xcode Cloud, an agent on the person's Mac, or the
+// person in Xcode) and shares how it's going ("public.build"). TestFlight
+// takes the build from there once it's in App Store Connect.
 //
 // It builds on the App Store plugin: it reads which app the product is
 // from App's "public.app", signs in with the same App Store Connect key
@@ -101,23 +103,6 @@ func (r *run) group() string {
 		return g
 	}
 	return "Me"
-}
-
-// Who makes builds.
-const (
-	byCloud = "cloud" // Xcode Cloud, through the Xcode Cloud plugin
-	byMac   = "mac"   // an agent on the person's Mac
-	byHand  = "hand"  // the person, from Xcode
-)
-
-func (r *run) mode() string {
-	switch b := r.setting("builds"); {
-	case strings.HasPrefix(b, "An agent"):
-		return byMac
-	case strings.HasPrefix(b, "I upload"):
-		return byHand
-	}
-	return byCloud
 }
 
 func (r *run) testers() []string {
@@ -341,7 +326,7 @@ func (r *run) writeWhatToTest(c *beta.Client, s *Status) {
 func whatToTest(work []plugin.Work, pid string, from, to time.Time) string {
 	lines := []string{}
 	for _, w := range work {
-		if w.ProjectID != pid || w.StageKind != "done" || w.DoneAt.Before(from) || w.DoneAt.After(to) || hasTag(w, "testflight") {
+		if w.ProjectID != pid || w.StageKind != "done" || w.DoneAt.Before(from) || w.DoneAt.After(to) || hasTag(w, "testflight") || hasTag(w, "build") {
 			continue
 		}
 		if len(lines) == 8 {

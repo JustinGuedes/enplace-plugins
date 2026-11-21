@@ -7,7 +7,8 @@
 // It builds on Release cycle without sharing code: it publishes what's live
 // ("public.version") and each version's state ("public.store_versions") for
 // the product, and the cycle numbers from there and follows the review.
-// It also says which app it is ("public.app"), for TestFlight.
+// It also says which app it is ("public.app"), for TestFlight, and picks
+// who makes the app's builds (builds.go).
 // Google Play is a plugin of its own.
 package main
 
@@ -65,6 +66,7 @@ func handle(req *plugin.Request) (*plugin.Response, error) {
 	switch req.Hook {
 	case plugin.HookSchedule:
 		r.refresh()
+		r.routeBuilds()
 	case plugin.HookAction:
 		if req.Action != nil {
 			r.action(req.Action)
@@ -233,7 +235,9 @@ func (r *run) refresh() {
 	r.res.SetProject(r.pid, "info", in)
 	// Which app this is, for plugins that build on App (TestFlight).
 	if in.BundleID != "" || in.AppStoreID != "" {
-		r.res.SetProject(r.pid, "public.app", map[string]string{"bundle_id": in.BundleID, "app_store_id": in.AppStoreID, "name": in.Name})
+		b := r.builder()
+		r.res.SetProject(r.pid, "public.app", map[string]any{"bundle_id": in.BundleID, "app_store_id": in.AppStoreID, "name": in.Name,
+			"builder": map[string]string{"id": b.ID, "name": b.Name}})
 	} else {
 		r.res.SetProject(r.pid, "public.app", nil)
 	}
@@ -306,7 +310,10 @@ func (r *run) action(a *plugin.Action) {
 		r.res.SetProject(r.pid, "search", nil)
 	case "refresh":
 		r.refresh()
+		r.routeBuilds()
 		r.res.Toast = "Checked the App Store"
+	case "builders":
+		r.res.Data = r.builderChoices()
 	}
 }
 

@@ -21,8 +21,8 @@ func (r *run) steps(s *Status) []step {
 	return []step{
 		{"Give the app its bundle ID", "In this product's App Store plugin settings, type the app's bundle ID, like com.guedio.planit.", s.BundleID != ""},
 		{"Add your App Store Connect key", "The same key as the App Store and TestFlight plugins, with the App Manager role. Set it once in any of them.", s.Keys && s.AppID != ""},
-		{"Switch Xcode Cloud on in Xcode", "Open the app in Xcode, choose Product → Xcode Cloud → Create Workflow, and follow it: it asks to connect your GitHub repo once.", s.ProductID != ""},
-		{"Have a workflow that's on", "Xcode makes a Default workflow; for TestFlight give it a TestFlight (Internal Testing Only) post-action.", len(s.Workflows) > 0},
+		{"Connect Xcode Cloud once, in Xcode", "Apple only lets Xcode do this. Open the app in Xcode, choose Product → Xcode Cloud → Create Workflow, connect your GitHub repo when it asks, and accept the Default workflow. Then you can close Xcode.", s.ProductID != ""},
+		{"Let Enplace make its workflow", "Press Set it up. Enplace makes \"" + cloud.OwnName + "\" from the Default workflow: it archives the app when Enplace asks for a build, as Builds it makes says, and Enplace keeps it that way.", s.Own != ""},
 	}
 }
 
@@ -133,5 +133,13 @@ func (r *run) panel() []plugin.Block {
 	if s != nil && s.Error != "" {
 		blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: "Xcode Cloud: " + s.Error, Tone: "warn"})
 	}
-	return append(blocks, plugin.Block{Type: plugin.BlockButtons, Buttons: []plugin.Button{{Label: "Check now", Action: "refresh"}}})
+	if s != nil && s.SetUpError != "" && s.Own == "" {
+		blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: "Set it up didn't work: " + s.SetUpError, Tone: "warn"})
+	}
+	btns := []plugin.Button{}
+	if s != nil && s.ProductID != "" && s.Own == "" {
+		btns = append(btns, plugin.Button{Label: "Set it up", Action: "setup"})
+	}
+	btns = append(btns, plugin.Button{Label: "Check now", Action: "refresh"})
+	return append(blocks, plugin.Block{Type: plugin.BlockButtons, Buttons: btns})
 }

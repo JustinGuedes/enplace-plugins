@@ -639,16 +639,56 @@ says the service is set up for the project and can start a build.
 Another plugin asks for a build by publishing one request, and the CI
 plugin starts one run per `id` and answers in `requests` (`started` with the
 run's number, or `failed` with an `error`). A request more than an hour
-old is never started, so switching a CI plugin on doesn't run old ones.
-TestFlight asks this way when Xcode Cloud makes its builds:
+old is never started, so switching a CI plugin on doesn't run old ones:
 
 ```json
-"public.ci_request": {"id": "testflight-1763640000", "reason": "A build for TestFlight",
+"public.ci_request": {"id": "button-1763640000", "reason": "Checks",
                       "at": "…", "workflow": "", "branch": ""}
 ```
 
 `workflow` and `branch` are optional; the CI plugin's own settings fill
 them in.
+
+### Store builds: who makes an app's builds
+
+An app's store builds can come from anywhere: a builder plugin (Xcode
+Cloud), an agent on the person's Mac, or the person in Xcode. The plugin
+that wants a build (TestFlight, a release plugin) never knows which, and a
+builder never knows who asked or what happens to the build after. The
+handover is the build arriving in App Store Connect.
+
+The App Store plugin (`app`) sits between them, because both sides build on
+it. Its product setting **Builds come from** picks the builder.
+
+1. The plugin that wants a build publishes a request. `version` and `build`
+   are what to number it, for builders that don't number their own:
+
+   ```json
+   "public.build_request": {"id": "testflight-1763640000", "at": "…", "reason": "A build for TestFlight",
+                            "branch": "", "version": "1.1", "build": "13"}
+   ```
+
+2. App says which builder it picked in `public.app` (`"builder": {"id":
+   "xcode-cloud", "name": "Xcode Cloud"}`; the id is `mac` or `hand` for
+   the two that aren't plugins). It passes the newest request on as its own
+   `public.build_request` with `by` set to who asked. Only the picked
+   builder takes it.
+3. A builder plugin requires `app` and publishes how it's doing, whether
+   it's picked or not, so App can list it:
+
+   ```json
+   "public.builder": {"name": "Xcode Cloud", "ready": true, "note": "",
+                      "requests": {"testflight-1763640000": {"state": "started", "run": 9, "at": "…"}}}
+   ```
+
+   `note` says what's missing when it isn't `ready`, in words for the
+   person.
+4. App shares the picked builder's state as `public.build` (`id`, `name`,
+   `ready`, `note`, `requests`). The plugin that asked reads its answer
+   there and watches App Store Connect for the build.
+
+For `mac`, App answers itself: it files a work item, tagged `build`, for an
+agent on the person's Mac, with the **upload-a-build** skill.
 
 ## The store, and publishing plugins
 
