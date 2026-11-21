@@ -72,14 +72,19 @@ One manifest format, with a `kind` that fills in the rest:
 
 ### Skill packs
 
+- [Agent skills](plugins/agent-skills): Engineering habits for agents: ship and launch safely, build in thin slices, plan tasks, harden security and simplify code.
+- [Caveman](plugins/caveman-skills): Say less and stay in scope: a terse voice that keeps every fact, and small skills that stop work once it's proven.
 - [Design engineering](plugins/design-engineering): Apple-style design, animation and UI polish: springs, depth, gestures and restraint.
 - [Engineering](plugins/engineering-skills): Grill a plan, build test first, review code and diagnose bugs: the process a good engineer follows.
 - [Lemo-Opuscar film styles](plugins/film-styles): 99 film styles made in code, with their own setup. Its write-ups are non-commercial, so it's a link to the repo, not a copy.
 - [Humanizer](plugins/humanizer): Takes the signs of AI writing out of a draft without changing what it says.
 - [Marketing](plugins/marketing-skills): SEO audits, copywriting, launches, pricing, emails and ads for the things you ship.
 - [Plain-words writing](plugins/plain-words): Skills for writing that people read once and act on: updates, release notes and replies.
+- [PM skills](plugins/pm-skills): Product skills for planning: prioritise, write stories and PRDs, run a pre-mortem and turn stories into tests.
+- [Ponytail](plugins/ponytail-skills): Lazy senior dev mode: the smallest change that fully solves the task, plus reviews that ask whether every line is needed.
 - [Ship an app](plugins/ship-an-app): Skills for getting an iPhone or Android app out: TestFlight builds, store screenshots and review notes.
 - [Short video](plugins/short-video): Skills for short videos and posts: hooks, 30-second scripts, captions and hashtags, and one video cut for TikTok, Reels and Shorts.
+- [Superpowers](plugins/superpowers-skills): Process for coding agents: evidence before claiming done, systematic debugging, plans, and taking code review well.
 
 ### Roles
 
