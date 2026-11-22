@@ -189,6 +189,7 @@ func (r *run) refresh() {
 	defer func() {
 		r.res.SetProject(r.pid, keyStatus, s)
 		r.publish(s)
+		r.trackTestBuild(s)
 	}()
 	if !s.Keys || s.BundleID == "" {
 		return
@@ -311,7 +312,10 @@ func (r *run) writeWhatToTest(c *beta.Client, s *Status) {
 	if len(s.Builds) > 1 {
 		since = s.Builds[1].Uploaded
 	}
-	text := whatToTest(r.req.Work, r.pid, since, b.Uploaded)
+	text := r.roundText(b.Number)
+	if text == "" {
+		text = whatToTest(r.req.Work, r.pid, since, b.Uploaded)
+	}
 	if text == "" {
 		return
 	}
@@ -373,6 +377,8 @@ func (r *run) action(a *plugin.Action) {
 		r.res.Toast = "Checked TestFlight"
 	case "send":
 		r.send()
+	case "test_build":
+		r.testBuild(a.Args)
 	case "no_encryption":
 		r.answerEncryption(args["build"])
 	case "tool_testflight":

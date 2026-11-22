@@ -70,7 +70,7 @@ var kinds = map[string]kindRule{
 	KindService: {
 		scope: "project", levels: []string{"product"}, inherit: InheritNone,
 		pieces: []string{"brief", "calendar", "deadlines", "events", "pages", "project_cards", "project_status",
-			"schedule", "settings_panel", "skills", "tools", "webhook", "work_fields", "work_panel"},
+			"schedule", "settings_panel", "skills", "test_builds", "tools", "webhook", "work_fields", "work_panel"},
 	},
 	KindExtension: {},
 	KindRole: {

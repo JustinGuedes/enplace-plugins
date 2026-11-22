@@ -129,6 +129,51 @@ type Request struct {
 	Waiting []Op `json:"waiting,omitempty"`
 }
 
+// KeyTestBuild is the project state key a plugin that makes test builds
+// (contributes.test_builds) publishes its latest one under, as a TestBuild,
+// for the product it's on. Enplace shows it on the round's recap.
+const KeyTestBuild = "public.test_build"
+
+// TestBuildAsk is what Enplace hands a test_builds action as its args: a
+// finished Autopilot round of the product, and what to try in it.
+type TestBuildAsk struct {
+	// ID is this ask's own; publish it back in TestBuild.ID.
+	ID string `json:"id"`
+	// Round is the round's number, and Term what a round is called there
+	// ("Round", "Sprint").
+	Round int    `json:"round"`
+	Term  string `json:"term"`
+	// WhatToTest is the round's changes and how to try each, as plain
+	// text for the build's notes ("What to test" in TestFlight).
+	WhatToTest string `json:"what_to_test"`
+}
+
+// TestBuild is how a test build is going (KeyTestBuild).
+type TestBuild struct {
+	ID    string `json:"id"`
+	Round int    `json:"round"`
+	// State is building, ready (on the person's device), waiting (on
+	// something only the person can do; Note says what) or failed.
+	State string `json:"state"`
+	// Name is the build's own name, like "1.0 (14)".
+	Name string `json:"name,omitempty"`
+	// Note is a few words on where it is, or why it failed.
+	Note string `json:"note,omitempty"`
+	// Link opens the build where the person installs it.
+	Link string `json:"link,omitempty"`
+	// At is when it was asked for; ReadyAt when it was ready.
+	At      time.Time `json:"at"`
+	ReadyAt time.Time `json:"ready_at,omitzero"`
+}
+
+// TestBuild states.
+const (
+	TestBuilding = "building"
+	TestReady    = "ready"
+	TestWaiting  = "waiting"
+	TestFailed   = "failed"
+)
+
 // Note is a memory note, for a memory engine's recall.
 type Note struct {
 	ID      string   `json:"id"`

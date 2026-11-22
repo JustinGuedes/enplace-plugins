@@ -690,6 +690,43 @@ it. Its product setting **Builds come from** picks the builder.
 For `mac`, App answers itself: it files a work item, tagged `build`, for an
 agent on the person's Mac, with the **upload-a-build** skill.
 
+### Test builds: a round on the person's phone
+
+When an Autopilot round ends, Enplace can put what it changed on the
+person's own device, so they try it with the round's list in hand. Any
+plugin on a product can offer this (TestFlight for an iPhone app; a store's
+testing track or a website preview the same way). Say so in the manifest:
+
+```json
+"contributes": { "test_builds": { "action": "test_build", "where": "TestFlight" } }
+```
+
+The project's Autopilot setting **A test build when a round ends** lists
+the products it finds. Once a round's last change is done (or when the
+person presses **Get a test build** on the recap), Enplace runs the action
+for each product the round changed, with a `plugin.TestBuildAsk` as its
+args:
+
+```json
+{"id": "round-3-1763640000", "round": 3, "term": "Round",
+ "what_to_test": "Round 3: 3 changes\n1. Left on purpose (PI-18): …"}
+```
+
+Ask for the build however the plugin does (TestFlight uses the store-builds
+contract above), use `what_to_test` for the build's notes, and publish how
+it's going as `public.test_build` (a `plugin.TestBuild`), keeping it
+current from the schedule hook:
+
+```json
+"public.test_build": {"id": "round-3-1763640000", "round": 3, "state": "ready", "name": "1.0 (14)",
+                      "note": "", "link": "https://beta.itunes.apple.com/v1/app/6740000000", "at": "…", "ready_at": "…"}
+```
+
+`state` is `building`, `ready`, `waiting` (on something only the person can
+do; `note` says what) or `failed` (`note` says why). `link` opens the build
+where the person installs it. Answer the action with a `Toast` saying what
+happened.
+
 ## The store, and publishing plugins
 
 Settings → Plugins has a store. The plugins in this repo are always on

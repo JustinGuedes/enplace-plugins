@@ -2,11 +2,11 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "testflight",
   "name": "TestFlight",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "kind": "service",
   "author": "Enplace",
   "summary": "Get an iPhone app's builds onto your own phone with TestFlight, and see each build through.",
-  "description": "Goes on an app product beside the App Store plugin, and uses its bundle ID and App Store Connect key, so there's nothing to enter twice. It makes a private tester group with you in it that gets every build, with no wait for Apple's review, and shows each build as Apple processes it until it's ready on your phone. Press Send to TestFlight and it asks for a build from whoever the App Store plugin's Builds come from setting picks (Xcode Cloud, an agent on your Mac, or you in Xcode), with the version from Versions and the next build number. It writes each build's What to test from the work done since the last one, and shares the builds with Release cycle.",
+  "description": "Goes on an app product beside the App Store plugin, and uses its bundle ID and App Store Connect key, so there's nothing to enter twice. It makes a private tester group with you in it that gets every build, with no wait for Apple's review, and shows each build as Apple processes it until it's ready on your phone. Press Send to TestFlight and it asks for a build from whoever the App Store plugin's Builds come from setting picks (Xcode Cloud, an agent on your Mac, or you in Xcode), with the version from Versions and the next build number. It writes each build's What to test from the work done since the last one, and shares the builds with Release cycle. When an Autopilot round ends, it can put the round on your phone: one build, with the round's changes and how to try each as its What to test.",
   "colour": "#4fa3ff",
   "icon": "app",
   "card_settings": ["testers"],
@@ -32,6 +32,7 @@
     "project_cards": [ { "key": "testflight", "name": "TestFlight", "size": "wide" } ],
     "schedule": { "every": 15, "per": "project" },
     "settings_panel": true,
+    "test_builds": { "action": "test_build", "where": "TestFlight" },
     "tools": [
       { "name": "get_testflight", "description": "An app product's TestFlight: its latest builds (version, build number, state, What to test, when they expire), the tester group and each tester's state, the next build number, and what's left to set up.", "action": "tool_testflight", "project": true }
     ]

@@ -220,3 +220,14 @@ func TestUpstreamCredits(t *testing.T) {
 		}
 	}
 }
+
+// A service can make test builds, as long as it says how and where they land.
+func TestServiceMakesTestBuilds(t *testing.T) {
+	m, err := parseDemo(t, `"kind":"service","contributes":{"test_builds":{"action":"test_build","where":"TestFlight"}}`)
+	if err != nil || m.Contributes.TestBuilds.Where != "TestFlight" {
+		t.Fatalf("%v %+v", err, m)
+	}
+	if _, err := parseDemo(t, `"kind":"service","contributes":{"test_builds":{"where":"TestFlight"}}`); err == nil || !strings.Contains(err.Error(), "test_builds") {
+		t.Fatalf("no action: %v", err)
+	}
+}
