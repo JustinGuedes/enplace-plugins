@@ -102,28 +102,36 @@ func (r *run) building(s *Status) (where string, failed string) {
 // setting picks. TestFlight takes it from there once it's in App Store
 // Connect.
 func (r *run) send() {
+	version, number, why := r.ask("A build for TestFlight")
+	if why != "" {
+		r.res.Toast = why
+		return
+	}
+	b := r.builder()
+	r.res.Toast = "Asked " + b.Name + " for " + version + " (" + number + "). It shows here once Apple has it."
+	r.res.Log = "Asked " + b.Name + " for a TestFlight build"
+}
+
+// ask asks the builder for the next build, and says the version and build
+// number it asked for, or why it couldn't, in words for the person.
+func (r *run) ask(reason string) (version, number, why string) {
 	s := r.status()
 	b := r.builder()
 	switch {
 	case s == nil || s.AppID == "":
-		r.res.Toast = "Finish the TestFlight setup first: Enplace can't see the app in App Store Connect yet."
-		return
+		return "", "", "Finish the TestFlight setup first: Enplace can't see the app in App Store Connect yet."
 	case b.ID == byHand:
-		r.res.Toast = "Builds come from Xcode for this app: Product → Archive, then Distribute App. Change it in the App Store plugin's Builds come from."
-		return
+		return "", "", "Builds come from Xcode for this app: Product → Archive, then Distribute App. Change it in the App Store plugin's Builds come from."
 	case !b.Ready:
-		r.res.Toast = b.Name + " isn't ready to build yet. " + b.Note
-		return
+		return "", "", b.Name + " isn't ready to build yet. " + b.Note
 	}
 	if where, _ := r.building(s); where != "" {
-		r.res.Toast = where + "."
-		return
+		return "", "", where + "."
 	}
-	version, number := r.next(s)
+	version, number = r.next(s)
 	r.res.SetProject(r.pid, "public.build_request", map[string]any{
-		"id": fmt.Sprintf("testflight-%d", r.req.Now.Unix()), "reason": "A build for TestFlight", "at": r.req.Now,
+		"id": fmt.Sprintf("testflight-%d", r.req.Now.Unix()), "reason": reason, "at": r.req.Now,
 		"version": version, "build": number, "for": number,
 	})
-	r.res.Toast = "Asked " + b.Name + " for " + version + " (" + number + "). It shows here once Apple has it."
-	r.res.Log = "Asked " + b.Name + " for a TestFlight build"
+	return version, number, ""
 }

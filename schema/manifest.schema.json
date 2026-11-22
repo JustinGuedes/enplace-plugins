@@ -77,6 +77,7 @@
                 "schedule",
                 "settings_panel",
                 "skills",
+                "test_builds",
                 "tools",
                 "webhook",
                 "work_fields",
@@ -475,6 +476,18 @@
             "type": "object"
           },
           "type": "array"
+        },
+        "test_builds": {
+          "additionalProperties": false,
+          "properties": {
+            "action": {
+              "type": "string"
+            },
+            "where": {
+              "type": "string"
+            }
+          },
+          "type": "object"
         },
         "tools": {
           "items": {

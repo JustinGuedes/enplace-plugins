@@ -403,6 +403,20 @@ type Contributes struct {
 	// own address and signing secret, checks every delivery's signature
 	// itself, and only then calls the webhook hook.
 	Webhook *Webhook `json:"webhook,omitempty"`
+	// TestBuilds makes the plugin a way to get a test build of a product
+	// onto the person's own device (TestFlight for an iPhone app). When an
+	// Autopilot round ends, or the person asks on its recap, Enplace runs
+	// its action with plugin.TestBuildAsk as the args; the plugin publishes
+	// how it's going as plugin.KeyTestBuild (see plugin.TestBuild).
+	TestBuilds *TestBuilds `json:"test_builds,omitempty"`
+}
+
+// TestBuilds says how a plugin makes test builds.
+type TestBuilds struct {
+	// Action is the action Enplace runs to ask for one.
+	Action string `json:"action"`
+	// Where is where the build lands, in a word or two ("TestFlight").
+	Where string `json:"where"`
 }
 
 // Webhook says how an outside service signs what it sends: an HMAC-SHA256
@@ -867,6 +881,14 @@ func (m *Manifest) Check() error {
 			if st == "" || len(st) > 300 {
 				return errors.New("webhook: each step is a line of up to 300 characters")
 			}
+		}
+	}
+	if tb := c.TestBuilds; tb != nil {
+		if tb.Action == "" || len(tb.Action) > 60 || tb.Where == "" || len(tb.Where) > 30 {
+			return errors.New("test_builds: action (an action name) and where (a word or two) are needed")
+		}
+		if m.Scope == "workspace" {
+			return errors.New("test_builds: needs a project or both scope")
 		}
 	}
 	for _, f := range c.WorkFields {
