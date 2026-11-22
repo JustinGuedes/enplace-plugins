@@ -240,3 +240,71 @@ func Own(ws []Workflow) (Workflow, bool) {
 	}
 	return Workflow{}, false
 }
+
+// Redo puts the workflow back the way Enplace wants it and moves it to the
+// Xcode and macOS versions of the workflow it was copied from.
+func (c *Client) Redo(id string, w Detail) error {
+	data := map[string]any{"type": "ciWorkflows", "id": id, "attributes": w.attributes()}
+	rel := map[string]any{}
+	if w.Xcode != "" {
+		rel["xcodeVersion"] = map[string]any{"data": store.Ref{Type: "ciXcodeVersions", ID: w.Xcode}}
+	}
+	if w.MacOS != "" {
+		rel["macOsVersion"] = map[string]any{"data": store.Ref{Type: "ciMacOsVersions", ID: w.MacOS}}
+	}
+	if len(rel) > 0 {
+		data["relationships"] = rel
+	}
+	return c.Do("PATCH", "/v1/ciWorkflows/"+url.PathEscape(id), map[string]any{"data": data}, nil)
+}
+
+// Changes says, in a few words each, how have differs from want.
+func Changes(have, want Detail) []string {
+	var out []string
+	if !have.Enabled {
+		out = append(out, "switched it back on")
+	}
+	if !have.Manual {
+		out = append(out, "starts only when Enplace asks")
+	}
+	if have.Container != want.Container {
+		out = append(out, "builds "+want.Container)
+	}
+	var h, w Action
+	if len(have.Actions) > 0 {
+		h = have.Actions[0]
+	}
+	if len(want.Actions) > 0 {
+		w = want.Actions[0]
+	}
+	if len(have.Actions) != len(want.Actions) || h.ActionType != w.ActionType {
+		out = append(out, "only archives")
+	}
+	if h.Scheme != w.Scheme {
+		out = append(out, "scheme "+w.Scheme)
+	}
+	if h.Platform != w.Platform {
+		out = append(out, "for "+platformName(w.Platform))
+	}
+	if val(h.Audience) != val(w.Audience) {
+		out = append(out, "archives "+AudienceName(val(w.Audience)))
+	}
+	if want.Xcode != "" && have.Xcode != want.Xcode {
+		out = append(out, "Default's Xcode version")
+	}
+	if want.MacOS != "" && have.MacOS != want.MacOS {
+		out = append(out, "Default's macOS version")
+	}
+	return out
+}
+
+// AudienceName says what an audience is for, in the setting's words.
+func AudienceName(a string) string {
+	switch a {
+	case ForStore:
+		return "for the App Store and TestFlight"
+	case ForInternal:
+		return "for TestFlight internal testers only"
+	}
+	return "without uploading"
+}
