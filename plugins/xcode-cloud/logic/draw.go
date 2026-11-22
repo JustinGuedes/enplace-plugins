@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/JustinGuedes/enplace-plugins/plugins/xcode-cloud/cloud"
@@ -136,10 +138,61 @@ func (r *run) panel() []plugin.Block {
 	if s != nil && s.SetUpError != "" && s.Own == "" {
 		blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: "Set it up didn't work: " + s.SetUpError, Tone: "warn"})
 	}
+	if s != nil && s.Own != "" {
+		blocks = append(blocks, r.workflowBlocks(s)...)
+	}
+	blocks = append(blocks, r.failBlock(s))
 	btns := []plugin.Button{}
-	if s != nil && s.ProductID != "" && s.Own == "" {
+	switch {
+	case s != nil && s.ProductID != "" && s.Own == "":
 		btns = append(btns, plugin.Button{Label: "Set it up", Action: "setup"})
+	case s != nil && s.Own != "":
+		btns = append(btns, plugin.Button{Label: "Update Xcode Cloud", Action: "update"})
 	}
 	btns = append(btns, plugin.Button{Label: "Check now", Action: "refresh"})
 	return append(blocks, plugin.Block{Type: plugin.BlockButtons, Buttons: btns})
+}
+
+// workflowBlocks say whether Enplace's workflow matches the settings.
+func (r *run) workflowBlocks(s *Status) []plugin.Block {
+	line := cloud.OwnName + " matches these settings: it archives " + cloud.AudienceName(r.audience()) + " when Enplace asks for a build."
+	if !s.InStep {
+		line = "Enplace couldn't check " + cloud.OwnName + " last time. Press Update Xcode Cloud to copy it again."
+	}
+	out := []plugin.Block{{Type: plugin.BlockText, Text: line}}
+	sub := "Changing a setting here updates it in Xcode Cloud straight away. Update Xcode Cloud copies it again from the Default workflow (scheme, project, Xcode and macOS), or makes it again if it was deleted."
+	if !s.Kept.IsZero() {
+		sub = "Enplace last changed it " + ago(s.Kept, r.req.Now)
+		if s.KeptWhat != "" {
+			sub += ": " + s.KeptWhat
+		}
+		sub += ". " + "Update Xcode Cloud copies it again from the Default workflow."
+	}
+	return append(out, plugin.Block{Type: plugin.BlockText, Text: sub, Tone: "muted"})
+}
+
+// failBlock says what happens when a build fails, and the bugs open now.
+func (r *run) failBlock(s *Status) plugin.Block {
+	var text string
+	switch r.onFail() {
+	case failNone:
+		return plugin.Block{Type: plugin.BlockText, Text: "Failed builds only show here (When a build fails).", Tone: "muted"}
+	case failAsk:
+		text = "When a build fails, Enplace asks you in Approvals before filing a bug with its errors."
+	default:
+		text = "When a build fails, Enplace files a bug with its errors and failed tests for an agent to fix, and builds again once it's done."
+	}
+	if s != nil {
+		var open []string
+		for _, b := range s.Bugs {
+			if b.Key != "" {
+				open = append(open, b.Key)
+			}
+		}
+		sort.Strings(open)
+		if len(open) > 0 {
+			text += " Open now: " + strings.Join(open, ", ") + "."
+		}
+	}
+	return plugin.Block{Type: plugin.BlockText, Text: text, Tone: "muted"}
 }

@@ -69,6 +69,16 @@ type Status struct {
 	Runs       []cloud.Run       `json:"runs,omitempty"`
 	Requests   map[string]Answer `json:"requests,omitempty"`
 	Error      string            `json:"error,omitempty"`
+	// InStep says Enplace's workflow matched the settings at the last
+	// check; Kept is when Enplace last changed it and KeptWhat how.
+	InStep   bool      `json:"in_step,omitempty"`
+	Kept     time.Time `json:"kept,omitempty"`
+	KeptWhat string    `json:"kept_what,omitempty"`
+	// Since is when it first saw the app's runs: failures before it are
+	// never filed as bugs.
+	Since time.Time `json:"since,omitempty"`
+	// Bugs are the failing builds it filed, by workflow and branch.
+	Bugs map[string]*Bug `json:"bugs,omitempty"`
 }
 
 const keyStatus = "status"
@@ -213,6 +223,7 @@ func (r *run) refresh(start *Request) {
 		for k, v := range was.Requests {
 			s.Requests[k] = v
 		}
+		s.Kept, s.KeptWhat, s.Since, s.Bugs = was.Kept, was.KeptWhat, was.Since, was.Bugs
 	}
 	defer func() {
 		trim(s.Requests, 20)
@@ -272,7 +283,9 @@ func (r *run) refresh(start *Request) {
 		if was != nil {
 			s.Runs = was.Runs
 		}
+		return
 	}
+	r.watch(c, s, was)
 }
 
 // start runs the asked-for workflow (or the project's), on the asked-for
@@ -370,6 +383,8 @@ func (r *run) action(a *plugin.Action) {
 		}
 	case "setup":
 		r.setUp()
+	case "update":
+		r.update()
 	case "start":
 		r.refresh(&Request{ID: fmt.Sprintf("button-%d", r.req.Now.Unix()), Reason: "Started from Enplace"})
 	case "workflows":

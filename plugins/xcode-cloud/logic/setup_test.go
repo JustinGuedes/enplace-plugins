@@ -3,6 +3,7 @@
 package main
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -150,5 +151,75 @@ func TestPutsItsWorkflowBack(t *testing.T) {
 	plugintest.Call(t, handle, req)
 	if fix := sentLike(*sent, "PATCH"); !strings.Contains(fix, `"buildDistributionAudience":null`) {
 		t.Fatalf("fix %q", fix)
+	}
+}
+
+// Update Xcode Cloud copies Enplace's workflow again from the Default
+// one: a new scheme and Xcode version there reach it, and the toast says so.
+func TestUpdateXcodeCloudCopiesFromDefaultAgain(t *testing.T) {
+	own := `{"data":{"id":"wfe","attributes":{"name":"Enplace store build","isEnabled":true,"containerFilePath":"PlanIt.xcodeproj",
+		"actions":[{"name":"Archive - iOS","actionType":"ARCHIVE","scheme":"OldScheme","platform":"IOS","buildDistributionAudience":"APP_STORE_ELIGIBLE","isRequiredToPass":true}],
+		"manualBranchStartCondition":{"source":{"isAllMatch":true}}},
+		"relationships":{"repository":{"data":{"type":"scmRepositories","id":"r1"}},"xcodeVersion":{"data":{"type":"ciXcodeVersions","id":"x0"}},"macOsVersion":{"data":{"type":"ciMacOsVersions","id":"m1"}}}}}`
+	sent := fake(t, withDefault(map[string]string{
+		"GET /v1/ciProducts/cp1/workflows": ownWorkflows,
+		"GET /v1/ciWorkflows/wfe":          own,
+		"PATCH /v1/ciWorkflows/wfe":        `{}`,
+	}))
+	req := request(t, plugin.HookAction)
+	req.Action = &plugin.Action{Name: "update"}
+	res := plugintest.Call(t, handle, req)
+	var redo string
+	for _, x := range *sent {
+		if strings.HasPrefix(x, "PATCH /v1/ciWorkflows/wfe") && strings.Contains(x, "relationships") {
+			redo = x
+		}
+	}
+	for _, want := range []string{`"scheme":"PlanIt"`, `"id":"x1"`, `"id":"m1"`} {
+		if !strings.Contains(redo, want) {
+			t.Fatalf("redo %q lacks %s (sent %v)", redo, want, *sent)
+		}
+	}
+	if !strings.Contains(res.Toast, "Updated Enplace store build") || !strings.Contains(res.Toast, "scheme PlanIt") || !strings.Contains(res.Toast, "Xcode version") {
+		t.Fatalf("toast %q", res.Toast)
+	}
+	s := status(t, res)
+	if !s.InStep || s.Kept.IsZero() {
+		t.Fatalf("status %+v", s)
+	}
+
+	// The panel says it matches and offers Update Xcode Cloud.
+	req.State.PutProject(pid, keyStatus, s)
+	req.Hook, req.Slots = plugin.HookRender, []string{plugin.SlotSettingsPanel}
+	out := plugintest.Call(t, handle, req).Cards[plugin.SlotSettingsPanel]
+	all, _ := json.Marshal(out)
+	for _, want := range []string{"matches these settings", "Enplace last changed it just now: scheme PlanIt", `"label":"Update Xcode Cloud"`, "files a bug"} {
+		if !strings.Contains(string(all), want) {
+			t.Fatalf("panel lacks %q: %s", want, all)
+		}
+	}
+}
+
+// Update Xcode Cloud makes the workflow again when it was deleted.
+func TestUpdateXcodeCloudMakesItAgain(t *testing.T) {
+	sent := fake(t, withDefault(nil))
+	req := request(t, plugin.HookAction)
+	req.State.PutProject(pid, keyStatus, &Status{ProductID: "cp1", Own: "gone"})
+	req.Action = &plugin.Action{Name: "update"}
+	res := plugintest.Call(t, handle, req)
+	if sentLike(*sent, "POST /v1/ciWorkflows") == "" || !strings.Contains(res.Toast, "Made") {
+		t.Fatalf("toast %q sent %v", res.Toast, *sent)
+	}
+}
+
+// Nothing to change: it says so.
+func TestUpdateXcodeCloudWhenItsRight(t *testing.T) {
+	own := strings.Replace(ownWorkflow(`"APP_STORE_ELIGIBLE"`), `"relationships":{`, `"relationships":{"xcodeVersion":{"data":{"type":"ciXcodeVersions","id":"x1"}},"macOsVersion":{"data":{"type":"ciMacOsVersions","id":"m1"}},`, 1)
+	sent := fake(t, withDefault(map[string]string{"GET /v1/ciProducts/cp1/workflows": ownWorkflows, "GET /v1/ciWorkflows/wfe": own}))
+	req := request(t, plugin.HookAction)
+	req.Action = &plugin.Action{Name: "update"}
+	res := plugintest.Call(t, handle, req)
+	if sentLike(*sent, "PATCH") != "" || !strings.Contains(res.Toast, "already matches") {
+		t.Fatalf("toast %q sent %v", res.Toast, *sent)
 	}
 }
