@@ -94,7 +94,11 @@ func (r *run) overview() []plugin.Block {
 		blocks = append(blocks, plugin.Block{Type: plugin.BlockStat, Value: "No builds yet"})
 	} else {
 		x := s.Runs[0]
-		blocks = append(blocks, plugin.Block{Type: plugin.BlockStat, Value: fmt.Sprintf("Build %d", x.Number), Sub: r.runSub(x)})
+		sub := r.runSub(x)
+		if b := s.Bugs[bugKey(x)]; x.Status == "failed" && b != nil && b.Key != "" {
+			sub += " · an agent fixes it in " + b.Key
+		}
+		blocks = append(blocks, plugin.Block{Type: plugin.BlockStat, Value: fmt.Sprintf("Build %d", x.Number), Sub: sub})
 		items := []plugin.Item{}
 		for i, x := range s.Runs {
 			if i == 0 {
@@ -127,11 +131,14 @@ func (r *run) panel() []plugin.Block {
 	} else {
 		blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: fmt.Sprintf("%d of %d steps left. Each one ticks itself off once Enplace sees it done.", n, len(steps))})
 	}
-	items := []plugin.Item{}
-	for i, st := range steps {
-		items = append(items, plugin.Item{Title: fmt.Sprintf("%d. %s", i+1, st.Title), Sub: st.How, Done: st.Done})
+	if left(steps) > 0 {
+		// Once every step is done they're only noise above the workflow.
+		items := []plugin.Item{}
+		for i, st := range steps {
+			items = append(items, plugin.Item{Title: fmt.Sprintf("%d. %s", i+1, st.Title), Sub: st.How, Done: st.Done})
+		}
+		blocks = append(blocks, plugin.Block{Type: plugin.BlockList, Items: items})
 	}
-	blocks = append(blocks, plugin.Block{Type: plugin.BlockList, Items: items})
 	if s != nil && s.Error != "" {
 		blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: "Xcode Cloud: " + s.Error, Tone: "warn"})
 	}
