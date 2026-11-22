@@ -2,7 +2,7 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "releases",
   "name": "Releases",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "kind": "extension",
   "author": "Enplace",
   "summary": "Releases on a cadence, with ship rules at cut-off, or deploys as work is done.",
@@ -25,6 +25,7 @@
     { "key": "nothing_done", "name": "At cut-off, nothing is done", "type": "select", "scope": "project", "options": ["Skip the release", "Ask me"], "default": "Skip the release" },
     { "key": "partly_done", "name": "At cut-off, some is done", "type": "select", "scope": "project", "options": ["Ship what's done", "Wait for everything", "Ask me"], "default": "Ship what's done" },
     { "key": "must_ship_late", "name": "Must-ship work isn't done", "type": "select", "scope": "project", "options": ["Ask me", "Hold the release", "Skip the release", "Ship, then hotfix"], "default": "Ask me" },
+    { "key": "sign_off", "name": "Before it goes out", "type": "select", "scope": "project", "options": ["Wait for my sign-off", "Ship without it"], "default": "Wait for my sign-off", "help": "Wait: once its cut-off passes, a release waits for you to look through what's in it, with the pictures and clips from the work, and sign it off." },
     { "key": "must_ship_from", "name": "Counts as must-ship", "type": "select", "scope": "project", "options": ["Urgent only", "High and up", "Medium and up", "Low and up"], "default": "Urgent only", "help": "Besides work marked Must ship." }
   ],
   "contributes": {

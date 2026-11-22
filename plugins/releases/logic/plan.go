@@ -341,7 +341,11 @@ func (c *cycleRun) status(p *project) *plugin.ProjectStatus {
 	if p.live != "" {
 		parts = append(parts, p.live+" live")
 	}
-	parts = append(parts, fmt.Sprintf("%s ships %s", r.Version, c.dayWord(r.ShipDate)))
+	if r.WaitsForSignOff(p.set) {
+		parts = append(parts, r.Version+" needs your sign-off")
+	} else {
+		parts = append(parts, fmt.Sprintf("%s ships %s", r.Version, c.dayWord(r.ShipDate)))
+	}
 	st := &plugin.ProjectStatus{}
 	if r.Total > 0 {
 		parts = append(parts, fmt.Sprintf("%d of %d", r.Done, r.Total))

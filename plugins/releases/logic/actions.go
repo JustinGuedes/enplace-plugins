@@ -175,11 +175,42 @@ func (c *cycleRun) action(p *project, a *plugin.Action) error {
 		r.WhatsNewApproved = true
 		c.res.Log = "What's new for " + p.Name + " " + r.Version + " approved"
 		c.res.Toast = "Approved"
+	case "sign_off":
+		r := find()
+		if r == nil {
+			return fmt.Errorf("That release is gone")
+		}
+		if !r.CanSignOff() {
+			return fmt.Errorf("%s can't be signed off: %s", r.Version, cantSignOff(*r))
+		}
+		at := c.req.Now
+		r.SignedOff, r.SignedAt = true, &at
+		c.res.Log = p.Name + " " + r.Version + " signed off"
+		c.res.Toast = "Signed off " + r.Version
+	case "unsign":
+		r := find()
+		if r == nil || !r.SignedOff {
+			return fmt.Errorf("That release isn't signed off")
+		}
+		r.SignedOff, r.SignedAt = false, nil
+		c.res.Log = "Sign-off for " + p.Name + " " + r.Version + " taken back"
+		c.res.Toast = "Took back the sign-off for " + r.Version
 	default:
 		return fmt.Errorf("Release cycle doesn't know how to %s", a.Name)
 	}
 	cycle.Sort(p.rels)
 	return nil
+}
+
+// cantSignOff says why a release can't be signed off.
+func cantSignOff(r cycle.Release) string {
+	switch {
+	case r.Deploy:
+		return "deploys go out as the work is done"
+	case !r.Open() || cycle.Further(r.State, cycle.Building):
+		return "it has gone out already"
+	}
+	return "nothing in it is done yet"
 }
 
 // plural says n with the one or many form after it, like "3 items".
