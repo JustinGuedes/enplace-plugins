@@ -19,6 +19,37 @@ func (c *cycleRun) href(p plugin.Project) string {
 	return h
 }
 
+// signOffHref is the page that gathers everything in a release, with the
+// pictures and clips its work handed back, to look through and sign it off.
+func (c *cycleRun) signOffHref(p plugin.Project, r cycle.Release) string {
+	h := "/p/" + strings.ToLower(p.Key) + "/signoff/" + r.ID
+	if p.Product != "" {
+		h += "?product=" + p.Product
+	}
+	return h
+}
+
+// signOff is what a release says about its sign-off, with its buttons.
+func (c *cycleRun) signOff(p *project, r cycle.Release) []plugin.Block {
+	see := plugin.Button{Label: "See what's in it", Icon: "image", Href: c.signOffHref(p.Project, r)}
+	switch {
+	case r.SignedOff:
+		t := "Signed off"
+		if r.SignedAt != nil {
+			t += " " + c.dayWord(r.SignedAt.In(c.loc).Format(day))
+		}
+		return []plugin.Block{{Type: plugin.BlockText, Text: t + ".", Tone: "good"}}
+	case r.WaitsForSignOff(p.set):
+		return []plugin.Block{
+			{Type: plugin.BlockText, Text: r.Version + " is waiting for your sign-off. Look through what's in it, then sign it off.", Tone: "warn"},
+			{Type: plugin.BlockButtons, Buttons: []plugin.Button{see, {Label: "Sign off " + r.Version, Icon: "check", Action: "sign_off", Args: args("id", r.ID)}}},
+		}
+	case p.set.SignOff && r.CanSignOff():
+		return []plugin.Block{{Type: plugin.BlockButtons, Buttons: []plugin.Button{see}}}
+	}
+	return nil
+}
+
 func (c *cycleRun) render() {
 	today := c.today.Format(day)
 	// Releases of one project shipping on the same day show as one.
@@ -26,6 +57,11 @@ func (c *cycleRun) render() {
 	for _, slot := range c.req.Slots {
 		switch slot {
 		case plugin.SlotBrief:
+			if p, r := c.waitingSignOff(); r != nil {
+				c.res.Brief = &plugin.Brief{Text: fmt.Sprintf("%s %s is waiting for your sign-off before it goes out.", p.Name, r.Version), Button: &plugin.Button{Label: "See what's in it", Href: c.signOffHref(p.Project, *r)}}
+				c.res.Signal(slot, plugin.LevelLoud, p.Name+" "+r.Version+" needs your sign-off")
+				break
+			}
 			for _, t := range all {
 				d, _ := time.Parse(day, t.date)
 				if d.Sub(c.today) > 7*24*time.Hour {
@@ -85,6 +121,22 @@ func (c *cycleRun) render() {
 			c.deadlines()
 		}
 	}
+}
+
+// waitingSignOff is the first release held for the person's sign-off.
+func (c *cycleRun) waitingSignOff() (*project, *cycle.Release) {
+	for _, x := range c.req.Projects {
+		p := c.load(x.ID)
+		if p == nil {
+			continue
+		}
+		for i := range p.rels {
+			if p.rels[i].WaitsForSignOff(p.set) {
+				return p, &p.rels[i]
+			}
+		}
+	}
+	return nil, nil
 }
 
 // deadlines says that open work in a release has to be done by its
@@ -287,6 +339,13 @@ func (c *cycleRun) section(p *project, r cycle.Release, folded bool) plugin.Bloc
 		s.Menu = append(s.Menu, skip)
 	}
 	s.Menu = append(s.Menu, plugin.Button{Label: "Draft What's new", Icon: "doc", Key: "n", Action: "draft", Args: args("id", r.ID)})
+	s.Blocks = append(s.Blocks, c.signOff(p, r)...)
+	if r.CanSignOff() && !r.SignedOff {
+		s.Menu = append(s.Menu, plugin.Button{Label: "Sign off " + r.Version, Icon: "check", Action: "sign_off", Args: args("id", r.ID)})
+	}
+	if r.SignedOff && r.Open() {
+		s.Menu = append(s.Menu, plugin.Button{Label: "Take back the sign-off", Icon: "undo", Action: "unsign", Args: args("id", r.ID)})
+	}
 	ids := []string{}
 	for _, w := range p.work {
 		if w.Fields[c.field("release")] == r.ID {

@@ -200,6 +200,9 @@ func settings(m map[string]any) cycle.Settings {
 	pick("bump", map[string]string{"Major": "major", "Minor": "minor", "Patch": "patch"}, &s.Bump)
 	pick("nothing_done", map[string]string{"Skip the release": "skip", "Ask me": "ask"}, &s.Rules.NothingDone)
 	pick("partly_done", map[string]string{"Ship what's done": "ship_done", "Wait for everything": "wait", "Ask me": "ask"}, &s.Rules.PartlyDone)
+	if str("sign_off") == "Ship without it" {
+		s.SignOff = false
+	}
 	pick("must_ship_late", map[string]string{"Ask me": "ask", "Hold the release": "hold", "Skip the release": "skip", "Ship, then hotfix": "hotfix"}, &s.Rules.MustShipLate)
 	switch str("must_ship_from") {
 	case "High and up":

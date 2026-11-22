@@ -56,6 +56,10 @@ type Release struct {
 	// releases after it follow on from it instead of the plain cadence.
 	Pinned    bool      `json:"pinned,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
+	// SignedOff: the person looked through what's in it and said it can go
+	// out. Store plugins that send a release out wait for it.
+	SignedOff bool       `json:"signed_off,omitempty"`
+	SignedAt  *time.Time `json:"signed_at,omitempty"`
 	// Counted from the work in it, each time something changes.
 	Total    int    `json:"total"`
 	Done     int    `json:"done"`
@@ -65,6 +69,18 @@ type Release struct {
 
 // Open reports whether the release is still to ship.
 func (r Release) Open() bool { return r.State != Live && r.State != Skipped }
+
+// CanSignOff reports whether the release can be signed off: it has done
+// work in it and hasn't gone to the store yet.
+func (r Release) CanSignOff() bool {
+	return !r.Deploy && r.Done > 0 && (r.State == Planned || r.State == Building)
+}
+
+// WaitsForSignOff reports whether a release is held for the person's
+// sign-off: its cut-off passed, it's building and nobody signed it off.
+func (r Release) WaitsForSignOff(s Settings) bool {
+	return s.SignOff && r.State == Building && !r.SignedOff && r.CanSignOff()
+}
 
 // Rules decide what happens at cut-off.
 type Rules struct {
@@ -88,11 +104,14 @@ type Settings struct {
 	Scheme string // "short" (1.4), "semver" (1.4.0), "calver" (2026.11) or "number" (14)
 	Bump   string // "major", "minor" or "patch"
 	Rules  Rules
+	// SignOff holds a release that's building for the person's sign-off
+	// before it goes out.
+	SignOff bool
 }
 
 // Defaults are the settings a project starts with.
 func Defaults() Settings {
-	return Settings{Enabled: true, EveryWeeks: 2, Weekday: 5, CutoffDays: 2, Scheme: "short", Bump: "minor",
+	return Settings{Enabled: true, EveryWeeks: 2, Weekday: 5, CutoffDays: 2, Scheme: "short", Bump: "minor", SignOff: true,
 		Rules: Rules{NothingDone: "skip", PartlyDone: "ship_done", MustShipLate: "ask", MustShipFrom: 4}}
 }
 
