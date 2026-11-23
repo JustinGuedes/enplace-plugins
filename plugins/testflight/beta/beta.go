@@ -52,6 +52,16 @@ type Build struct {
 	// the text's own ID once there is one.
 	WhatToTest string `json:"what_to_test,omitempty"`
 	NotesID    string `json:"notes_id,omitempty"`
+	// MinOS is the oldest iOS it runs on; SDK the SDK it was built with
+	// (Apple's build code, like 23B77); Encryption says whether it uses
+	// encryption beyond Apple's own, once that's been answered.
+	MinOS      string `json:"min_os,omitempty"`
+	SDK        string `json:"sdk,omitempty"`
+	Encryption *bool  `json:"encryption,omitempty"`
+	BundleID   string `json:"bundle,omitempty"` // the main build bundle's ID, for its sizes
+	// Detail is what Apple says beyond the list (usage, sizes), read less
+	// often: see Detail.
+	Detail *Detail `json:"detail,omitempty"`
 }
 
 // A build's state, in plain words for the person.
@@ -105,11 +115,14 @@ func (c *Client) Builds(appID string, limit int) ([]Build, error) {
 				Expires    time.Time `json:"expirationDate"`
 				Expired    bool      `json:"expired"`
 				Processing string    `json:"processingState"`
+				MinOS      string    `json:"minOsVersion"`
+				Encryption *bool     `json:"usesNonExemptEncryption"`
 			} `json:"attributes"`
 			Relationships struct {
 				Pre     one  `json:"preReleaseVersion"`
 				Detail  one  `json:"buildBetaDetail"`
 				Locales many `json:"betaBuildLocalizations"`
+				Bundles many `json:"buildBundles"`
 			} `json:"relationships"`
 		} `json:"data"`
 		Included []struct {
@@ -120,6 +133,8 @@ func (c *Client) Builds(appID string, limit int) ([]Build, error) {
 				Internal string `json:"internalBuildState"`
 				WhatsNew string `json:"whatsNew"`
 				Locale   string `json:"locale"`
+				SDK      string `json:"sdkBuild"`
+				Type     string `json:"bundleType"`
 			} `json:"attributes"`
 		} `json:"included"`
 	}
@@ -127,7 +142,7 @@ func (c *Client) Builds(appID string, limit int) ([]Build, error) {
 		"filter[app]": {appID},
 		"sort":        {"-uploadedDate"},
 		"limit":       {strconv.Itoa(limit)},
-		"include":     {"preReleaseVersion,buildBetaDetail,betaBuildLocalizations"},
+		"include":     {"preReleaseVersion,buildBetaDetail,betaBuildLocalizations,buildBundles"},
 	}
 	if err := c.Do("GET", "/v1/builds?"+q.Encode(), nil, &res); err != nil {
 		return nil, err
@@ -145,7 +160,13 @@ func (c *Client) Builds(appID string, limit int) ([]Build, error) {
 	}
 	out := []Build{}
 	for _, d := range res.Data {
-		b := Build{ID: d.ID, Number: d.Attributes.Version, Uploaded: d.Attributes.Uploaded, Expires: d.Attributes.Expires}
+		b := Build{ID: d.ID, Number: d.Attributes.Version, Uploaded: d.Attributes.Uploaded, Expires: d.Attributes.Expires,
+			MinOS: d.Attributes.MinOS, Encryption: d.Attributes.Encryption}
+		for _, l := range d.Relationships.Bundles.Data {
+			if i, ok := get("buildBundles", &l); ok && (b.BundleID == "" || res.Included[i].Attributes.Type == "APP") {
+				b.BundleID, b.SDK = l.ID, res.Included[i].Attributes.SDK
+			}
+		}
 		if i, ok := get("preReleaseVersions", d.Relationships.Pre.Data); ok {
 			b.Version = res.Included[i].Attributes.Version
 		}
@@ -230,6 +251,7 @@ func (c *Client) Group(appID, name string) (g Group, made bool, err error) {
 
 // Tester is someone in a group.
 type Tester struct {
+	ID    string `json:"id,omitempty"`
 	Email string `json:"email"`
 	Name  string `json:"name,omitempty"`
 	// State is Apple's: NOT_INVITED, INVITED, ACCEPTED, INSTALLED or REVOKED.
@@ -258,6 +280,7 @@ func (t Tester) StateName() string {
 func (c *Client) Testers(groupID string) ([]Tester, error) {
 	var res struct {
 		Data []struct {
+			ID         string `json:"id"`
 			Attributes struct {
 				Email string `json:"email"`
 				First string `json:"firstName"`
@@ -272,7 +295,7 @@ func (c *Client) Testers(groupID string) ([]Tester, error) {
 	out := []Tester{}
 	for _, d := range res.Data {
 		a := d.Attributes
-		out = append(out, Tester{Email: a.Email, Name: strings.TrimSpace(a.First + " " + a.Last), State: a.State})
+		out = append(out, Tester{ID: d.ID, Email: a.Email, Name: strings.TrimSpace(a.First + " " + a.Last), State: a.State})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Email < out[j].Email })
 	return out, nil
