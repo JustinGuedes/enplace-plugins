@@ -149,3 +149,38 @@ func TestPublishesTheSharedBetaShape(t *testing.T) {
 		t.Fatalf("shared = %+v", got)
 	}
 }
+
+// An Apple-only builder on the project never counts as the Android app's
+// builder, and a track that already feeds testers isn't a step to tick
+// (ENP-367).
+func TestSetupForAFreshAndroidProduct(t *testing.T) {
+	req := plugintest.Request(plugin.HookRender)
+	req.ProjectID, req.Now = "p/android", now
+	req.Tracks = map[string][]plugin.Track{"p/android": {
+		{Key: "main", Name: "Main builds", Purpose: "internal", Makes: true, On: true},
+	}}
+	xc, gha := plugin.State{}, plugin.State{}
+	xc.PutProject("p", "public.ci", map[string]any{"name": "Xcode Cloud", "ready": true})
+	gha.PutProject("p/android", "public.ci", map[string]any{"name": "GitHub Actions", "ready": true})
+	req.Peers = map[string]plugin.State{"xcode-cloud": xc}
+	r := &run{req: req, res: &plugin.Response{}, pid: "p/android"}
+	if _, ok := r.ci(); ok {
+		t.Fatal("Xcode Cloud counted as the Android builder")
+	}
+	req.Peers["github-actions"] = gha
+	if c, ok := r.ci(); !ok || c.Name != "GitHub Actions" {
+		t.Fatalf("builder = %+v", c)
+	}
+	steps := r.steps(nil)
+	for _, s := range steps {
+		if s.Done {
+			t.Errorf("a fresh product starts with %q ticked", s.Title)
+		}
+		if strings.Contains(s.Title, "track") {
+			t.Errorf("the track step shows though Main builds already feeds testers")
+		}
+	}
+	if line := r.feedsLine(); !strings.Contains(line, "Builds from Main builds go to Internal testing") {
+		t.Errorf("feeds line = %q", line)
+	}
+}

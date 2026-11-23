@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -83,15 +84,34 @@ type CI struct {
 	} `json:"requests"`
 }
 
-// ci is the Builds plugin that makes this product's builds.
+// notAndroid are Builds plugins that only build for Apple, so they never
+// build this app even when they're on the project (ENP-367).
+var notAndroid = map[string]bool{"google-play": true, "xcode-cloud": true}
+
+// ci is the Builds plugin that makes this product's builds: one that shares
+// its runs for this product first, else one shared for the whole project.
 func (r *run) ci() (CI, bool) {
+	ids := make([]string, 0, len(r.req.Peers))
 	for id := range r.req.Peers {
-		var c CI
-		if id != "google-play" && r.peer(id, "public.ci", &c) {
-			if c.Name == "" {
-				c.Name = id
+		if !notAndroid[id] {
+			ids = append(ids, id)
+		}
+	}
+	sort.Strings(ids)
+	for _, own := range []bool{true, false} {
+		for _, id := range ids {
+			var c CI
+			st := r.req.Peers[id]
+			found := st.GetProject(r.pid, "public.ci", &c)
+			if !own && !found {
+				found = r.peer(id, "public.ci", &c)
 			}
-			return c, true
+			if found {
+				if c.Name == "" {
+					c.Name = id
+				}
+				return c, true
+			}
 		}
 	}
 	return CI{}, false
