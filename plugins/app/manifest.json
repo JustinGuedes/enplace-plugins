@@ -8,7 +8,7 @@
   "type": "store",
   "author": "Enplace",
   "summary": "Follow an app on the App Store: its icon, live version, review, rating, reviews and downloads.",
-  "description": "Goes on an app product. Link the app to its App Store listing to get its icon, the live version and its rating, and add your Apple account in Settings → Connections to follow each version through review and read its reviews. With the account's vendor number too, it shows downloads, purchases and where they come from. With Release cycle on, the cycle numbers releases from what's live and follows each one through review. Builds come from says who makes the app's builds (a plugin like Xcode Cloud, an agent on your Mac, or you in Xcode), for every plugin that asks for one, like TestFlight. For Android, add Google Play to the same product.",
+  "description": "Goes on an app product. Link the app to its App Store listing to get its icon, the live version and its rating, and add your Apple account in Settings → Connections to follow each version through review and read its reviews. With the account's vendor number too, it shows downloads, purchases and where they come from. With Release cycle on, the cycle numbers releases from what's live and follows each one through review. When a plugin like TestFlight asks for a build, it goes to the plugin that is the Builds step of that track (like Xcode Cloud), else to an agent on your Mac or to you in Xcode. For Android, add Google Play to the same product.",
   "colour": "#7cc4ff",
   "icon": "app",
   "card_settings": ["app_store"],
@@ -18,7 +18,7 @@
   "permissions": { "read": ["projects", "work"], "ops": ["project.icon", "work.create"], "hosts": ["itunes.apple.com", "api.appstoreconnect.apple.com"] },
   "settings": [
     { "key": "app_store", "detail": "app.bundle_id", "name": "App Store app", "type": "text", "scope": "project", "help": "Its bundle ID like com.example.app, its App Store link or its App Store ID. Or search for it above." },
-    { "key": "builder", "name": "Builds come from", "type": "text", "scope": "project", "choices": "builders", "help": "Who makes the app's builds when a plugin like TestFlight asks for one: a plugin like Xcode Cloud, an agent on your Mac, or you in Xcode. Blank uses the builder plugin on this app, else you." },
+    { "key": "builder", "name": "Without a build plugin", "type": "select", "scope": "project", "options": ["I upload from Xcode", "An agent on my Mac"], "default": "I upload from Xcode", "help": "Who makes a build when a plugin like TestFlight asks for one and no plugin like Xcode Cloud is the Builds step of its track." },
     { "key": "overview", "name": "On the project's overview", "type": "select", "scope": "project", "options": ["One summary card", "A card for each number", "No statistics"], "default": "One summary card", "help": "How the app's downloads, rating and reviews show on the overview. The App page always has all of it." }
   ],
   "contributes": {

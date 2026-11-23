@@ -135,3 +135,13 @@ func TestTrackFor(t *testing.T) {
 		t.Fatal("a track that isn't there")
 	}
 }
+
+func TestOnTracks(t *testing.T) {
+	r := &Request{Tracks: map[string][]Track{"p1": {{Key: "main"}, {Key: "internal-beta", On: true}, {Key: "release", On: true}}}}
+	if got := r.OnTracks("p1"); len(got) != 2 || got[0] != "internal-beta" || got[1] != "release" {
+		t.Fatalf("%v", got)
+	}
+	if got := r.OnTracks("p2"); len(got) != 0 {
+		t.Fatalf("%v", got)
+	}
+}

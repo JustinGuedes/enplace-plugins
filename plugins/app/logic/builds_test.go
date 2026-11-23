@@ -34,33 +34,52 @@ func asked(r *run) {
 	publish(r, "testflight", "public.build_request", BuildRequest{ID: "testflight-1", At: plugintest.Now.Add(-time.Minute), Version: "1.1", Build: "13"})
 }
 
-func TestBuilderPickedOrFound(t *testing.T) {
+// The track's Builds step makes its builds (ENP-351); without a build
+// plugin it's the person, or an agent on the Mac when they say so.
+func TestBuilderIsTheTracksBuildsStep(t *testing.T) {
 	r := buildsRun(map[string]any{})
-	if b := r.builder(); b.ID != handID {
+	if b := r.builder(""); b.ID != handID {
 		t.Fatalf("with no builder plugin: %+v", b)
 	}
-	publish(r, "xcode-cloud", "public.builder", map[string]any{"name": "Xcode Cloud", "ready": false, "note": "Press Set it up."})
-	if b := r.builder(); b.ID != "xcode-cloud" || b.Ready {
-		t.Fatalf("blank picks the builder plugin: %+v", b)
-	}
 	r.req.ProjectSettings[pid]["builder"] = byMac
-	if b := r.builder(); b.ID != macID {
-		t.Fatalf("picked the Mac: %+v", b)
+	if b := r.builder("internal-beta"); b.ID != macID {
+		t.Fatalf("the Mac without a plugin: %+v", b)
 	}
-	r.req.ProjectSettings[pid]["builder"] = "GitHub Actions"
-	if b := r.builder(); b.Ready || !strings.Contains(b.Note, "isn't on this app") {
-		t.Fatalf("a builder that's gone: %+v", b)
+	publish(r, "xcode-cloud", "public.builder", map[string]any{"name": "Xcode Cloud", "ready": false, "note": "Press Set it up.", "tracks": []string{"release"}})
+	publish(r, "github-actions", "public.builder", map[string]any{"name": "GitHub Actions", "ready": true, "tracks": []string{"internal-beta"}})
+	if b := r.builder("release"); b.ID != "xcode-cloud" || b.Ready {
+		t.Fatalf("the release track's builder, ready or not: %+v", b)
 	}
-	c := r.builderChoices()
-	if len(c.Choices) != 3 || c.Choices[0].Value != "Xcode Cloud" || c.Choices[0].Badge != "Not set up" || c.Choices[2].Value != byHand {
-		t.Fatalf("choices %+v", c)
+	if b := r.builder("internal-beta"); b.ID != "github-actions" {
+		t.Fatalf("the beta track's builder: %+v", b)
+	}
+	if b := r.builder(""); b.ID != "github-actions" {
+		t.Fatalf("no track takes a ready builder: %+v", b)
+	}
+	if b := r.builder("main"); b.ID != "github-actions" {
+		t.Fatalf("a track no builder names takes a ready one: %+v", b)
+	}
+
+	// The request goes to its track's builder, and App says who builds
+	// each track.
+	r.req.Tracks = map[string][]plugin.Track{pid: {{Key: "internal-beta"}, {Key: "release"}}}
+	publish(r, "testflight", "public.build_request", BuildRequest{ID: "testflight-1", At: plugintest.Now.Add(-time.Minute), Track: "release"})
+	r.routeBuilds()
+	var q BuildRequest
+	if !r.res.State.GetProject(pid, "public.build_request", &q) || q.To != "xcode-cloud" {
+		t.Fatalf("passed on %+v", q)
+	}
+	var b Builder
+	r.res.State.GetProject(pid, "public.build", &b)
+	if b.ID != "xcode-cloud" || b.ByTrack["internal-beta"].ID != "github-actions" || b.ByTrack["release"].ID != "xcode-cloud" {
+		t.Fatalf("public.build %+v", b)
 	}
 }
 
 // A plugin builder gets the request passed on, and the asker sees its
 // answers through App.
 func TestPassesTheRequestToThePluginBuilder(t *testing.T) {
-	r := buildsRun(map[string]any{"builder": "Xcode Cloud"})
+	r := buildsRun(map[string]any{})
 	asked(r)
 	publish(r, "xcode-cloud", "public.builder", map[string]any{"name": "Xcode Cloud", "ready": true,
 		"requests": map[string]any{"testflight-1": map[string]any{"state": "started", "run": 9}}})

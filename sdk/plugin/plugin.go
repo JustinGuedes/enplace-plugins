@@ -930,6 +930,18 @@ type Trigger struct {
 	Pattern string `json:"pattern,omitempty"`
 }
 
+// OnTracks are the keys of the scope's tracks this plugin is a step in,
+// like the tracks a builder makes the builds for.
+func (r *Request) OnTracks(scope string) []string {
+	var out []string
+	for _, t := range r.Tracks[scope] {
+		if t.On {
+			out = append(out, t.Key)
+		}
+	}
+	return out
+}
+
 // TrackFor finds the track a request names, or the first track of the
 // purpose; ok is false when the product has neither.
 func (r *Request) TrackFor(scope, key, purpose string) (Track, bool) {

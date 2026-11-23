@@ -32,7 +32,8 @@ func (r *run) next(s *Status) (version, number string) {
 }
 
 // Builder is who makes the app's builds, as App shares it ("public.build"):
-// the one its "Builds come from" setting picks.
+// the plugin that is the Builds step of TestFlight's track, else an agent
+// on the Mac or the person in Xcode.
 type Builder struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
@@ -44,6 +45,7 @@ type Builder struct {
 		Work  string `json:"work"`
 		Error string `json:"error"`
 	} `json:"requests"`
+	ByTrack map[string]Builder `json:"by_track"`
 }
 
 const byHand = "hand" // the person, from Xcode
@@ -53,6 +55,14 @@ func (r *run) builder() Builder {
 	var b Builder
 	if !r.peer("app", "public.build", &b) || b.ID == "" {
 		return Builder{ID: byHand, Name: "you, in Xcode", Ready: true}
+	}
+	if t, ok := r.track(); ok {
+		if tb, ok := b.ByTrack[t.Key]; ok && tb.ID != "" {
+			if tb.Requests == nil {
+				tb.Requests = b.Requests
+			}
+			return tb
+		}
 	}
 	return b
 }
@@ -99,8 +109,7 @@ func (r *run) building(s *Status) (where string, failed string) {
 	return b.Name + " is building", ""
 }
 
-// send asks for a new build, from whoever the app's Builds come from
-// setting picks. TestFlight takes it from there once it's in App Store
+// send asks for a new build, from whoever builds TestFlight's track. TestFlight takes it from there once it's in App Store
 // Connect.
 func (r *run) send() {
 	version, number, why := r.ask("A build for TestFlight")
@@ -122,7 +131,7 @@ func (r *run) ask(reason string) (version, number, why string) {
 	case s == nil || s.AppID == "":
 		return "", "", "Finish the TestFlight setup first: Enplace can't see the app in App Store Connect yet."
 	case b.ID == byHand:
-		return "", "", "Builds come from Xcode for this app: Product → Archive, then Distribute App. Change it in the App Store plugin's Builds come from."
+		return "", "", "You upload this app's builds from Xcode: Product → Archive, then Distribute App. Or make a plugin like Xcode Cloud the Builds step of its track."
 	case !b.Ready:
 		return "", "", b.Name + " isn't ready to build yet. " + b.Note
 	}

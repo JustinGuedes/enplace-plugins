@@ -818,26 +818,29 @@ builder never knows who asked or what happens to the build after. The
 handover is the build arriving in App Store Connect.
 
 The App Store plugin (`app`) sits between them, because both sides build on
-it. Its product setting **Builds come from** picks the builder.
+it. The builder is the plugin that is the **Builds** step of the build's
+track. With none, the product setting **Without a build plugin** picks an
+agent on the person's Mac or the person in Xcode.
 
 1. The plugin that wants a build publishes a request. `version` and `build`
    are what to number it, for builders that don't number their own:
 
    ```json
    "public.build_request": {"id": "testflight-1763640000", "at": "…", "reason": "A build for TestFlight",
-                            "branch": "", "version": "1.1", "build": "13"}
+                            "branch": "", "track": "internal-beta", "version": "1.1", "build": "13"}
    ```
 
-2. App says which builder it picked in `public.app` (`"builder": {"id":
-   "xcode-cloud", "name": "Xcode Cloud"}`; the id is `mac` or `hand` for
-   the two that aren't plugins). It passes the newest request on as its own
-   `public.build_request` with `by` set to who asked. Only the picked
-   builder takes it.
-3. A builder plugin requires `app` and publishes how it's doing, whether
-   it's picked or not, so App can list it:
+2. App passes the newest request on as its own `public.build_request`,
+   with `by` set to who asked and `to` to the builder of its track. Only
+   that builder takes it. `public.app` (`"builder": {"id": "xcode-cloud",
+   "name": "Xcode Cloud"}`) names the product's builder for a build with no
+   track; the id is `mac` or `hand` for the two that aren't plugins.
+3. A builder plugin requires `app` and publishes how it's doing and the
+   tracks it's the Builds step of (`req.OnTracks(scope)`), so App can pick
+   it:
 
    ```json
-   "public.builder": {"name": "Xcode Cloud", "ready": true, "note": "",
+   "public.builder": {"name": "Xcode Cloud", "ready": true, "note": "", "tracks": ["internal-beta", "release"],
                       "requests": {"testflight-1763640000": {"state": "started", "run": 9, "at": "…"}}}
    ```
 

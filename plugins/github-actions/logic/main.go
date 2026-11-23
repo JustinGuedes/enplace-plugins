@@ -12,7 +12,7 @@
 // job, so switching it on for a product costs no calls to GitHub.
 //
 // On an app product it's also a builder (the builds contract): when the
-// product's "Builds come from" picks it, it starts the workflow for the
+// product's track has it as its Builds step, it starts the workflow for the
 // store build App passes on ("public.build_request").
 package main
 
@@ -32,11 +32,13 @@ const selfID = "github-actions"
 // Request is a build another plugin asks for (its "public.ci_request", or
 // the store build App passes on).
 type Request struct {
-	ID       string    `json:"id"`
-	Workflow string    `json:"workflow,omitempty"`
-	Branch   string    `json:"branch,omitempty"`
-	Reason   string    `json:"reason,omitempty"`
-	At       time.Time `json:"at"`
+	ID       string `json:"id"`
+	Workflow string `json:"workflow,omitempty"`
+	Branch   string `json:"branch,omitempty"`
+	Reason   string `json:"reason,omitempty"`
+	// To is the builder App passed a store build on to.
+	To string    `json:"to,omitempty"`
+	At time.Time `json:"at"`
 }
 
 // Answer is how a request went. GitHub doesn't say which run a start
@@ -363,17 +365,20 @@ func (r *run) requests() map[string]Request {
 			out[id] = q
 		}
 	}
-	if r.picked() {
-		var q Request
-		if r.peer("app", "public.build_request", &q) && q.ID != "" {
-			out["app"] = q
-		}
+	var q Request
+	if r.peer("app", "public.build_request", &q) && q.ID != "" && r.picked(q) {
+		out["app"] = q
 	}
 	return out
 }
 
-// picked says the app product's "Builds come from" is GitHub Actions.
-func (r *run) picked() bool {
+// picked says App passed the store build on to GitHub Actions: it's the
+// Builds step of the build's track (ENP-351). A request from an older App
+// says nothing, and App's pick in "public.app" stands.
+func (r *run) picked(q Request) bool {
+	if q.To != "" {
+		return q.To == selfID
+	}
 	var a struct {
 		Builder struct {
 			ID string `json:"id"`
@@ -422,6 +427,7 @@ func (r *run) publish(s *Status) {
 	}
 	r.res.SetProject(r.pid, "public.builder", map[string]any{
 		"name": "GitHub Actions", "ready": note == "", "note": note, "requests": s.Requests,
+		"tracks": r.req.OnTracks(r.pid),
 	})
 }
 

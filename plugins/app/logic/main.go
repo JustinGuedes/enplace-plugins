@@ -236,7 +236,7 @@ func (r *run) refresh() {
 	r.res.SetProject(r.pid, "info", in)
 	// Which app this is, for plugins that build on App (TestFlight).
 	if in.BundleID != "" || in.AppStoreID != "" {
-		b := r.builder()
+		b := r.builder("")
 		r.res.SetProject(r.pid, "public.app", map[string]any{"bundle_id": in.BundleID, "app_store_id": in.AppStoreID, "name": in.Name,
 			"builder": map[string]string{"id": b.ID, "name": b.Name}})
 	} else {
@@ -313,8 +313,6 @@ func (r *run) action(a *plugin.Action) {
 		r.refresh()
 		r.routeBuilds()
 		r.res.Toast = "Checked the App Store"
-	case "builders":
-		r.res.Data = r.builderChoices()
 	}
 }
 

@@ -2,16 +2,16 @@ package main
 
 // The builds contract (docs/writing-plugins.md, "Builds"). An app's store
 // builds can come from any builder: a plugin like Xcode Cloud, an agent on
-// the person's Mac, or the person in Xcode. The product's "Builds come
-// from" setting picks one, here, so every plugin that wants a build
+// the person's Mac, or the person in Xcode. The builder plugin that is the
+// track's Builds step makes it, so every plugin that wants a build
 // (TestFlight now, a release plugin later) asks the same way and none of
 // them knows who builds:
 //
 //   - a plugin that wants a build publishes "public.build_request";
 //   - App passes it on as its own "public.build_request" for the builder
 //     it picked, and says which that is in "public.app" (builder);
-//   - a builder plugin publishes "public.builder" (name, ready, note and
-//     how each request went), and App shares the picked one's as
+//   - a builder plugin publishes "public.builder" (name, ready, note, the
+//     tracks it builds and how each request went), and App shares the picked one's as
 //     "public.build" for the plugin that asked.
 //
 // The Mac builder is App's own: it files a work item for an agent there.
@@ -46,8 +46,10 @@ type BuildRequest struct {
 	// asker knows; a builder that numbers its own builds can ignore them.
 	Version string `json:"version,omitempty"`
 	Build   string `json:"build,omitempty"`
-	// By is the plugin that asked, filled in by App.
+	// By is the plugin that asked, and To the builder App passed it on
+	// to: both filled in by App.
 	By string `json:"by,omitempty"`
+	To string `json:"to,omitempty"`
 }
 
 // Answer is how a builder took a request.
@@ -66,6 +68,11 @@ type Builder struct {
 	Ready    bool              `json:"ready"`
 	Note     string            `json:"note,omitempty"`
 	Requests map[string]Answer `json:"requests,omitempty"`
+	// Tracks are the product's tracks this builder is the Builds step of.
+	Tracks []string `json:"tracks,omitempty"`
+	// ByTrack is who builds each of the product's tracks, in the
+	// "public.build" App shares, so a plugin knows before it asks.
+	ByTrack map[string]Builder `json:"by_track,omitempty"`
 }
 
 // peer reads what a linked plugin published for this product, or for its
@@ -101,23 +108,25 @@ func (r *run) builders() []Builder {
 	return out
 }
 
-// builder is the one "Builds come from" picks. Left blank, it's the
-// builder plugin on the product (a ready one first), else the person.
-func (r *run) builder() Builder {
-	want := r.setting("builder")
+// builder makes the app's builds for a track (ENP-351): the builder
+// plugin that is the track's Builds step, a ready one first. A request
+// with no track, or builders that don't say their tracks, take any builder
+// plugin on the product. Without one it's "Without a build plugin": an
+// agent on the Mac or the person in Xcode.
+func (r *run) builder(track string) Builder {
 	all := r.builders()
-	switch {
-	case strings.EqualFold(want, byMac):
-		return Builder{ID: macID, Name: byMac, Ready: true}
-	case strings.EqualFold(want, byHand):
-		return Builder{ID: handID, Name: byHand, Ready: true}
-	case want != "":
+	if track != "" {
+		var on []Builder
 		for _, b := range all {
-			if strings.EqualFold(b.Name, want) || b.ID == want {
-				return b
+			for _, t := range b.Tracks {
+				if t == track {
+					on = append(on, b)
+				}
 			}
 		}
-		return Builder{ID: want, Name: want, Note: want + " isn't on this app. Switch its plugin on, or pick another in Builds come from."}
+		if len(on) > 0 {
+			all = on
+		}
 	}
 	for _, b := range all {
 		if b.Ready {
@@ -126,6 +135,9 @@ func (r *run) builder() Builder {
 	}
 	if len(all) > 0 {
 		return all[0]
+	}
+	if strings.EqualFold(r.setting("builder"), byMac) {
+		return Builder{ID: macID, Name: byMac, Ready: true}
 	}
 	return Builder{ID: handID, Name: byHand, Ready: true}
 }
@@ -147,8 +159,8 @@ func (r *run) request() (BuildRequest, bool) {
 // routeBuilds passes the newest build request on to the picked builder
 // (or makes the Mac's work item itself) and shares how it went.
 func (r *run) routeBuilds() {
-	b := r.builder()
 	q, asked := r.request()
+	b := r.builder(q.Track)
 	var mine map[string]Answer
 	r.req.State.GetProject(r.pid, "mac_requests", &mine)
 	if mine == nil {
@@ -165,7 +177,19 @@ func (r *run) routeBuilds() {
 	case b.ID == handID || !asked:
 		r.res.SetProject(r.pid, "public.build_request", nil)
 	default:
+		q.To = b.ID
 		r.res.SetProject(r.pid, "public.build_request", q)
+	}
+	if ts := r.req.Tracks[r.pid]; len(ts) > 0 {
+		b.ByTrack = map[string]Builder{}
+		for _, t := range ts {
+			tb := r.builder(t.Key)
+			tb.Tracks = nil
+			if tb.ID == b.ID {
+				tb.Requests = b.Requests
+			}
+			b.ByTrack[t.Key] = tb
+		}
 	}
 	r.res.SetProject(r.pid, "public.build", b)
 }
@@ -263,23 +287,4 @@ func macBody(bundleID string, q BuildRequest, sec map[string]string) string {
 		"Set the version and build number on the command line, don't commit them. When the upload is done, add a note with what you uploaded and hand it back. Enplace takes the build from there once Apple has processed it.",
 	)
 	return strings.Join(lines, "\n")
-}
-
-// builderChoices lists the builders for "Builds come from".
-func (r *run) builderChoices() plugin.Choices {
-	out := plugin.Choices{Choices: []plugin.Choice{}}
-	for _, b := range r.builders() {
-		c := plugin.Choice{Value: b.Name, Detail: "In the cloud"}
-		if !b.Ready {
-			c.Badge = "Not set up"
-		}
-		out.Choices = append(out.Choices, c)
-	}
-	if len(out.Choices) == 0 {
-		out.Note = "Add a plugin that makes builds, like Xcode Cloud, to build in the cloud."
-	}
-	out.Choices = append(out.Choices,
-		plugin.Choice{Value: byMac, Detail: "A work item"},
-		plugin.Choice{Value: byHand, Detail: "You, in Xcode"})
-	return out
 }

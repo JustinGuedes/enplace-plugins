@@ -2,8 +2,8 @@
 // product's builds onto the person's own phone.
 //
 // It asks for a build through the builds contract ("public.build_request")
-// and never knows who makes it: the App Store plugin's Builds come from
-// picks a builder (Xcode Cloud, an agent on the person's Mac, or the
+// and never knows who makes it: the App Store plugin passes it to the
+// builder of its track (Xcode Cloud, an agent on the person's Mac, or the
 // person in Xcode) and shares how it's going ("public.build"). TestFlight
 // takes the build from there once it's in App Store Connect.
 //
