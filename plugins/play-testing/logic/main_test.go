@@ -115,7 +115,7 @@ func TestSetupWaitsForGooglePlay(t *testing.T) {
 	res := plugintest.Call(t, handle, req)
 	list := res.Cards[plugin.SlotSettingsPanel][1]
 	// The step goes straight to where the account is added (ENP-361).
-	if it := list.Items[0]; it.Done || !strings.Contains(it.Sub, "Google Play account") || it.Button == nil || it.Button.Href != "settings#account" {
+	if it := list.Items[0]; it.Done || !strings.Contains(it.Sub, "key you add for Google Play") || it.Button == nil || it.Button.Href != "settings#account" {
 		t.Fatalf("first step = %+v", list.Items[0])
 	}
 }
@@ -182,5 +182,38 @@ func TestSetupForAFreshAndroidProduct(t *testing.T) {
 	}
 	if line := r.feedsLine(); !strings.Contains(line, "Builds from Main builds go to Internal testing") {
 		t.Errorf("feeds line = %q", line)
+	}
+}
+
+// The upload step says whether the workflow already sends builds to Play,
+// and when it doesn't, hands over the step to copy, filled in (ENP-379).
+func TestTheUploadStepSaysWhatsMissing(t *testing.T) {
+	for _, c := range []struct {
+		name    string
+		ci      map[string]any
+		want    string
+		buttons int
+	}{
+		{"sends", map[string]any{"name": "GitHub Actions", "repo": "me/game", "scanned": true, "uploads": []string{"google-play"}}, "already sends builds", 0},
+		{"doesn't", map[string]any{"name": "GitHub Actions", "repo": "me/game", "scanned": true, "uploads": []string{}}, "doesn't send it to Google Play yet", 2},
+		{"can't tell", map[string]any{"name": "GitHub Actions"}, "can't read your workflow files", 1},
+	} {
+		req := plugintest.Request(plugin.HookRender)
+		req.ProjectID, req.Now = "p/android", now
+		gha, gp := plugin.State{}, plugin.State{}
+		gha.PutProject("p/android", "public.ci", c.ci)
+		gp.PutProject("p/android", "public.play", map[string]any{"package": "guedes.justin.eldoria"})
+		req.Peers = map[string]plugin.State{"github-actions": gha, "google-play": gp}
+		r := &run{req: req, res: &plugin.Response{}, pid: "p/android"}
+		s := r.uploadStep("guedes.justin.eldoria", "internal", false)
+		if !strings.Contains(s.How, c.want) || len(s.More) != c.buttons {
+			t.Errorf("%s: %q with %d buttons", c.name, s.How, len(s.More))
+		}
+		if c.buttons > 0 && !strings.Contains(s.More[0].Copy, "packageName: guedes.justin.eldoria") {
+			t.Errorf("%s: step to copy %q", c.name, s.More[0].Copy)
+		}
+		if c.buttons == 2 && s.More[1].URL != "https://github.com/me/game/settings/secrets/actions/new" {
+			t.Errorf("%s: secret link %q", c.name, s.More[1].URL)
+		}
 	}
 }

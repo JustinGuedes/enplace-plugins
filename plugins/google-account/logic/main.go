@@ -48,11 +48,26 @@ type Key struct {
 	rsa      *rsa.PrivateKey
 }
 
+// getKey adds where the right file comes from.
+func getKey(what string) string {
+	return what + " In Google Cloud, open IAM & Admin › Service accounts, pick the account, then Keys › Add key › Create new key › JSON, and drop in the file it downloads."
+}
+
 // ParseKey reads a service account's JSON key.
 func ParseKey(raw string) (*Key, error) {
 	var k Key
-	if json.Unmarshal([]byte(strings.TrimSpace(raw)), &k) != nil || k.Type != "service_account" || k.Email == "" {
-		return nil, errors.New("Paste the service account's whole JSON key file.")
+	var other struct {
+		Installed, Web json.RawMessage
+	}
+	text := []byte(strings.TrimSpace(raw))
+	if json.Unmarshal(text, &k) != nil {
+		return nil, errors.New("That isn't a whole JSON key file. Paste all of it, from { to }, or drop the file in.")
+	}
+	if json.Unmarshal(text, &other); other.Installed != nil || other.Web != nil {
+		return nil, errors.New(getKey("That's an OAuth client file, not a service account key."))
+	}
+	if k.Type != "service_account" || k.Email == "" {
+		return nil, errors.New(getKey("That file isn't a service account key."))
 	}
 	block, _ := pem.Decode([]byte(k.Private))
 	if block == nil {

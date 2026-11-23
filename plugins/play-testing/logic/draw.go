@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -11,38 +12,84 @@ import (
 	"github.com/JustinGuedes/enplace-plugins/sdk/plugin"
 )
 
-// uploadHelp is what an app's CI needs to put builds on Play. Enplace
-// never changes the app's own workflows: it says what's missing.
-const uploadHelp = "Your Android build needs a step that uploads the app bundle (.aab) to Play, like the r0adkll/upload-google-play action with the same JSON key as a repo secret, the package name, and track internal for main."
+// secretName is the repo secret the upload step reads the key from.
+const secretName = "PLAY_SERVICE_ACCOUNT_JSON"
 
 type step struct {
 	Title, How string
 	Done       bool
 	// Button goes where the step is done, like the Settings tab (ENP-361).
 	Button *plugin.Button
+	// More are buttons under the steps while this one is open (ENP-379).
+	More []plugin.Button
 }
 
 func (r *run) steps(s *Status) []step {
 	st, _ := r.store()
-	_, hasTrack := r.track()
-	c, hasCI := r.ci()
+	track, hasTrack := r.track()
 	_, hasBuild := latest(s)
-	connect := "It signs in with the same Google Play account as Google Play. Add it once, then invite it in the Play Console as Google Play's steps say."
+	connect := "Uses the key you add for Google Play. Once it's added and invited in the Play Console, this ticks by itself."
+	if st.Connected {
+		connect = "Connected as " + st.Email + "."
+	}
 	feeds := "Pick the Play track testers get on the Settings tab. It needs a track that makes builds for testers under the product's Tracks."
-	builds := "Add a Builds plugin, like GitHub Actions, that builds the Android app."
-	if hasCI {
-		builds = c.Name + " builds the app. " + uploadHelp
-	}
-	if hasBuild {
-		builds = "Builds reach Google Play."
-	}
 	steps := []step{{Title: "Connect the Play Console", How: connect, Done: st.Connected, Button: &plugin.Button{Label: "Add the account", Href: "settings#account"}}}
 	// A track that already sends builds to testers needs nothing from you, so
 	// it isn't a step: a fresh product doesn't start with one ticked (ENP-367).
 	if !hasTrack {
 		steps = append(steps, step{Title: "Pick the track testers get", How: feeds, Button: &plugin.Button{Label: "Pick it", Href: "settings#fields"}})
 	}
-	return append(steps, step{Title: "Builds reach Google Play", How: builds, Done: hasBuild})
+	return append(steps, r.uploadStep(st.Package, playTrack(track), hasBuild))
+}
+
+// uploadStep says whether the app's builds already go to Google Play,
+// from its Builds plugin's workflow files, and hands over the step that
+// sends them when they don't. Enplace never changes the app's own
+// workflows (ENP-379).
+func (r *run) uploadStep(pkg, track string, hasBuild bool) step {
+	s := step{Title: "Send each build to Google Play", Done: hasBuild}
+	c, hasCI := r.ci()
+	sends := hasCI && c.Scanned && slices.Contains(c.Uploads, "google-play")
+	firstByHand := " Google only takes an app's very first build by hand: upload one .aab in the Play Console under Testing › Internal testing."
+	switch {
+	case hasBuild:
+		s.How = "Builds reach Google Play."
+		return s
+	case !hasCI:
+		s.How = "Add a Builds plugin, like GitHub Actions, that builds the Android app."
+		return s
+	case sends:
+		s.How = "Your " + c.Name + " workflow already sends builds to Google Play. A build shows here once one gets there." + firstByHand
+		return s
+	case c.Scanned:
+		s.How = "Your " + c.Name + " workflow builds the app but doesn't send it to Google Play yet. Copy the step into your Android job, after the build, and save the Google Play key as a repo secret named " + secretName + "."
+	default:
+		s.How = "Your app's build has to send each build to Google Play, and Enplace can't read your workflow files to see if it does. If it doesn't, copy the step into your Android job, after the build, and save the Google Play key as a repo secret named " + secretName + "."
+	}
+	s.How += firstByHand
+	s.More = []plugin.Button{{Label: "Copy the step", Copy: uploadYAML(pkg, track)}}
+	if c.Repo != "" {
+		s.More = append(s.More, plugin.Button{Label: "Add the repo secret", URL: "https://github.com/" + c.Repo + "/settings/secrets/actions/new"})
+	}
+	return s
+}
+
+// uploadYAML is a GitHub Actions step that uploads the build to Play.
+func uploadYAML(pkg, track string) string {
+	if pkg == "" {
+		pkg = "com.example.app # your package name"
+	}
+	if track == "" {
+		track = play.Internal
+	}
+	return fmt.Sprintf(`      - name: Send the build to Google Play
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.%s }}
+          packageName: %s
+          releaseFiles: "**/*.aab"
+          track: %s
+`, secretName, pkg, track)
 }
 
 func (r *run) stepsLeft(s *Status) []string {
@@ -66,8 +113,13 @@ func (r *run) setup(s *Status) []plugin.Block {
 		items = append(items, it)
 	}
 	blocks := []plugin.Block{
-		{Type: plugin.BlockText, Text: fmt.Sprintf("%d of %d steps left. Press Check now after each.", len(r.stepsLeft(s)), len(steps))},
+		{Type: plugin.BlockText, Text: fmt.Sprintf("%d of %d steps left. Each ticks by itself; Check now looks straight away.", len(r.stepsLeft(s)), len(steps))},
 		{Type: plugin.BlockList, Items: items},
+	}
+	for _, st := range steps {
+		if !st.Done && len(st.More) > 0 {
+			blocks = append(blocks, plugin.Block{Type: plugin.BlockButtons, Buttons: st.More})
+		}
 	}
 	if line := r.feedsLine(); line != "" {
 		blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Tone: "muted", Text: line})

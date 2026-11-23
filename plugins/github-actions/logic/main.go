@@ -63,6 +63,12 @@ type Status struct {
 	// are never filed as bugs.
 	Since time.Time       `json:"since,omitzero"`
 	Bugs  map[string]*Bug `json:"bugs,omitempty"`
+	// Uploads are the stores the repo's workflows upload to, like
+	// "google-play", read from the workflow files at ScannedAt. Nil when
+	// they couldn't be read.
+	Uploads   []string  `json:"uploads,omitempty"`
+	ScannedAt time.Time `json:"scanned_at,omitzero"`
+	Scanned   bool      `json:"scanned,omitempty"`
 }
 
 const keyStatus = "status"
@@ -269,6 +275,7 @@ func (r *run) read(c *client, s *Status, was *Status) {
 	if w, ok := pick(s.Workflows, r.setup(r.pid).Workflow); ok && r.setup(r.pid).Workflow != "" {
 		id = w.ID
 	}
+	r.scan(c, s, was)
 	runs, err := c.runs(id, runCount)
 	if err != nil {
 		s.Error = err.Error()
@@ -411,6 +418,7 @@ func (r *run) publish(s *Status) {
 	r.res.SetProject(r.pid, "public.ci", map[string]any{
 		"provider": selfID, "name": "GitHub Actions", "ready": ready,
 		"runs": r.ciRuns(shown), "requests": s.Requests,
+		"repo": shown.repo(), "scanned": shown != nil && shown.Scanned, "uploads": shown.uploads(),
 	})
 	if _, ok := r.req.Peers["app"]; !ok {
 		return

@@ -3,6 +3,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -348,5 +349,48 @@ func TestJobsMatchProductsByPlatform(t *testing.T) {
 		if got := pl != nil && names(tc.job, pl); got != tc.want {
 			t.Errorf("%s / %s: got %v", tc.name, tc.job, got)
 		}
+	}
+}
+
+// The workflow files say whether builds upload to Google Play, read once
+// an hour (ENP-379).
+func TestItSaysWhichStoresTheWorkflowsUploadTo(t *testing.T) {
+	a := answers("141 completed success 2h")
+	file := func(yml string) string {
+		return `{"content":"` + base64.StdEncoding.EncodeToString([]byte(yml)) + `"}`
+	}
+	a["GET /repos/"+repo+"/contents/.github/workflows/build.yml"] = file("steps:\n  - uses: r0adkll/upload-google-play@v1\n")
+	a["GET /repos/"+repo+"/contents/.github/workflows/story-snapshot.yml"] = file("steps: []\n")
+	sent := fake(t, a)
+	res, s := read(t, request(plugin.HookSchedule, pid))
+	var ci struct {
+		Repo    string   `json:"repo"`
+		Scanned bool     `json:"scanned"`
+		Uploads []string `json:"uploads"`
+	}
+	res.State.GetProject(pid, "public.ci", &ci)
+	if !ci.Scanned || ci.Repo != repo || len(ci.Uploads) != 1 || ci.Uploads[0] != "google-play" {
+		t.Fatalf("public.ci %+v", ci)
+	}
+	*sent = nil
+	req := request(plugin.HookSchedule, pid)
+	req.State.PutProject(pid, keyStatus, s)
+	read(t, req)
+	for _, c := range *sent {
+		if strings.Contains(c, "/contents/") {
+			t.Fatalf("read the files again within the hour: %v", *sent)
+		}
+	}
+}
+
+func TestATokenThatCantReadFilesSaysNothingAboutUploads(t *testing.T) {
+	fake(t, answers("141 completed success 2h"))
+	res, _ := read(t, request(plugin.HookSchedule, pid))
+	var ci struct {
+		Scanned bool `json:"scanned"`
+	}
+	res.State.GetProject(pid, "public.ci", &ci)
+	if ci.Scanned {
+		t.Fatal("scanned without the files")
 	}
 }
