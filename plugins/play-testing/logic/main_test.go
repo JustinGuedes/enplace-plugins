@@ -114,7 +114,8 @@ func TestSetupWaitsForGooglePlay(t *testing.T) {
 	req.ProjectID, req.Slots = "p/android", []string{plugin.SlotSettingsPanel}
 	res := plugintest.Call(t, handle, req)
 	list := res.Cards[plugin.SlotSettingsPanel][1]
-	if list.Items[0].Done || !strings.Contains(list.Items[0].Sub, "Google Play page") {
+	// The step goes straight to where the account is added (ENP-361).
+	if it := list.Items[0]; it.Done || !strings.Contains(it.Sub, "Google Play account") || it.Button == nil || it.Button.Href != "settings#account" {
 		t.Fatalf("first step = %+v", list.Items[0])
 	}
 }

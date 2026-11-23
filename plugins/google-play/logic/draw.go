@@ -17,8 +17,10 @@ const (
 	urlReporting = "https://console.cloud.google.com/apis/library/playdeveloperreporting.googleapis.com"
 	urlAccount   = "https://console.cloud.google.com/iam-admin/serviceaccounts/create"
 	urlConsole   = "https://play.google.com/console/developers"
-	// The key is the workspace's, set once for every Android app.
-	hrefKey = "/settings/plugins/google-play"
+	// The package name and the Google Play account are set on the plugin's
+	// own Settings tab, where it's shown (ENP-361).
+	hrefSettings = "settings#fields"
+	hrefAccount  = "settings#account"
 )
 
 type step struct {
@@ -33,7 +35,7 @@ func (r *run) steps(s *Status) []step {
 	if s == nil {
 		s = &Status{}
 	}
-	key := r.req.Secrets["play_key"] != "" || s.Key
+	key := r.req.Secrets[keyName] != "" || s.Key
 	invite := "Play Console → Users and permissions → Invite new users. Paste the service account's email"
 	if s.Email != "" {
 		invite = "Play Console → Users and permissions → Invite new users. Paste " + s.Email
@@ -41,12 +43,13 @@ func (r *run) steps(s *Status) []step {
 	invite += ", add this app under App permissions, and tick View app information, Release to testing tracks, Manage testing tracks, Release to production and Reply to reviews."
 	return []step{
 		{Title: "The app's package name", Done: r.pkg() != "",
-			How: orElse(r.pkg(), "Add it to the product's App details, like com.example.game. It's the applicationId your Android build uses.")},
+			How:     orElse(r.pkg(), "The applicationId your Android build uses, like com.example.game."),
+			Buttons: []plugin.Button{{Label: "Enter it", Href: hrefSettings}}},
 		{Title: "Switch on the Google Play APIs", Done: s.Connected || (key && s.Reason != "" && s.Reason != play.ReasonAPIOff && s.Reason != play.ReasonKey),
 			How:     "In a Google Cloud project of yours, switch on the Google Play Android Developer API, and the Play Developer Reporting API for crash rates.",
 			Buttons: []plugin.Button{{Label: "Play API", URL: urlAPI}, {Label: "Reporting API", URL: urlReporting}}},
-		{Title: "Make a key for Enplace", Done: key && s.Reason != play.ReasonKey,
-			How:     "Create a service account in the same project (no roles needed), then Keys → Add key → JSON. Then press Add the key below and drop the file in.",
+		{Title: "Add your Google Play account", Done: key && s.Reason != play.ReasonKey,
+			How:     "Create a service account in that project (no roles needed), then Keys → Add key → JSON. Press Add the account below and drop the file in.",
 			Buttons: []plugin.Button{{Label: "Create service account", URL: urlAccount}}},
 		{Title: "Invite it in the Play Console", Done: s.Connected, How: invite,
 			Buttons: []plugin.Button{{Label: "Open the Play Console", URL: urlConsole}}},
@@ -67,7 +70,7 @@ func (r *run) stepsLeft(s *Status) []string {
 func (r *run) setup(s *Status) []plugin.Block {
 	steps := r.steps(s)
 	left := len(r.stepsLeft(s))
-	blocks := []plugin.Block{{Type: plugin.BlockText, Text: fmt.Sprintf("%d of %d steps left, about 3 minutes, once for all your Android apps. Each ticks itself off when Check sees it done.", left, len(steps))}}
+	blocks := []plugin.Block{{Type: plugin.BlockText, Text: fmt.Sprintf("%d of %d steps left. About 3 minutes, once for all your Android apps. Press Check after each.", left, len(steps))}}
 	items := []plugin.Item{}
 	for i, st := range steps {
 		it := plugin.Item{Title: fmt.Sprintf("%d. %s", i+1, st.Title), Sub: st.How, Done: st.Done}
@@ -81,7 +84,7 @@ func (r *run) setup(s *Status) []plugin.Block {
 	if s != nil && s.Error != "" && s.Key {
 		blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: "Last check: " + s.Error + ".", Tone: "warn"})
 	}
-	btns := []plugin.Button{{Label: "Check", Action: "refresh"}, {Label: "Add the key", Href: hrefKey}, {Label: "Reporting API", URL: urlReporting}}
+	btns := []plugin.Button{{Label: "Check", Action: "refresh"}, {Label: "Add the account", Href: hrefAccount}, {Label: "Reporting API", URL: urlReporting}}
 	return append(blocks, plugin.Block{Type: plugin.BlockButtons, Buttons: btns})
 }
 
@@ -115,7 +118,7 @@ func (r *run) level() string {
 func (r *run) overview() []plugin.Block {
 	s := r.status()
 	if r.pkg() == "" && r.setting("play_url") == "" {
-		return []plugin.Block{{Type: plugin.BlockText, Text: "Add the app's package name to its App details, then connect the Play Console in settings.", Tone: "muted"}}
+		return []plugin.Block{{Type: plugin.BlockText, Text: "Finish setting up Google Play on its Settings tab.", Tone: "muted"}}
 	}
 	live := "Not live yet"
 	if v := r.version(s); v != "" {

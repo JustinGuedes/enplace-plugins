@@ -17,6 +17,8 @@ const uploadHelp = "Your Android build needs a step that uploads the app bundle 
 type step struct {
 	Title, How string
 	Done       bool
+	// Button goes where the step is done, like the Settings tab (ENP-361).
+	Button *plugin.Button
 }
 
 func (r *run) steps(s *Status) []step {
@@ -24,8 +26,8 @@ func (r *run) steps(s *Status) []step {
 	t, hasTrack := r.track()
 	c, hasCI := r.ci()
 	_, hasBuild := latest(s)
-	connect := "Follow the steps on the Google Play page. Play testing uses the same key, so there's nothing more to enter here."
-	feeds := "Set up a track that makes builds for testers under the product's Tracks, and pick its Play track."
+	connect := "It signs in with the same Google Play account as Google Play. Add it once, then invite it in the Play Console as Google Play's steps say."
+	feeds := "Pick the Play track testers get on the Settings tab. It needs a track that makes builds for testers under the product's Tracks."
 	if hasTrack {
 		feeds = t.Name + " builds go to " + play.TrackName(playTrack(t)) + "."
 	}
@@ -37,8 +39,8 @@ func (r *run) steps(s *Status) []step {
 		builds = "Builds reach Google Play."
 	}
 	return []step{
-		{Title: "Connect the Play Console", How: connect, Done: st.Connected},
-		{Title: "Pick the track testers get", How: feeds, Done: hasTrack},
+		{Title: "Connect the Play Console", How: connect, Done: st.Connected, Button: &plugin.Button{Label: "Add the account", Href: "settings#account"}},
+		{Title: "Pick the track testers get", How: feeds, Done: hasTrack, Button: &plugin.Button{Label: "Pick it", Href: "settings#fields"}},
 		{Title: "Builds reach Google Play", How: builds, Done: hasBuild},
 	}
 }
@@ -57,7 +59,11 @@ func (r *run) setup(s *Status) []plugin.Block {
 	steps := r.steps(s)
 	items := []plugin.Item{}
 	for i, st := range steps {
-		items = append(items, plugin.Item{Title: fmt.Sprintf("%d. %s", i+1, st.Title), Sub: st.How, Done: st.Done})
+		it := plugin.Item{Title: fmt.Sprintf("%d. %s", i+1, st.Title), Sub: st.How, Done: st.Done}
+		if !st.Done {
+			it.Button = st.Button
+		}
+		items = append(items, it)
 	}
 	return []plugin.Block{
 		{Type: plugin.BlockText, Text: fmt.Sprintf("%d of %d steps left. Each ticks itself off once Enplace sees it done.", len(r.stepsLeft(s)), len(steps))},
