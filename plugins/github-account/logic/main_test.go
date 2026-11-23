@@ -54,7 +54,7 @@ func TestProblemsSayWhy(t *testing.T) {
 		t.Errorf("401: %+v", w)
 	}
 	fetch = func(plugin.FetchRequest) (*plugin.FetchResponse, error) { return nil, errors.New("down") }
-	if w := checked(t); w.Problem == "" {
+	if w := checked(t); w.Problem == "" || !w.Unreachable {
 		t.Errorf("down: %+v", w)
 	}
 	if w := check(""); w.Problem == "" {

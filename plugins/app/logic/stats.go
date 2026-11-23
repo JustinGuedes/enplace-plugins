@@ -353,12 +353,12 @@ func stars(n int) string {
 
 // setup says what's missing before downloads can be shown, "" when nothing.
 func (r *run) setup(n *numbers) (text string, btn *plugin.Button) {
-	ws := &plugin.Button{Label: "Open App Store settings", Href: "/settings/plugins/" + r.req.Plugin.ID}
+	ws := &plugin.Button{Label: "Open Connections", Href: "/settings/connections"}
 	switch n.st.Sales {
 	case "no_keys":
 		return "Add your Apple account in Settings → Connections to see downloads, purchases and reviews here.", ws
 	case "no_vendor":
-		return "Add your vendor number to see downloads and purchases. It's in App Store Connect under Payments and Financial Reports.", ws
+		return "Add your vendor number to your Apple account in Settings → Connections to see downloads and purchases. It's in App Store Connect under Payments and Financial Reports.", ws
 	case "error":
 		return "Downloads: " + n.st.SalesError + ".", ws
 	case "ok":

@@ -62,7 +62,10 @@ func check(req *plugin.Request) plugin.Whoami {
 		if errors.As(err, &e) && (e.Status == 401 || e.Status == 403) {
 			return plugin.Whoami{Problem: "App Store Connect refused the key: it was revoked, or the issuer ID doesn't match it."}
 		}
-		return plugin.Whoami{Problem: upper(err.Error()) + "."}
+		if errors.As(err, &e) && e.Status < 500 {
+			return plugin.Whoami{Problem: upper(err.Error()) + "."}
+		}
+		return plugin.Whoami{Problem: "App Store Connect didn't answer. Try again in a minute.", Unreachable: true}
 	}
 	out := plugin.Whoami{Who: "Key " + keyID}
 	total := max(apps.Meta.Paging.Total, len(apps.Data))

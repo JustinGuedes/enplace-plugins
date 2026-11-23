@@ -26,6 +26,10 @@ type Whoami struct {
 	// Problem says, in a line, why the account doesn't sign in, like "The
 	// token was revoked". Who is then empty.
 	Problem string `json:"problem,omitempty"`
+	// Unreachable says the service didn't answer at all, so nothing is
+	// known about the account: Enplace keeps what the last check found
+	// and tries again soon, rather than calling a working account broken.
+	Unreachable bool `json:"unreachable,omitempty"`
 }
 
 // Connected is a connection's sign-in field for the plugin: the picked

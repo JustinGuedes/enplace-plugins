@@ -101,7 +101,7 @@ func check(raw string, now time.Time) plugin.Whoami {
 	res, err := fetch(plugin.FetchRequest{Method: "POST", URL: tokenURL,
 		Headers: map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, Body: []byte(form.Encode())})
 	if err != nil {
-		return plugin.Whoami{Problem: "Google didn't answer. Try again in a minute."}
+		return plugin.Whoami{Problem: "Google didn't answer. Try again in a minute.", Unreachable: true}
 	}
 	if res.Status != 200 {
 		var e struct {

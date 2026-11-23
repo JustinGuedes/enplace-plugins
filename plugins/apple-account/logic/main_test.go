@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -53,5 +54,12 @@ func TestAKeyThatDoesntSignInSaysWhy(t *testing.T) {
 	}
 	if w := checkWith(nil); w.Problem == "" {
 		t.Error("empty")
+	}
+}
+
+func TestAnAppleThatDoesntAnswerIsntABrokenKey(t *testing.T) {
+	fetch = func(plugin.FetchRequest) (*plugin.FetchResponse, error) { return nil, errors.New("down") }
+	if w := checkWith(map[string]string{"asc_issuer_id": "iss", "asc_key_id": "ABC123", "asc_private_key": key(t)}); !w.Unreachable {
+		t.Errorf("%+v", w)
 	}
 }

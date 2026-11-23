@@ -35,13 +35,15 @@ func check(token string) plugin.Whoami {
 		"Authorization": "Bearer " + token, "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28",
 	}})
 	if err != nil {
-		return plugin.Whoami{Problem: "GitHub didn't answer. Try again in a minute."}
+		return plugin.Whoami{Problem: "GitHub didn't answer. Try again in a minute.", Unreachable: true}
 	}
 	switch {
 	case res.Status == 401:
 		return plugin.Whoami{Problem: "GitHub doesn't know this token: it was revoked, expired or mistyped."}
 	case res.Status == 403:
 		return plugin.Whoami{Problem: "GitHub refused the token (403). It may be rate limited or blocked by your organisation."}
+	case res.Status >= 500:
+		return plugin.Whoami{Problem: fmt.Sprintf("GitHub answered %d. Try again in a minute.", res.Status), Unreachable: true}
 	case res.Status != 200:
 		return plugin.Whoami{Problem: fmt.Sprintf("GitHub answered %d.", res.Status)}
 	}
