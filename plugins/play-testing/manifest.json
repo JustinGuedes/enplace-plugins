@@ -1,0 +1,39 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "play-testing",
+  "name": "Play testing",
+  "version": "1.0.0",
+  "kind": "service",
+  "format": 3,
+  "type": "beta",
+  "needs": [
+    {"type": "ci", "contract": "^1", "for": "to get builds"}
+  ],
+  "author": "Enplace",
+  "summary": "Get an Android app's builds to testers through Google Play's testing tracks, and move each one along to production.",
+  "description": "Goes on an app product beside Google Play, and uses its package and Play Console key, so there's nothing to enter twice. It follows each build on Google Play's internal, closed and open testing tracks, writes a new build's release notes from the work finished since the last one, and moves a build to the next track, or to production as a staged rollout, from one button. Send to testers asks the product's Builds plugin (like GitHub Actions) for a build on the track testers get; the app's own build uploads it to Play and it shows here once it's there. Each track says which Play track its builds go to.",
+  "colour": "#5fd08a",
+  "icon": "play",
+  "card_settings": ["language"],
+  "suggest_for": ["app"],
+  "requires": [
+    { "id": "google-play", "version": "^2.0.0" },
+    { "id": "releases", "version": "^3.0.0", "optional": true }
+  ],
+  "permissions": { "read": ["projects", "work"], "hosts": ["oauth2.googleapis.com", "androidpublisher.googleapis.com"] },
+  "settings": [
+    { "key": "play_track", "name": "Play track", "type": "select", "scope": "project", "per": "track", "options": ["Internal testing", "Closed testing", "Open testing"], "help": "The Google Play track this track's builds go to. Blank: Internal testing for your own team's track, Closed testing for testers outside it." },
+    { "key": "release_notes", "name": "Write release notes", "type": "toggle", "scope": "project", "default": true, "help": "Fills in a new build's release notes on Play from the work finished since the build before it, when it has none." },
+    { "key": "language", "name": "Language", "type": "text", "scope": "project", "level": "product", "detail": "app.language", "help": "The language the release notes are in, like en-US." },
+    { "key": "play_key", "name": "Play Console key", "type": "secret", "scope": "workspace", "from": "google-play", "multiline": true, "help": "Google Play's key: set it once, there or here." }
+  ],
+  "contributes": {
+    "project_cards": [ { "key": "play_testing", "name": "Play testing", "size": "wide" } ],
+    "pages": [ { "key": "play_testing", "name": "Play testing", "icon": "play", "where": "project" } ],
+    "schedule": { "every": 30, "per": "project" },
+    "settings_panel": true,
+    "tools": [
+      { "name": "get_play_testing", "description": "An Android app's builds on Google Play's testing tracks: each build's version, version code, the tracks it's on and its release notes, which Play track each of the product's tracks feeds, a build in flight, and what's left to set up.", "action": "tool_play_testing", "project": true }
+    ]
+  }
+}
