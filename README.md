@@ -64,7 +64,8 @@ One manifest format, with a `kind` that fills in the rest:
 - [App Store](plugins/app): Follow an app on the App Store: its icon, live version, review, rating, reviews and downloads.
 - [GitHub](plugins/github): Link a project to its GitHub repo: pull requests move work, and Versions reads and bumps the version.
 - [GitHub Actions](plugins/github-actions): A repo's GitHub Actions builds: each run and each platform's job, a Run button, and a bug for agents when one fails.
-- [Google Play](plugins/google-play): Keep an app's Google Play listing beside the product: its package, page and live version.
+- [Google Play](plugins/google-play): Follow an Android app on Google Play: what's live, its staged rollout, reviews and crash rates, from the Play Console.
+- [Play testing](plugins/play-testing): Get an Android app's builds to testers through Google Play's testing tracks, and move each one along to production.
 - [TestFlight](plugins/testflight): Get an iPhone app's builds onto your own phone with TestFlight, and see each build through.
 - [Uptime](plugins/website): Check a website is up every 15 minutes, with how fast it answered, its page title and its icon.
 - [Xcode Cloud](plugins/xcode-cloud): Apple's CI for an app: Enplace sets up its own workflow, starts builds, shows each one and files a bug for agents when one fails.

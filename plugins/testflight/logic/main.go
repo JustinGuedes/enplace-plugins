@@ -46,6 +46,12 @@ type Status struct {
 	// like a tester that couldn't be added.
 	Error string   `json:"error,omitempty"`
 	Notes []string `json:"notes,omitempty"`
+	// Usage is each tester's use over 30 days (by tester ID), Feedback the
+	// latest feedback, and DetailAt when they and the builds' Detail were
+	// last read: at most hourly, or when the person presses Check now.
+	Usage    map[string]beta.TesterUse `json:"usage,omitempty"`
+	Feedback []beta.Note               `json:"feedback,omitempty"`
+	DetailAt time.Time                 `json:"detail_at,omitempty"`
 }
 
 const keyStatus = "status"
@@ -59,12 +65,13 @@ type run struct {
 func handle(req *plugin.Request) (*plugin.Response, error) {
 	req.SignIn("apple") // the Apple account this product uses (ENP-351)
 	r := &run{req: req, res: &plugin.Response{}, pid: req.ProjectID}
+	fetched = 0
 	if r.pid == "" {
 		return r.res, nil
 	}
 	switch req.Hook {
 	case plugin.HookSchedule:
-		r.refresh()
+		r.refresh(false)
 	case plugin.HookAction:
 		if req.Action != nil {
 			r.action(req.Action)
@@ -182,8 +189,9 @@ func (r *run) hasKeys() bool {
 }
 
 // refresh checks TestFlight, sets up the group and its testers, writes
-// What to test for a new build, and publishes the builds.
-func (r *run) refresh() {
+// What to test for a new build, and publishes the builds. Usage, sizes
+// and feedback are read hourly, or now when force is set.
+func (r *run) refresh(force bool) {
 	was := r.status()
 	s := &Status{CheckedAt: r.req.Now, Keys: r.hasKeys()}
 	s.BundleID, s.AppName = r.app()
@@ -221,7 +229,7 @@ func (r *run) refresh() {
 		s.Notes = append(s.Notes, "Couldn't read the testers: "+err.Error())
 	}
 	r.invite(c, s)
-	if s.Builds, err = c.Builds(s.AppID, 8); err != nil {
+	if s.Builds, err = c.Builds(s.AppID, 15); err != nil {
 		s.Error = err.Error()
 		s.keep(was)
 		return
@@ -229,6 +237,7 @@ func (r *run) refresh() {
 	if r.on("what_to_test") {
 		r.writeWhatToTest(c, s)
 	}
+	r.details(c, s, was, force)
 }
 
 // register makes sure Apple knows the bundle ID before the app is added,
@@ -272,6 +281,7 @@ func (s *Status) keep(was *Status) {
 			s.Testers = was.Testers
 		}
 		s.Builds = was.Builds
+		s.Usage, s.Feedback, s.DetailAt = was.Usage, was.Feedback, was.DetailAt
 	}
 }
 
@@ -354,8 +364,10 @@ func hasTag(w plugin.Work, tag string) bool {
 	return false
 }
 
-// publish shares the builds, for Release cycle.
+// publish shares the builds: in full as "public.beta" for the builds
+// page, and in short as "public.builds" for Release cycle.
 func (r *run) publish(s *Status) {
+	r.res.SetProject(r.pid, "public.beta", r.shared(s))
 	type pub struct {
 		Version  string    `json:"version"`
 		Build    string    `json:"build"`
@@ -374,12 +386,16 @@ func (r *run) action(a *plugin.Action) {
 	_ = json.Unmarshal(a.Args, &args)
 	switch a.Name {
 	case "refresh":
-		r.refresh()
+		r.refresh(true)
 		r.res.Toast = "Checked TestFlight"
 	case "send":
 		r.send()
 	case "test_build":
 		r.testBuild(a.Args)
+	case "what_to_test":
+		r.editWhatToTest(args["build"], args["text"])
+	case "expire":
+		r.expire(args["build"])
 	case "no_encryption":
 		r.answerEncryption(args["build"])
 	case "tool_testflight":
@@ -402,6 +418,6 @@ func (r *run) answerEncryption(buildID string) {
 		return
 	}
 	r.res.Log = "Said the build uses no special encryption"
-	r.refresh()
+	r.refresh(false)
 	r.res.Toast = "Answered. The build goes to your testers once Apple has it."
 }
