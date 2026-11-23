@@ -102,7 +102,37 @@ type Run struct {
 	Message  string    `json:"message,omitempty"`
 	Status   string    `json:"status"` // queued, running, passed, failed or cancelled
 	Created  time.Time `json:"created"`
-	Finished time.Time `json:"finished,omitempty"`
+	// Started is when it left the queue, so wait and run time can be told
+	// apart. Zero while it's queued.
+	Started  time.Time `json:"started,omitzero"`
+	Finished time.Time `json:"finished,omitzero"`
+	// Trigger is what started it: push, pull_request, manual, schedule or
+	// rebuild.
+	Trigger string `json:"trigger,omitempty"`
+	// Artifact is what a passed run made for others to use, like
+	// "app_store"; empty for a run that only checked the code, or when
+	// Xcode Cloud doesn't say.
+	Artifact string `json:"artifact,omitempty"`
+}
+
+// trigger says what started a run, in the CI contract's words.
+func trigger(reason string, pr bool) string {
+	switch reason {
+	case "GIT_REF_CHANGE":
+		if pr {
+			return "pull_request"
+		}
+		return "push"
+	case "PULL_REQUEST_OPEN", "PULL_REQUEST_UPDATE":
+		return "pull_request"
+	case "MANUAL":
+		return "manual"
+	case "MANUAL_REBUILD":
+		return "rebuild"
+	case "SCHEDULE":
+		return "schedule"
+	}
+	return ""
 }
 
 func status(progress, result string) string {
@@ -129,7 +159,10 @@ func (c *Client) Runs(productID string, limit int) ([]Run, error) {
 			Attributes struct {
 				Number   int       `json:"number"`
 				Created  time.Time `json:"createdDate"`
+				Started  time.Time `json:"startedDate"`
 				Finished time.Time `json:"finishedDate"`
+				Reason   string    `json:"startReason"`
+				PR       bool      `json:"isPullRequestBuild"`
 				Progress string    `json:"executionProgress"`
 				Result   string    `json:"completionStatus"`
 				Commit   *struct {
@@ -172,7 +205,7 @@ func (c *Client) Runs(productID string, limit int) ([]Run, error) {
 	for _, d := range res.Data {
 		a := d.Attributes
 		run := Run{ID: d.ID, Number: a.Number, Workflow: name(d.Relationships.Workflow.Data), Branch: name(d.Relationships.Source.Data),
-			Status: status(a.Progress, a.Result), Created: a.Created, Finished: a.Finished}
+			Status: status(a.Progress, a.Result), Created: a.Created, Started: a.Started, Finished: a.Finished, Trigger: trigger(a.Reason, a.PR)}
 		if a.Commit != nil {
 			run.Commit, run.Message = a.Commit.SHA, firstLine(a.Commit.Message)
 		}

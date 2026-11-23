@@ -2,7 +2,7 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "xcode-cloud",
   "name": "Xcode Cloud",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "kind": "service",
   "format": 2,
   "type": "ci",

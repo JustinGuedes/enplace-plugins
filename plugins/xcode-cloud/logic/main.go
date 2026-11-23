@@ -344,9 +344,10 @@ func trim(m map[string]Answer, n int) {
 
 // publish shares the runs the way every CI plugin does.
 func (r *run) publish(s *Status) {
-	runs := s.Runs
-	if runs == nil {
-		runs = []cloud.Run{}
+	runs := make([]cloud.Run, 0, len(s.Runs))
+	for _, x := range s.Runs {
+		x.Artifact = r.artifact(s, x)
+		runs = append(runs, x)
 	}
 	r.res.SetProject(r.pid, "public.ci", map[string]any{
 		"provider": selfID, "name": "Xcode Cloud", "ready": s.ProductID != "",
@@ -356,6 +357,22 @@ func (r *run) publish(s *Status) {
 	r.res.SetProject(r.pid, "public.builder", map[string]any{
 		"name": "Xcode Cloud", "ready": ready, "note": note, "requests": s.Requests,
 	})
+}
+
+// artifact is what a run made: a passed run of Enplace's own workflow
+// uploads the archive as Builds it makes says. Other workflows' archives
+// aren't known, so they're left out.
+func (r *run) artifact(s *Status, x cloud.Run) string {
+	if x.Status != "passed" || s.Own == "" || x.Workflow != cloud.OwnName {
+		return ""
+	}
+	switch r.audience() {
+	case cloud.ForStore:
+		return "app_store"
+	case cloud.ForInternal:
+		return "testflight_internal"
+	}
+	return ""
 }
 
 // builderReady says whether Xcode Cloud can make a store build now, and

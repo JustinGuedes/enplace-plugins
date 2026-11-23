@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/JustinGuedes/enplace-plugins/plugins/xcode-cloud/cloud"
 	"github.com/JustinGuedes/enplace-plugins/sdk/plugin"
 	"github.com/JustinGuedes/enplace-plugins/sdk/plugin/plugintest"
 )
@@ -70,7 +71,7 @@ var linked = map[string]string{
 	"GET /v1/ciWorkflows/wf1/repository":       `{"data":{"type":"scmRepositories","id":"r1"}}`,
 	"GET /v1/scmRepositories/r1/gitReferences": `{"data":[{"id":"ref-main","attributes":{"name":"main","kind":"BRANCH"}},{"id":"ref-tag","attributes":{"name":"main","kind":"TAG"}}]}`,
 	"POST /v1/ciBuildRuns":                     `{"data":{"type":"ciBuildRuns","id":"run8","attributes":{"number":8}}}`,
-	"GET /v1/ciProducts/cp1/buildRuns": `{"data":[{"id":"run7","attributes":{"number":7,"executionProgress":"COMPLETE","completionStatus":"SUCCEEDED","sourceCommit":{"commitSha":"abc","message":"Trips\nmore"}},
+	"GET /v1/ciProducts/cp1/buildRuns": `{"data":[{"id":"run7","attributes":{"number":7,"executionProgress":"COMPLETE","completionStatus":"SUCCEEDED","startReason":"GIT_REF_CHANGE","createdDate":"2026-11-20T10:00:00Z","startedDate":"2026-11-20T10:02:00Z","finishedDate":"2026-11-20T10:12:00Z","sourceCommit":{"commitSha":"abc","message":"Trips\nmore"}},
 		"relationships":{"workflow":{"data":{"type":"ciWorkflows","id":"wf1"}},"sourceBranchOrTag":{"data":{"type":"scmGitReferences","id":"ref-main"}}}}],
 		"included":[{"type":"ciWorkflows","id":"wf1","attributes":{"name":"TestFlight"}},{"type":"scmGitReferences","id":"ref-main","attributes":{"name":"main"}}]}`,
 }
@@ -90,7 +91,8 @@ func TestStartsWhatAnotherPluginAsksForOnce(t *testing.T) {
 	publish(req, "testflight", "public.ci_request", Request{ID: "testflight-1", At: plugintest.Now.Add(-time.Minute)})
 	res := plugintest.Call(t, handle, req)
 	s := status(t, res)
-	if s.ProductID != "cp1" || len(s.Workflows) != 2 || len(s.Runs) != 1 || s.Runs[0].Workflow != "TestFlight" || s.Runs[0].Branch != "main" || s.Runs[0].Status != "passed" || s.Runs[0].Message != "Trips" {
+	if s.ProductID != "cp1" || len(s.Workflows) != 2 || len(s.Runs) != 1 || s.Runs[0].Workflow != "TestFlight" || s.Runs[0].Branch != "main" || s.Runs[0].Status != "passed" || s.Runs[0].Message != "Trips" ||
+		s.Runs[0].Trigger != "push" || s.Runs[0].Finished.Sub(s.Runs[0].Started) != 10*time.Minute {
 		t.Fatalf("status %+v", s)
 	}
 	if a := s.Requests["testflight-1"]; a.State != "started" || a.Run != 8 || a.By != "testflight" {
@@ -150,5 +152,25 @@ func TestAnAppWithoutXcodeCloud(t *testing.T) {
 	}
 	if items := out.Cards[plugin.SlotSettingsPanel][1].Items; !items[0].Done || !items[1].Done || items[2].Done {
 		t.Fatalf("steps %+v", items)
+	}
+}
+
+// Only a passed run of Enplace's own workflow is known to make something;
+// a run that only checks the code makes nothing.
+func TestArtifactOnlyForOwnWorkflow(t *testing.T) {
+	req := &plugin.Request{ProjectSettings: map[string]map[string]any{pid: {"makes": "TestFlight internal only"}}}
+	r := &run{req: req, res: &plugin.Response{}, pid: pid}
+	s := &Status{Own: "wf-own"}
+	for _, c := range []struct {
+		x    cloud.Run
+		want string
+	}{
+		{cloud.Run{Workflow: cloud.OwnName, Status: "passed"}, "testflight_internal"},
+		{cloud.Run{Workflow: cloud.OwnName, Status: "failed"}, ""},
+		{cloud.Run{Workflow: "Main checks", Status: "passed"}, ""},
+	} {
+		if got := r.artifact(s, c.x); got != c.want {
+			t.Errorf("%+v: got %q, want %q", c.x, got, c.want)
+		}
 	}
 }

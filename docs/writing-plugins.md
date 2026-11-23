@@ -690,6 +690,26 @@ for the project, in the same shape whatever the service:
 `status` is `queued`, `running`, `passed`, `failed` or `cancelled`. `ready`
 says the service is set up for the project and can start a build.
 
+Every run field past `id`, `status` and `created` is optional. Share what the
+service says; Enplace keeps each run it sees and works out build stats from
+them (pass rate, run and wait time, red streaks, flaky runs, minutes), so a
+plugin that shares more gets richer stats. The optional fields:
+
+| Field | What it is |
+| --- | --- |
+| `number`, `workflow`, `branch`, `commit`, `message` | Which run, of what |
+| `started` | When it left the queue: wait is `started - created`, run time `finished - started` |
+| `finished` | When it ended |
+| `trigger` | What started it: `push`, `pull_request`, `manual`, `schedule` or `rebuild` |
+| `track` | The track it ran for, when the plugin knows one |
+| `artifact` | What a passed run made for others to use, like `app_store`. Leave it out for a run that only checks the code: many builds only build main to make sure it passes, and make nothing |
+| `tests` | `{"passed": 120, "failed": 2, "skipped": 3}` |
+| `minutes` | Billed minutes, when the service bills by the minute |
+| `url` | The run on the service's own site |
+
+Share the newest runs (Xcode Cloud shares about 20). Older ones drop out of
+`runs`, but Enplace remembers them for 90 days.
+
 Another plugin asks for a build by publishing one request, and the CI
 plugin starts one run per `id` and answers in `requests` (`started` with the
 run's number, or `failed` with an `error`). A request more than an hour
