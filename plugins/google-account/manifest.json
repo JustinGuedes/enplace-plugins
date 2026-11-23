@@ -2,7 +2,7 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "google-account",
   "name": "Google Play account",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "kind": "connection",
   "format": 4,
   "author": "Enplace",

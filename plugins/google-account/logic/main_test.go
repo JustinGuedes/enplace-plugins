@@ -46,7 +46,21 @@ func TestAKeyThatDoesntSignInSaysWhy(t *testing.T) {
 	if w := check(keyFile(t), time.Now()); !strings.Contains(w.Problem, "deleted") {
 		t.Errorf("%+v", w)
 	}
-	if w := check(`{"type":"user"}`, time.Now()); !strings.Contains(w.Problem, "whole JSON") {
+	if w := check(`{"type":"user"}`, time.Now()); !strings.Contains(w.Problem, "service account key") {
 		t.Errorf("%+v", w)
+	}
+}
+
+func TestWrongKeyFilesSayWhy(t *testing.T) {
+	for raw, want := range map[string]string{
+		`{"installed":{"client_id":"x"}}`: "OAuth client file",
+		`{"web":{"client_id":"x"}}`:       "OAuth client file",
+		`{"type":"authorized_user"}`:      "isn't a service account key",
+		`{"type":"service_account","clie`: "isn't a whole JSON key file",
+	} {
+		_, err := ParseKey(raw)
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("ParseKey(%s) = %v, want %q", raw, err, want)
+		}
 	}
 }
