@@ -73,7 +73,7 @@ func TestConnectAddsAndReplacesHook(t *testing.T) {
 	req.Secrets = nil
 	r = hookRun(req, f)
 	r.connect()
-	if !strings.Contains(r.res.Toast, "token") {
+	if !strings.Contains(r.res.Toast, "GitHub account") {
 		t.Fatalf("toast %q", r.res.Toast)
 	}
 	// Not https: GitHub won't take it.

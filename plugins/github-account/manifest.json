@@ -1,0 +1,37 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "github-account",
+  "name": "GitHub account",
+  "version": "1.0.0",
+  "kind": "connection",
+  "format": 4,
+  "author": "Enplace",
+  "summary": "Sign in to GitHub once, for every plugin that works with your repos.",
+  "description": "Add your GitHub token once and pick which account each project or product uses. GitHub, GitHub Actions, GitHub Issues and Versions sign in with it. Enplace checks who the token signs in as and what it may do, and flags it when a plugin needs more.",
+  "colour": "#c3a6ff",
+  "permissions": {
+    "hosts": ["api.github.com"]
+  },
+  "settings": [
+    {
+      "key": "token",
+      "name": "Token",
+      "type": "secret",
+      "scope": "workspace",
+      "help": "A personal access token. A classic one needs repo and workflow. A fine-grained one needs read access to Contents, Metadata, Pull requests and Checks; Pull requests and Contents read and write to merge and bump versions; Webhooks read and write for instant updates; Actions read and write to run workflows; Issues read and write for GitHub Issues."
+    }
+  ],
+  "contributes": {
+    "connection": {
+      "service": "github",
+      "link": "https://github.com/settings/tokens/new?scopes=repo,workflow&description=Enplace",
+      "how": "Make a token with repo and workflow, then paste it here.",
+      "scopes": [
+        {"key": "repo", "about": "read and change your repos, branches and pull requests"},
+        {"key": "workflow", "about": "run and change GitHub Actions workflows"},
+        {"key": "read:org", "about": "see your organisations' repos"}
+      ],
+      "adopts": ["github"]
+    }
+  }
+}

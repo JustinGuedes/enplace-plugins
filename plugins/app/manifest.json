@@ -2,27 +2,24 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "app",
   "name": "App Store",
-  "version": "3.6.0",
+  "version": "3.7.0",
   "kind": "service",
-  "format": 2,
+  "format": 4,
   "type": "store",
   "author": "Enplace",
   "summary": "Follow an app on the App Store: its icon, live version, review, rating, reviews and downloads.",
-  "description": "Goes on an app product. Link the app to its App Store listing to get its icon, the live version and its rating, and add App Store Connect keys to follow each version through review and read its reviews. With your vendor number too, it shows downloads, purchases and where they come from. With Release cycle on, the cycle numbers releases from what's live and follows each one through review. Builds come from says who makes the app's builds (a plugin like Xcode Cloud, an agent on your Mac, or you in Xcode), for every plugin that asks for one, like TestFlight. For Android, add Google Play to the same product.",
+  "description": "Goes on an app product. Link the app to its App Store listing to get its icon, the live version and its rating, and add your Apple account in Settings → Connections to follow each version through review and read its reviews. With the account's vendor number too, it shows downloads, purchases and where they come from. With Release cycle on, the cycle numbers releases from what's live and follows each one through review. Builds come from says who makes the app's builds (a plugin like Xcode Cloud, an agent on your Mac, or you in Xcode), for every plugin that asks for one, like TestFlight. For Android, add Google Play to the same product.",
   "colour": "#7cc4ff",
   "icon": "app",
   "card_settings": ["app_store"],
   "suggest_for": ["app"],
+  "connections": [ { "service": "apple", "for": "follows each version through review, and reads sales and reviews", "optional": true } ],
   "requires": [ { "id": "releases", "version": "^3.0.0", "optional": true } ],
   "permissions": { "read": ["projects", "work"], "ops": ["project.icon", "work.create"], "hosts": ["itunes.apple.com", "api.appstoreconnect.apple.com"] },
   "settings": [
     { "key": "app_store", "detail": "app.bundle_id", "name": "App Store app", "type": "text", "scope": "project", "help": "Its bundle ID like com.example.app, its App Store link or its App Store ID. Or search for it above." },
     { "key": "builder", "name": "Builds come from", "type": "text", "scope": "project", "choices": "builders", "help": "Who makes the app's builds when a plugin like TestFlight asks for one: a plugin like Xcode Cloud, an agent on your Mac, or you in Xcode. Blank uses the builder plugin on this app, else you." },
-    { "key": "overview", "name": "On the project's overview", "type": "select", "scope": "project", "options": ["One summary card", "A card for each number", "No statistics"], "default": "One summary card", "help": "How the app's downloads, rating and reviews show on the overview. The App page always has all of it." },
-    { "key": "asc_issuer_id", "name": "Issuer ID", "type": "secret", "scope": "workspace", "share_with": ["testflight", "xcode-cloud"], "help": "App Store Connect → Users and Access → Integrations → App Store Connect API." },
-    { "key": "asc_key_id", "name": "Key ID", "type": "secret", "scope": "workspace", "share_with": ["testflight", "xcode-cloud"], "help": "The ID of the key you generated there." },
-    { "key": "asc_private_key", "name": "Private key (.p8)", "type": "secret", "scope": "workspace", "share_with": ["testflight", "xcode-cloud"], "multiline": true, "help": "Paste the whole .p8 file, including the BEGIN and END lines." },
-    { "key": "asc_vendor", "name": "Vendor number", "type": "text", "scope": "workspace", "help": "For downloads and purchases. App Store Connect → Payments and Financial Reports, the number beside your name at the top. The key above also needs the Sales, Finance or Admin role." }
+    { "key": "overview", "name": "On the project's overview", "type": "select", "scope": "project", "options": ["One summary card", "A card for each number", "No statistics"], "default": "One summary card", "help": "How the app's downloads, rating and reviews show on the overview. The App page always has all of it." }
   ],
   "contributes": {
     "project_cards": [

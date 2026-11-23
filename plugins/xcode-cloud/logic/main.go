@@ -93,6 +93,7 @@ type run struct {
 }
 
 func handle(req *plugin.Request) (*plugin.Response, error) {
+	req.SignIn("apple") // the Apple account this product uses (ENP-351)
 	r := &run{req: req, res: &plugin.Response{}, pid: req.ProjectID}
 	if r.pid == "" {
 		return r.res, nil
@@ -391,7 +392,7 @@ func (r *run) artifact(s *Status, x cloud.Run) string {
 func (r *run) builderReady(s *Status) (bool, string) {
 	switch {
 	case !s.Keys || s.BundleID == "" || s.AppID == "":
-		return false, "Xcode Cloud needs the app's bundle ID and App Store Connect key first."
+		return false, "Xcode Cloud needs the app's bundle ID and Apple account first."
 	case s.ProductID == "":
 		return false, "Connect Xcode Cloud once in Xcode: Product → Xcode Cloud → Create Workflow."
 	case r.audience() == cloud.ForNobody:

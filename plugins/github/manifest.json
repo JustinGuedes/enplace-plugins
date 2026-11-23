@@ -2,9 +2,9 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "github",
   "name": "GitHub",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "kind": "service",
-  "format": 2,
+  "format": 4,
   "type": "vcs",
   "author": "Enplace",
   "summary": "Link a project to its GitHub repo: pull requests move work, and Versions reads and bumps the version.",
@@ -15,13 +15,13 @@
   "card_settings": ["repo", "branch"],
   "levels": ["project", "product"],
   "suggest_for": ["app", "website"],
+  "connections": [ { "service": "github", "scopes": ["repo"], "for": "reads your repos and pull requests, and merges them", "optional": true } ],
   "requires": [ { "id": "releases", "version": "^3.0.0", "optional": true } ],
   "permissions": { "read": ["projects", "work"], "ops": ["work.move"], "hosts": ["api.github.com"] },
   "settings": [
     { "key": "repo", "name": "Repository", "type": "text", "scope": "project", "help": "Pick one of the repos your token can see, or type owner/name or the repo's GitHub link.", "choices": "repos" },
     { "key": "branch", "name": "Branch", "type": "text", "scope": "project", "help": "Blank uses the repo's default branch.", "choices": "branches" },
-    { "key": "move_work", "name": "Move work with pull requests", "type": "toggle", "scope": "project", "default": true, "help": "A pull request that mentions an item's key moves it: opened to review, merged to done, closed without merging back to doing." },
-    { "key": "token", "name": "GitHub token", "type": "secret", "scope": "workspace", "share_with": ["github-issues", "github-actions"], "help": "Needed for private repos. A fine-grained token with read-only access to Contents, Metadata, Pull requests and Checks covers everything; give it Pull requests: read and write to merge from a work item, and Contents and Pull requests: read and write to let Versions bump the version; add Webhooks: read and write to let Enplace turn on instant updates for you, and Actions: read and write for the GitHub Actions plugin. Without one, GitHub allows only a few checks an hour." }
+    { "key": "move_work", "name": "Move work with pull requests", "type": "toggle", "scope": "project", "default": true, "help": "A pull request that mentions an item's key moves it: opened to review, merged to done, closed without merging back to doing." }
   ],
   "contributes": {
     "brief": true,

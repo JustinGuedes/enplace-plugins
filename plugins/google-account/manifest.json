@@ -1,0 +1,32 @@
+{
+  "$schema": "../../schema/manifest.schema.json",
+  "id": "google-account",
+  "name": "Google Play account",
+  "version": "1.0.0",
+  "kind": "connection",
+  "format": 4,
+  "author": "Enplace",
+  "summary": "Sign in to the Google Play Console once, for Google Play and Play testing.",
+  "description": "Add a Google Cloud service account that's invited to your Play Console once, and pick which account each Android app uses. Google Play and Play testing sign in with it. Enplace checks the key signs in.",
+  "colour": "#8be0a4",
+  "permissions": {
+    "hosts": ["oauth2.googleapis.com"]
+  },
+  "settings": [
+    {
+      "key": "service_account",
+      "name": "Service account key (JSON)",
+      "type": "secret",
+      "scope": "workspace",
+      "multiline": true,
+      "help": "Paste the whole JSON key file of a service account you've invited in Play Console → Users and permissions."
+    }
+  ],
+  "contributes": {
+    "connection": {
+      "service": "google",
+      "link": "https://console.cloud.google.com/iam-admin/serviceaccounts",
+      "how": "Make a service account with a JSON key, invite its email in the Play Console with release rights, then paste the key here."
+    }
+  }
+}

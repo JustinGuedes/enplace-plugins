@@ -22,7 +22,7 @@ func (r *run) steps(s *Status) []step {
 	}
 	return []step{
 		{"Give the app its bundle ID", "In this product's App Store plugin settings, type the app's bundle ID, like com.guedio.planit.", s.BundleID != ""},
-		{"Add your App Store Connect key", "The same key as the App Store and TestFlight plugins, with the App Manager role. Set it once in any of them.", s.Keys && s.AppID != ""},
+		{"Add your Apple account", "The same Apple account as the App Store and TestFlight plugins, with the App Manager role, added once in Settings → Connections.", s.Keys && s.AppID != ""},
 		{"Connect Xcode Cloud once, in Xcode", "Apple only lets Xcode do this. Open the app in Xcode, choose Product → Xcode Cloud → Create Workflow, connect your GitHub repo when it asks, and accept the Default workflow. Then you can close Xcode.", s.ProductID != ""},
 		{"Let Enplace make its workflow", "Press Set it up. Enplace makes \"" + cloud.OwnName + "\" from the Default workflow: it archives the app when Enplace asks for a build, as Builds it makes says, and Enplace keeps it that way.", s.Own != ""},
 	}

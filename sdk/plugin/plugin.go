@@ -108,6 +108,11 @@ type Request struct {
 	// key: the project's own when the call is for a project, else the
 	// workspace's. They're only sent to schedule, action and event hooks.
 	Secrets map[string]string `json:"secrets,omitempty"`
+	// Connections are the accounts the plugin signs in with (the
+	// manifest's connections), by service: the one the product or project
+	// picked, else the workspace's. Same hooks as Secrets. A connection
+	// plugin's check action gets the account it checks here.
+	Connections map[string]Account `json:"connections,omitempty"`
 	// Vault is what the plugin stored with VaultPut, by name (same hooks).
 	Vault map[string]string `json:"vault,omitempty"`
 	// Peers is what linked plugins published: the state keys starting

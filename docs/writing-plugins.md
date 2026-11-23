@@ -48,6 +48,7 @@ itself wins over its kind.
 | `service` | Following something a product ships to: a store, a site, a repo | products | cards, pages, fields, panels, schedule, tools, webhook, calendar, skills |
 | `extension` | A feature across Enplace, like Release cycle or XP | nothing: say where with `levels` | every piece |
 | `role` | A job on the person's team, like App shipper | the workspace | `role`, `skills` |
+| `connection` | Signing in to an outside service for other plugins | the workspace | `connection` |
 
 Every manifest names its kind. Pick the narrowest one that fits: an
 `extension` can do anything, so it has to say where it goes itself.
@@ -305,8 +306,46 @@ a card like "No repo linked yet" can be set up without leaving it.
 
 A secret setting (`"type": "secret"`) is the plugin's alone: Enplace
 keeps it encrypted and hands it only to this plugin's logic, even when
-another plugin has a secret with the same key. Two plugins that use the
-same account share one on purpose, and both say so. The plugin that owns
+another plugin has a secret with the same key.
+
+### Connections: signing in once
+
+An account several plugins sign in with, like a GitHub token or an App
+Store Connect key, belongs to a connection plugin (`"kind":
+"connection"`), not to any one of them. Its settings are the sign-in
+fields, its hosts the service's, and its logic answers a `check` action
+with a `plugin.Whoami`: who the account is, what it may do (`scopes`),
+when it stops working (`expires`), or the `problem` in a line. People add
+one or more named accounts on the Connections page, and each project or
+product picks the one it uses.
+
+```json
+{"id": "github-account", "kind": "connection", "format": 4,
+ "settings": [{"key": "token", "name": "Token", "type": "secret", "scope": "workspace"}],
+ "contributes": {"connection": {"service": "github", "link": "https://github.com/settings/tokens",
+   "scopes": [{"key": "repo", "about": "read and change your repos"}], "adopts": ["github"]}}}
+```
+
+A plugin that signs in names the service, with the scopes it needs, and
+reads the picked account's fields from `Request.Connections`:
+
+```json
+"connections": [{"service": "github", "scopes": ["repo", "workflow"], "for": "runs your workflows"}]
+```
+
+```go
+token := req.Connected("github", "token")
+```
+
+Only switched-on plugins that name a service get its accounts, and they
+may fetch from the connection's hosts. `adopts` lists the plugins whose
+secrets held the sign-in before, under the same keys: Enplace turns them
+into the first account, so nobody types a key again. `Connected` falls
+back to the plugin's own secret of that key, for a plugin that still has
+one while it moves over.
+
+The older way, still read for one more version: two plugins that use the
+same account share a secret on purpose, and both say so. The plugin that owns
 it lists the others on the setting, and each of them names the owner
 with `from` (and lists it in `requires`):
 

@@ -58,7 +58,7 @@ func (r *run) webhook() {
 // send makes one call that changes something on GitHub.
 func (c *client) send(method, path string, body any) ([]byte, error) {
 	if c.token == "" {
-		return nil, &apiError{Status: 401, Text: "Add a GitHub token first."}
+		return nil, &apiError{Status: 401, Text: "Add your GitHub account in Settings → Connections first."}
 	}
 	var raw []byte
 	if body != nil {

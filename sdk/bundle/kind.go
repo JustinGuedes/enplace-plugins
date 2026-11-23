@@ -2,6 +2,7 @@ package bundle
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path"
 	"slices"
@@ -73,6 +74,10 @@ var kinds = map[string]kindRule{
 			"purposes", "schedule", "settings_panel", "skills", "stages", "test_builds", "tools", "types", "webhook", "work_fields", "work_panel"},
 	},
 	KindExtension: {},
+	KindConnection: {
+		scope: "workspace", levels: []string{"workspace"},
+		pieces: []string{"connection"},
+	},
 	KindRole: {
 		scope: "workspace", levels: []string{"workspace"},
 		pieces: []string{"role", "skills"},
@@ -156,6 +161,9 @@ func (c Contributes) pieces() ([]string, error) {
 // checkKindFiles checks the files a kind allows: a skills or role plugin
 // has no logic and holds words and pictures only. It runs where the files are known, packing and reading.
 func checkKindFiles(m *Manifest, files map[string][]byte) error {
+	if m.Kind == KindConnection && !HasLogic(files) {
+		return errors.New("a connection plugin has logic, to check who an account signs in as")
+	}
 	if m.Kind != KindSkills && m.Kind != KindRole {
 		return nil
 	}

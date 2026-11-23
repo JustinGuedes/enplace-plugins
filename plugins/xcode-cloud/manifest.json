@@ -2,30 +2,28 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "xcode-cloud",
   "name": "Xcode Cloud",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "kind": "service",
-  "format": 3,
+  "format": 4,
   "type": "ci",
   "needs": [
     {"type": "vcs", "optional": true, "scope": "project", "for": "to build the code's branches"}
   ],
   "author": "Enplace",
   "summary": "Apple's CI for an app: Enplace sets up its own workflow, starts builds, shows each one and files a bug for agents when one fails.",
-  "description": "Goes on an app product beside the App Store plugin and uses its bundle ID and App Store Connect key. Connect Xcode Cloud once in Xcode, press Set it up, and Enplace makes its own workflow from the Default one and keeps it right. When the app's Builds come from setting picks Xcode Cloud, it makes the app's store builds with that workflow, whoever asks for them (TestFlight does). It shows the app's latest builds (which workflow, branch and commit, and whether it passed), starts a workflow when you press Build, and shares its runs in the same shape any CI plugin can, so Enplace can show checks wherever they come from. Change a setting and Enplace updates its workflow in Xcode Cloud straight away; Update Xcode Cloud copies it again from the Default one. When a build fails, it files a bug with the build's errors and failed tests for an agent to fix, one per workflow and branch, and runs the build again once the bug is done.",
+  "description": "Goes on an app product beside the App Store plugin and uses its bundle ID and the product's Apple account. Connect Xcode Cloud once in Xcode, press Set it up, and Enplace makes its own workflow from the Default one and keeps it right. When the app's Builds come from setting picks Xcode Cloud, it makes the app's store builds with that workflow, whoever asks for them (TestFlight does). It shows the app's latest builds (which workflow, branch and commit, and whether it passed), starts a workflow when you press Build, and shares its runs in the same shape any CI plugin can, so Enplace can show checks wherever they come from. Change a setting and Enplace updates its workflow in Xcode Cloud straight away; Update Xcode Cloud copies it again from the Default one. When a build fails, it files a bug with the build's errors and failed tests for an agent to fix, one per workflow and branch, and runs the build again once the bug is done.",
   "colour": "#9ad0ec",
   "icon": "cloud",
   "card_settings": ["makes", "branch"],
   "suggest_for": ["app"],
+  "connections": [ { "service": "apple", "for": "starts and reads your Xcode Cloud builds" } ],
   "requires": [ { "id": "app", "version": "^3.2.0" } ],
   "permissions": { "read": ["projects", "work"], "ops": ["work.create", "work.note"], "hosts": ["api.appstoreconnect.apple.com"] },
   "settings": [
     { "key": "makes", "name": "Builds it makes", "type": "select", "scope": "project", "options": ["App Store and TestFlight", "TestFlight internal only", "Don't upload"], "default": "App Store and TestFlight", "help": "What Enplace's workflow archives the app for, in Apple's words. App Store and TestFlight: one build that can go to any tester or to review. TestFlight internal only: your own team's testers. Don't upload: the build is checked but stays in Xcode Cloud." },
     { "key": "branch", "name": "Branch", "type": "text", "scope": "project", "per": "track", "help": "The branch it builds when Enplace starts it. Blank uses the branch the Default workflow builds, like main. Each track can build its own." },
     { "key": "workflow", "name": "Workflow", "type": "text", "scope": "project", "per": "track", "help": "The workflow the Build button starts. Blank uses the first one that's switched on. Store builds use Enplace's own workflow once it's set up. Each track can name its own, like Beta for Internal beta: that workflow's runs then count as the track's.", "choices": "workflows" },
-    { "key": "on_fail", "name": "When a build fails", "type": "select", "scope": "project", "options": ["File a bug for agents", "Ask me first", "Do nothing"], "default": "File a bug for agents", "allows": { "when": "File a bug for agents", "action": "create" }, "help": "File a bug for agents adds a high-priority bug with the build's errors and failed tests, handed to agents, without asking: one per workflow and branch, and a build that fails again adds a note to it. Once the bug is done, Enplace runs that build again. Ask me first sends each new bug to Approvals. Do nothing only shows the failure here." },
-    { "key": "asc_issuer_id", "name": "Issuer ID", "type": "secret", "scope": "workspace", "from": "app", "help": "The same key as the App Store plugin's: set it once, there or here. App Store Connect → Users and Access → Integrations → App Store Connect API." },
-    { "key": "asc_key_id", "name": "Key ID", "type": "secret", "scope": "workspace", "from": "app", "help": "The ID of the key you generated there. It needs the App Manager or Admin role to start builds." },
-    { "key": "asc_private_key", "name": "Private key (.p8)", "type": "secret", "scope": "workspace", "from": "app", "multiline": true, "help": "Paste the whole .p8 file, including the BEGIN and END lines." }
+    { "key": "on_fail", "name": "When a build fails", "type": "select", "scope": "project", "options": ["File a bug for agents", "Ask me first", "Do nothing"], "default": "File a bug for agents", "allows": { "when": "File a bug for agents", "action": "create" }, "help": "File a bug for agents adds a high-priority bug with the build's errors and failed tests, handed to agents, without asking: one per workflow and branch, and a build that fails again adds a note to it. Once the bug is done, Enplace runs that build again. Ask me first sends each new bug to Approvals. Do nothing only shows the failure here." }
   ],
   "contributes": {
     "project_cards": [ { "key": "ci", "name": "Xcode Cloud", "size": "wide" } ],

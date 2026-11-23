@@ -31,6 +31,29 @@
       "if": {
         "properties": {
           "kind": {
+            "const": "connection"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "contributes": {
+            "propertyNames": {
+              "enum": [
+                "connection"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
             "const": "role"
           }
         },
@@ -171,6 +194,30 @@
     "colour": {
       "type": "string"
     },
+    "connections": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "for": {
+            "type": "string"
+          },
+          "optional": {
+            "type": "boolean"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "service": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "type": "array"
+    },
     "contributes": {
       "additionalProperties": false,
       "properties": {
@@ -179,6 +226,45 @@
         },
         "calendar": {
           "type": "boolean"
+        },
+        "connection": {
+          "additionalProperties": false,
+          "properties": {
+            "adopts": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "check": {
+              "type": "string"
+            },
+            "how": {
+              "type": "string"
+            },
+            "link": {
+              "type": "string"
+            },
+            "scopes": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "about": {
+                    "type": "string"
+                  },
+                  "key": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "service": {
+              "type": "string"
+            }
+          },
+          "type": "object"
         },
         "dashboard": {
           "items": {
@@ -802,6 +888,7 @@
     "kind": {
       "enum": [
         "agent",
+        "connection",
         "extension",
         "role",
         "service",

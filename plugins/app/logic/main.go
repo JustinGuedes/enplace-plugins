@@ -59,6 +59,7 @@ type run struct {
 }
 
 func handle(req *plugin.Request) (*plugin.Response, error) {
+	req.SignIn("apple") // the Apple account this product uses (ENP-351)
 	r := &run{req: req, res: &plugin.Response{}, pid: req.ProjectID}
 	if r.pid == "" {
 		return r.res, nil
@@ -416,7 +417,7 @@ func (r *run) panel() []plugin.Block {
 		case in.ASC:
 			blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: "App Store Connect is connected, so releases follow each version through review.", Tone: "muted"})
 		default:
-			blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: "Add App Store Connect keys in the workspace's App Store settings to follow versions through review.", Tone: "muted"})
+			blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: "Add your Apple account in Settings → Connections to follow versions through review.", Tone: "muted"})
 		}
 	}
 	var s Search
@@ -517,7 +518,7 @@ func (r *run) stores() *plugin.Page {
 			}
 			sec.Blocks = append(sec.Blocks, plugin.Block{Type: plugin.BlockList, Items: items})
 		case !in.ASC:
-			sec.Blocks = append(sec.Blocks, plugin.Block{Type: plugin.BlockText, Text: "Add App Store Connect keys to see each version's review state here.", Tone: "muted"})
+			sec.Blocks = append(sec.Blocks, plugin.Block{Type: plugin.BlockText, Text: "Add your Apple account in Settings → Connections to see each version's review state here.", Tone: "muted"})
 		}
 		btns := []plugin.Button{{Label: "Check now", Action: "refresh"}}
 		if in.StoreURL != "" {

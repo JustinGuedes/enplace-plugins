@@ -2,13 +2,13 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "github-actions",
   "name": "GitHub Actions",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "kind": "service",
-  "format": 2,
+  "format": 4,
   "type": "ci",
   "author": "Enplace",
   "summary": "A repo's GitHub Actions builds: each run and each platform's job, a Run button, and a bug for agents when one fails.",
-  "description": "Goes on a project beside the GitHub plugin and uses its repo and token. It shows the latest runs of a workflow with each of its jobs, so a build that makes several platforms (iOS, Android, Mac, PC) shows how each one went, and Run starts the workflow on a branch. Switch it on for a product too and that product shows only the job that builds it, matched by name (the iOS job for an iPhone app) or picked in its settings; it reads the project's runs, so it costs nothing extra. When a job fails it files a bug on that job's product with the failing step and its errors for an agent to fix, one per workflow, job and branch, and re-runs the failed jobs once the bug is done. On an app product it can make the app's builds: pick it in Builds come from and Enplace starts the workflow when TestFlight asks for a build. It shares its runs in the same shape any CI plugin does. With instant updates on, GitHub tells Enplace the moment a run starts or ends; otherwise it checks every 30 minutes.",
+  "description": "Goes on a project beside the GitHub plugin and uses its repo and the project's GitHub account. It shows the latest runs of a workflow with each of its jobs, so a build that makes several platforms (iOS, Android, Mac, PC) shows how each one went, and Run starts the workflow on a branch. Switch it on for a product too and that product shows only the job that builds it, matched by name (the iOS job for an iPhone app) or picked in its settings; it reads the project's runs, so it costs nothing extra. When a job fails it files a bug on that job's product with the failing step and its errors for an agent to fix, one per workflow, job and branch, and re-runs the failed jobs once the bug is done. On an app product it can make the app's builds: pick it in Builds come from and Enplace starts the workflow when TestFlight asks for a build. It shares its runs in the same shape any CI plugin does. With instant updates on, GitHub tells Enplace the moment a run starts or ends; otherwise it checks every 30 minutes.",
   "colour": "#9ad0a0",
   "icon": "play",
   "inherit": "offer",
@@ -16,14 +16,14 @@
   "card_settings": ["workflow", "branch", "job"],
   "suggest_for": ["app", "website"],
   "needs": [ { "type": "vcs", "scope": "project", "optional": true, "for": "to build the code's branches" } ],
+  "connections": [ { "service": "github", "scopes": ["repo", "workflow"], "for": "runs and reads your workflows" } ],
   "requires": [ { "id": "github", "version": "^2.3.0", "optional": true }, { "id": "app", "version": "^3.2.0", "optional": true } ],
   "permissions": { "read": ["projects", "work"], "ops": ["work.create", "work.note"], "hosts": ["api.github.com", "*.actions.githubusercontent.com", "*.blob.core.windows.net"] },
   "settings": [
     { "key": "workflow", "name": "Workflow", "type": "text", "scope": "project", "choices": "workflows", "help": "The workflow this follows and Run starts, like Build. Blank follows every workflow, and Run starts the one that ran last." },
     { "key": "branch", "name": "Branch", "type": "text", "scope": "project", "help": "The branch Run starts it on, like main or release/0.8.0. Blank uses the GitHub plugin's branch, else the repo's default." },
     { "key": "job", "name": "Job for this product", "type": "text", "scope": "project", "choices": "jobs", "help": "On a product: the job that builds it, from the workflow's latest run. Blank matches it by name: iOS for an iPhone app, Android, Mac, or Windows for PC and Steam." },
-    { "key": "on_fail", "name": "When a build fails", "type": "select", "scope": "project", "options": ["File a bug for agents", "Ask me first", "Do nothing"], "default": "File a bug for agents", "allows": { "when": "File a bug for agents", "action": "create" }, "help": "File a bug for agents adds a high-priority bug on the failed job's product, with the failing step and its errors, handed to agents without asking: one per workflow, job and branch, and a job that fails again adds a note to it. Once the bug is done, Enplace re-runs the failed jobs. Ask me first sends each new bug to Approvals. Do nothing only shows the failure here." },
-    { "key": "token", "name": "GitHub token", "type": "secret", "scope": "workspace", "from": "github", "help": "The GitHub plugin's token: set it once, there or here. Give it Actions: read to follow builds, and Actions: read and write to start and re-run them." }
+    { "key": "on_fail", "name": "When a build fails", "type": "select", "scope": "project", "options": ["File a bug for agents", "Ask me first", "Do nothing"], "default": "File a bug for agents", "allows": { "when": "File a bug for agents", "action": "create" }, "help": "File a bug for agents adds a high-priority bug on the failed job's product, with the failing step and its errors, handed to agents without asking: one per workflow, job and branch, and a job that fails again adds a note to it. Once the bug is done, Enplace re-runs the failed jobs. Ask me first sends each new bug to Approvals. Do nothing only shows the failure here." }
   ],
   "contributes": {
     "project_cards": [ { "key": "ci", "name": "GitHub Actions", "size": "wide" } ],

@@ -101,6 +101,11 @@ type Manifest struct {
 	// Builds for TestFlight. Any plugin of that type fills it, and where
 	// none does the type's manual way stands in.
 	Needs []Need `json:"needs,omitempty"`
+	// Connections are the accounts the plugin signs in with, by service,
+	// like "github" (see Connection). Enplace hands the logic the account
+	// the product or project picked, in plugin.Request.Connections, and
+	// lets it fetch from the connection's hosts. Format 4.
+	Connections []ConnectionNeed `json:"connections,omitempty"`
 	// Base marks a plugin that only exists to be extended, like the sync
 	// engine work sources build on. It's never switched on by itself: its
 	// settings, contributions and permissions only take effect folded into
@@ -438,6 +443,8 @@ type Contributes struct {
 	Stages []Stage `json:"stages,omitempty"`
 	// Purposes are new purposes for tracks this one brings (see Purpose).
 	Purposes []Purpose `json:"purposes,omitempty"`
+	// Connection is what a connection plugin signs in to (KindConnection).
+	Connection *Connection `json:"connection,omitempty"`
 }
 
 // TestBuilds says how a plugin makes test builds.
@@ -974,6 +981,9 @@ func (m *Manifest) Check() error {
 		return err
 	}
 	if err := m.checkLifecycle(); err != nil {
+		return err
+	}
+	if err := m.checkConnections(); err != nil {
 		return err
 	}
 	if len(m.Permissions.Hosts) > 20 {

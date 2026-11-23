@@ -50,7 +50,7 @@ func (c *client) call(method, path string, body any) ([]byte, error) {
 	case s >= 200 && s < 300:
 		return res.Body, nil
 	case s == 401:
-		return nil, &apiError{s, "GitHub turned the token down. Check it in the GitHub plugin's settings."}
+		return nil, &apiError{s, "GitHub turned the token down. Check it in Settings → Connections."}
 	case s == 403 && method != "GET":
 		return nil, &apiError{s, "the token can't start builds here. Give it Actions: read and write."}
 	case s == 403 || s == 429:

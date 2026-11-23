@@ -17,6 +17,7 @@ var update = flag.Bool("update", false, "rewrite the plugin list in README.md")
 var kindHeadings = []struct{ kind, heading string }{
 	{bundle.KindAgent, "Agents"},
 	{bundle.KindSource, "Work sources"},
+	{bundle.KindConnection, "Connections"},
 	{bundle.KindService, "Services"},
 	{bundle.KindExtension, "Extensions"},
 	{bundle.KindSkills, "Skill packs"},

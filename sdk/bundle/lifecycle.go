@@ -28,7 +28,9 @@ import (
 //   - 1: everything before lifecycle types.
 //   - 2: type, needs, format, contributes.types and contributes.stages.
 //   - 3: tracks: a setting's per, and contributes.purposes.
-const FormatVersion = 3
+//   - 4: connections: the connection kind, contributes.connection and a
+//     plugin's connections.
+const FormatVersion = 4
 
 // ErrNewerFormat is returned for a manifest written for a newer Enplace.
 var ErrNewerFormat = errors.New("this plugin needs a newer Enplace")
