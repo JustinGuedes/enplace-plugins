@@ -60,6 +60,7 @@ type run struct {
 }
 
 func handle(req *plugin.Request) (*plugin.Response, error) {
+	req.SignIn("google") // the Google Play account this product uses (ENP-351)
 	r := &run{req: req, res: &plugin.Response{}, pid: req.ProjectID}
 	if r.pid == "" {
 		return r.res, nil
@@ -152,7 +153,7 @@ func call(method, u string, headers map[string]string, body []byte) (int, []byte
 }
 
 func (r *run) client(pkg string) (*play.Client, error) {
-	return play.New(call, r.req.Secrets["play_key"], pkg, r.req.Now)
+	return play.New(call, r.req.Secrets["service_account"], pkg, r.req.Now)
 }
 
 // refresh reads the testing tracks, writes a new build's release notes,
@@ -165,7 +166,7 @@ func (r *run) refresh() {
 		r.res.SetProject(r.pid, keyStatus, s)
 		r.publish(s)
 	}()
-	if !s.Connected || s.Package == "" || r.req.Secrets["play_key"] == "" {
+	if !s.Connected || s.Package == "" || r.req.Secrets["service_account"] == "" {
 		s.keep(was)
 		return
 	}

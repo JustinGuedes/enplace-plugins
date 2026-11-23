@@ -117,3 +117,40 @@ func TestPageShowsSetupUntilConnected(t *testing.T) {
 		t.Fatalf("sections = %s", got)
 	}
 }
+
+// Each step that asks for something goes straight to where it's typed: the
+// package name and the Google Play account on the Settings tab (ENP-361).
+func TestStepsGoToSettings(t *testing.T) {
+	r := &run{req: request(plugin.HookRender, map[string]any{}, nil), pid: "p/android"}
+	steps := r.steps(nil)
+	if b := steps[0].Buttons; len(b) == 0 || b[0].Href != "settings#fields" {
+		t.Errorf("package step buttons = %+v", b)
+	}
+	req := request(plugin.HookRender, map[string]any{}, nil)
+	req.Slots = []string{plugin.SlotSettingsPanel}
+	res := plugintest.Call(t, handle, req)
+	blocks := res.Cards[plugin.SlotSettingsPanel]
+	var add bool
+	for _, b := range blocks[len(blocks)-1].Buttons {
+		add = add || b.Href == "settings#account"
+	}
+	if !add {
+		t.Errorf("no Add the account button: %+v", blocks[len(blocks)-1])
+	}
+}
+
+// The key comes from the product's Google Play account (ENP-351).
+func TestSignsInWithTheGoogleAccount(t *testing.T) {
+	req := request(plugin.HookRender, map[string]any{"package_name": "com.demo"}, nil)
+	req.Connections = map[string]plugin.Account{"google": {Values: map[string]string{"service_account": "{}"}}}
+	r := &run{req: req, pid: "p/android"}
+	req.SignIn("google")
+	if r.stepsLeft(nil)[0] != "Switch on the Google Play APIs" {
+		t.Fatalf("left: %v", r.stepsLeft(nil))
+	}
+	for _, s := range r.steps(nil) {
+		if s.Title == "Add your Google Play account" && !s.Done {
+			t.Fatal("the account's key isn't seen")
+		}
+	}
+}

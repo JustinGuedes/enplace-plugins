@@ -57,7 +57,11 @@ type run struct {
 	pid string
 }
 
+// keyName is the Google Play account's key, from its connection (ENP-351).
+const keyName = "service_account"
+
 func handle(req *plugin.Request) (*plugin.Response, error) {
+	req.SignIn("google") // the Google Play account this product uses
 	r := &run{req: req, res: &plugin.Response{}, pid: req.ProjectID}
 	if r.pid == "" {
 		return r.res, nil
@@ -127,13 +131,13 @@ func call(method, u string, headers map[string]string, body []byte) (int, []byte
 }
 
 func (r *run) client() (*play.Client, error) {
-	return play.New(call, r.req.Secrets["play_key"], r.pkg(), r.req.Now)
+	return play.New(call, r.req.Secrets[keyName], r.pkg(), r.req.Now)
 }
 
 // refresh reads the Play Console and publishes what's live.
 func (r *run) refresh() {
 	was := r.status()
-	s := &Status{CheckedAt: r.req.Now, Package: r.pkg(), Key: r.req.Secrets["play_key"] != ""}
+	s := &Status{CheckedAt: r.req.Now, Package: r.pkg(), Key: r.req.Secrets[keyName] != ""}
 	defer func() {
 		r.res.SetProject(r.pid, keyStatus, s)
 		r.publish(s)
@@ -141,7 +145,7 @@ func (r *run) refresh() {
 	if !s.Key {
 		return
 	}
-	k, err := play.ParseKey(r.req.Secrets["play_key"])
+	k, err := play.ParseKey(r.req.Secrets[keyName])
 	if err != nil {
 		s.Reason, s.Error = play.ReasonKey, err.Error()
 		return

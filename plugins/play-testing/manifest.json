@@ -2,9 +2,9 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "play-testing",
   "name": "Play testing",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "kind": "service",
-  "format": 3,
+  "format": 4,
   "type": "beta",
   "needs": [
     {"type": "ci", "contract": "^1", "for": "to get builds"}
@@ -16,6 +16,7 @@
   "icon": "play",
   "card_settings": ["language"],
   "suggest_for": ["app"],
+  "connections": [ { "service": "google", "for": "follows and promotes testing builds" } ],
   "requires": [
     { "id": "google-play", "version": "^2.0.0" },
     { "id": "releases", "version": "^3.0.0", "optional": true }
@@ -24,8 +25,7 @@
   "settings": [
     { "key": "play_track", "name": "Play track", "type": "select", "scope": "project", "per": "track", "options": ["Internal testing", "Closed testing", "Open testing"], "help": "The Google Play track this track's builds go to. Blank: Internal testing for your own team's track, Closed testing for testers outside it." },
     { "key": "release_notes", "name": "Write release notes", "type": "toggle", "scope": "project", "default": true, "help": "Fills in a new build's release notes on Play from the work finished since the build before it, when it has none." },
-    { "key": "language", "name": "Language", "type": "text", "scope": "project", "level": "product", "detail": "app.language", "help": "The language the release notes are in, like en-US." },
-    { "key": "play_key", "name": "Play Console key", "type": "secret", "scope": "workspace", "from": "google-play", "multiline": true, "help": "Google Play's key: set it once, there or here." }
+    { "key": "language", "name": "Language", "type": "text", "scope": "project", "level": "product", "detail": "app.language", "help": "The language the release notes are in, like en-US." }
   ],
   "contributes": {
     "project_cards": [ { "key": "play_testing", "name": "Play testing", "size": "wide" } ],
