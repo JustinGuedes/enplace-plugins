@@ -87,6 +87,20 @@ type Manifest struct {
 	// "claude" for "claude-code". The store stops offering this one, and
 	// Enplace moves what it has set up over to the new one.
 	ReplacedBy string `json:"replaced_by,omitempty"`
+	// Format is the manifest format the plugin is written for (see
+	// FormatVersion). Leave it out until the plugin uses a field from a
+	// newer format; an Enplace that reads an older format then keeps the
+	// plugin's previous version instead of failing on this one.
+	Format int `json:"format,omitempty"`
+	// Type is the one job the plugin does in a product's lifecycle, like
+	// "ci" for Builds (see Types). A source plugin is "work" by itself.
+	// Agents, roles and skill packs have none; an extension without one
+	// shows as an extra.
+	Type string `json:"type,omitempty"`
+	// Needs are jobs the plugin needs another plugin to do, by type, like
+	// Builds for TestFlight. Any plugin of that type fills it, and where
+	// none does the type's manual way stands in.
+	Needs []Need `json:"needs,omitempty"`
 	// Base marks a plugin that only exists to be extended, like the sync
 	// engine work sources build on. It's never switched on by itself: its
 	// settings, contributions and permissions only take effect folded into
@@ -409,6 +423,13 @@ type Contributes struct {
 	// its action with plugin.TestBuildAsk as the args; the plugin publishes
 	// how it's going as plugin.KeyTestBuild (see plugin.TestBuild).
 	TestBuilds *TestBuilds `json:"test_builds,omitempty"`
+	// Types are new types of plugin this one brings, for jobs Enplace
+	// doesn't know yet (see Type). Other plugins can then be of them and
+	// need them.
+	Types []Type `json:"types,omitempty"`
+	// Stages are new lifecycle stages this one brings (see Stage), like
+	// Print for something people hold.
+	Stages []Stage `json:"stages,omitempty"`
 }
 
 // TestBuilds says how a plugin makes test builds.
@@ -576,6 +597,12 @@ var Reserved = []string{"enplace", "core", "settings", "plugins", "today"}
 func ParseManifest(raw []byte) (*Manifest, error) {
 	if len(raw) == 0 {
 		return nil, errors.New("the manifest is empty")
+	}
+	var head struct {
+		Format int `json:"format"`
+	}
+	if json.Unmarshal(raw, &head) == nil && head.Format > FormatVersion {
+		return nil, fmt.Errorf("manifest.json: %w (format %d; this one reads %d)", ErrNewerFormat, head.Format, FormatVersion)
 	}
 	var m Manifest
 	dec := json.NewDecoder(strings.NewReader(string(raw)))
@@ -933,6 +960,9 @@ func (m *Manifest) Check() error {
 		return err
 	}
 	if err := m.checkRunner(); err != nil {
+		return err
+	}
+	if err := m.checkLifecycle(); err != nil {
 		return err
 	}
 	if len(m.Permissions.Hosts) > 20 {
