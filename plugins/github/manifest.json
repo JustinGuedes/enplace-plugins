@@ -2,7 +2,7 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "github",
   "name": "GitHub",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "kind": "service",
   "format": 2,
   "type": "vcs",

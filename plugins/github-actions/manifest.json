@@ -16,7 +16,7 @@
   "card_settings": ["workflow", "branch", "job"],
   "suggest_for": ["app", "website"],
   "needs": [ { "type": "vcs", "scope": "project", "optional": true, "for": "to build the code's branches" } ],
-  "requires": [ { "id": "github", "version": "^2.2.0", "optional": true }, { "id": "app", "version": "^3.2.0", "optional": true } ],
+  "requires": [ { "id": "github", "version": "^2.3.0", "optional": true }, { "id": "app", "version": "^3.2.0", "optional": true } ],
   "permissions": { "read": ["projects", "work"], "ops": ["work.create", "work.note"], "hosts": ["api.github.com", "*.actions.githubusercontent.com", "*.blob.core.windows.net"] },
   "settings": [
     { "key": "workflow", "name": "Workflow", "type": "text", "scope": "project", "choices": "workflows", "help": "The workflow this follows and Run starts, like Build. Blank follows every workflow, and Run starts the one that ran last." },
