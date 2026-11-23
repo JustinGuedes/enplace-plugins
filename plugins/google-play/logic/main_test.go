@@ -154,3 +154,28 @@ func TestSignsInWithTheGoogleAccount(t *testing.T) {
 		}
 	}
 }
+
+// The product gets the listing's icon when it changes, and loses it only
+// when a connected listing has none (ENP-380).
+func TestGivesTheProductTheListingsIcon(t *testing.T) {
+	icon := func(s, was *Status) string {
+		res := &plugin.Response{}
+		(&run{req: request(plugin.HookSchedule, nil, nil), res: res, pid: "p/android"}).giveIcon(s, was)
+		if len(res.Ops) == 0 {
+			return "none"
+		}
+		return res.Ops[0].Params.(map[string]string)["icon_url"]
+	}
+	if got := icon(&Status{Connected: true, Icon: "https://x/icon"}, nil); got != "https://x/icon" {
+		t.Errorf("new icon: %s", got)
+	}
+	if got := icon(&Status{Connected: true, Icon: "https://x/icon"}, &Status{Icon: "https://x/icon"}); got != "none" {
+		t.Errorf("same icon sent again: %s", got)
+	}
+	if got := icon(&Status{}, &Status{Icon: "https://x/icon"}); got != "none" {
+		t.Errorf("a failed check cleared the icon: %s", got)
+	}
+	if got := icon(&Status{Connected: true}, &Status{Icon: "https://x/icon"}); got != "" {
+		t.Errorf("a listing without an icon kept it: %s", got)
+	}
+}

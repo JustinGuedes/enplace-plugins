@@ -158,3 +158,24 @@ func TestLivePrefersTheRollout(t *testing.T) {
 		t.Fatalf("live = %+v", r)
 	}
 }
+
+// The listing's icon comes from the same edit as the tracks (ENP-380).
+func TestTracksAndIconReadsTheListingsIcon(t *testing.T) {
+	f := (&fake{}).
+		on("POST", "/com.demo/edits", 200, `{"id":"e1"}`).
+		on("GET", "/edits/e1/tracks", 200, `{"tracks":[]}`).
+		on("GET", "/edits/e1/details", 200, `{"defaultLanguage":"en-US"}`).
+		on("GET", "/edits/e1/listings/en-US/icon", 200, `{"images":[{"id":"i1","url":"https://lh3.googleusercontent.com/icon"}]}`).
+		on("DELETE", "/edits/e1", 204, ``)
+	c, err := New(f.call, testKey(t), "com.demo", time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, icon, err := c.TracksAndIcon(true); err != nil || icon != "https://lh3.googleusercontent.com/icon" {
+		t.Fatalf("icon = %q, %v", icon, err)
+	}
+	f.calls = nil
+	if _, icon, _ := c.TracksAndIcon(false); icon != "" || len(f.calls) != 3 {
+		t.Fatalf("read the icon when not asked: %q %v", icon, f.calls)
+	}
+}
