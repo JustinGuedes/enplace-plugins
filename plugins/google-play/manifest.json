@@ -2,26 +2,32 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "google-play",
   "name": "Google Play",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "kind": "service",
   "format": 2,
   "type": "store",
   "author": "Enplace",
-  "summary": "Keep an app's Google Play listing beside the product: its package, page and live version.",
-  "description": "Goes on an app product that ships to Android. Add the package name and the Google Play page, and type the version that's live until the Play Console can be connected. With Release cycle on, the cycle numbers releases from that version. For iPhone and Mac, add App Store to the same product.",
+  "summary": "Follow an Android app on Google Play: what's live, its staged rollout, reviews and crash rates, from the Play Console.",
+  "description": "Goes on an app product that ships to Android. Connect the Play Console once with a service account key (the steps open the right Google pages and tick themselves off), and it shows what's live on production, raises, halts or finishes a staged rollout, lists the week's reviews with a reply box, and warns when crash or ANR rates pass Google Play's line. The key is shared with Play testing, which gets builds to testers. With Release cycle on, the cycle numbers releases from what's live. For iPhone and Mac, add App Store to the same product.",
   "colour": "#8be28b",
   "icon": "app",
   "card_settings": ["package_name"],
+  "suggest_for": ["app"],
   "requires": [ { "id": "releases", "version": "^3.0.0", "optional": true } ],
-  "permissions": { "read": ["projects"] },
+  "permissions": { "read": ["projects"], "hosts": ["oauth2.googleapis.com", "androidpublisher.googleapis.com", "playdeveloperreporting.googleapis.com"] },
   "settings": [
-    { "key": "package_name", "detail": "app.package_name", "name": "Package name", "type": "text", "scope": "project", "help": "Like com.example.app." },
-    { "key": "play_url", "name": "Google Play page", "type": "url", "scope": "project" },
-    { "key": "play_version", "name": "Version live on Google Play", "type": "text", "scope": "project", "help": "Typed by hand until the Play Console is connected." }
+    { "key": "package_name", "detail": "app.package_name", "name": "Package name", "type": "text", "scope": "project", "help": "Like com.example.app: the applicationId your Android build uses." },
+    { "key": "play_key", "name": "Play Console key", "type": "secret", "scope": "workspace", "multiline": true, "share_with": ["play-testing"], "help": "A Google Cloud service account's JSON key file, pasted whole. The setup steps say how to make one and invite it in the Play Console." },
+    { "key": "play_url", "name": "Google Play page", "type": "url", "scope": "project", "help": "Blank uses the app's page from its package name." },
+    { "key": "play_version", "name": "Version live on Google Play", "type": "text", "scope": "project", "help": "Only used until the Play Console is connected." }
   ],
   "contributes": {
-    "project_cards": [ { "key": "play", "name": "Google Play", "size": "small" } ],
+    "project_cards": [ { "key": "play", "name": "Google Play", "size": "wide" } ],
+    "pages": [ { "key": "play", "name": "Google Play", "icon": "app", "where": "project" } ],
     "schedule": { "every": 60, "per": "project" },
-    "settings_panel": true
+    "settings_panel": true,
+    "tools": [
+      { "name": "get_google_play", "description": "A product's Google Play app: its package, whether the Play Console is connected and what setup is left, each track's live release, production's staged rollout, the week's reviews and the crash and ANR rates.", "action": "tool_google_play", "project": true }
+    ]
   }
 }
