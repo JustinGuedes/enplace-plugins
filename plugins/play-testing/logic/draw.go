@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -23,14 +24,11 @@ type step struct {
 
 func (r *run) steps(s *Status) []step {
 	st, _ := r.store()
-	t, hasTrack := r.track()
+	_, hasTrack := r.track()
 	c, hasCI := r.ci()
 	_, hasBuild := latest(s)
 	connect := "It signs in with the same Google Play account as Google Play. Add it once, then invite it in the Play Console as Google Play's steps say."
 	feeds := "Pick the Play track testers get on the Settings tab. It needs a track that makes builds for testers under the product's Tracks."
-	if hasTrack {
-		feeds = t.Name + " builds go to " + play.TrackName(playTrack(t)) + "."
-	}
 	builds := "Add a Builds plugin, like GitHub Actions, that builds the Android app."
 	if hasCI {
 		builds = c.Name + " builds the app. " + uploadHelp
@@ -38,11 +36,13 @@ func (r *run) steps(s *Status) []step {
 	if hasBuild {
 		builds = "Builds reach Google Play."
 	}
-	return []step{
-		{Title: "Connect the Play Console", How: connect, Done: st.Connected, Button: &plugin.Button{Label: "Add the account", Href: "settings#account"}},
-		{Title: "Pick the track testers get", How: feeds, Done: hasTrack, Button: &plugin.Button{Label: "Pick it", Href: "settings#fields"}},
-		{Title: "Builds reach Google Play", How: builds, Done: hasBuild},
+	steps := []step{{Title: "Connect the Play Console", How: connect, Done: st.Connected, Button: &plugin.Button{Label: "Add the account", Href: "settings#account"}}}
+	// A track that already sends builds to testers needs nothing from you, so
+	// it isn't a step: a fresh product doesn't start with one ticked (ENP-367).
+	if !hasTrack {
+		steps = append(steps, step{Title: "Pick the track testers get", How: feeds, Button: &plugin.Button{Label: "Pick it", Href: "settings#fields"}})
 	}
+	return append(steps, step{Title: "Builds reach Google Play", How: builds, Done: hasBuild})
 }
 
 func (r *run) stepsLeft(s *Status) []string {
@@ -65,11 +65,27 @@ func (r *run) setup(s *Status) []plugin.Block {
 		}
 		items = append(items, it)
 	}
-	return []plugin.Block{
-		{Type: plugin.BlockText, Text: fmt.Sprintf("%d of %d steps left. Each ticks itself off once Enplace sees it done.", len(r.stepsLeft(s)), len(steps))},
+	blocks := []plugin.Block{
+		{Type: plugin.BlockText, Text: fmt.Sprintf("%d of %d steps left. Press Check now after each.", len(r.stepsLeft(s)), len(steps))},
 		{Type: plugin.BlockList, Items: items},
-		{Type: plugin.BlockButtons, Buttons: []plugin.Button{{Label: "Check now", Action: "refresh"}}},
 	}
+	if line := r.feedsLine(); line != "" {
+		blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Tone: "muted", Text: line})
+	}
+	return append(blocks, plugin.Block{Type: plugin.BlockButtons, Buttons: []plugin.Button{{Label: "Check now", Action: "refresh"}}})
+}
+
+// feedsLine says which Play track each of the product's tracks sends to.
+func (r *run) feedsLine() string {
+	lines := []string{}
+	for name, p := range r.trackMap() {
+		lines = append(lines, "Builds from "+name+" go to "+p)
+	}
+	if len(lines) == 0 {
+		return ""
+	}
+	sort.Strings(lines)
+	return strings.Join(lines, ". ") + ". Change it on the Settings tab."
 }
 
 func (r *run) panel() []plugin.Block {
