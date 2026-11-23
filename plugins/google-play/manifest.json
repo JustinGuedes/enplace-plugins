@@ -2,7 +2,7 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "google-play",
   "name": "Google Play",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "kind": "service",
   "format": 4,
   "type": "store",
@@ -15,7 +15,7 @@
   "suggest_for": ["app"],
   "connections": [ { "service": "google", "for": "reads what's live, rollouts, reviews and crash rates" } ],
   "requires": [ { "id": "releases", "version": "^3.0.0", "optional": true } ],
-  "permissions": { "read": ["projects"], "hosts": ["oauth2.googleapis.com", "androidpublisher.googleapis.com", "playdeveloperreporting.googleapis.com"] },
+  "permissions": { "read": ["projects"], "ops": ["project.icon"], "hosts": ["oauth2.googleapis.com", "androidpublisher.googleapis.com", "playdeveloperreporting.googleapis.com"] },
   "settings": [
     { "key": "package_name", "detail": "app.package_name", "name": "Package name", "type": "text", "scope": "project", "help": "Like com.example.app: the applicationId your Android build uses." },
     { "key": "play_url", "name": "Google Play page", "type": "url", "scope": "project", "help": "Blank uses the app's page from its package name." },

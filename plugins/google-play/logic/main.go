@@ -41,6 +41,9 @@ type Status struct {
 	Reviews []play.Review `json:"reviews,omitempty"`
 	Vitals  *play.Vitals  `json:"vitals,omitempty"`
 	Notes   []string      `json:"notes,omitempty"`
+	// Icon is the store listing's icon, read at IconAt (ENP-380).
+	Icon   string    `json:"icon,omitempty"`
+	IconAt time.Time `json:"icon_at,omitzero"`
 }
 
 // Shelf is one track and the release on it.
@@ -50,6 +53,9 @@ type Shelf struct {
 }
 
 const keyStatus = "status"
+
+// iconEvery is how often it reads the listing's icon again.
+const iconEvery = 24 * time.Hour
 
 type run struct {
 	req *plugin.Request
@@ -141,6 +147,7 @@ func (r *run) refresh() {
 	defer func() {
 		r.res.SetProject(r.pid, keyStatus, s)
 		r.publish(s)
+		r.giveIcon(s, was)
 	}()
 	if !s.Key {
 		return
@@ -156,7 +163,7 @@ func (r *run) refresh() {
 	}
 	c, err := r.client()
 	if err == nil {
-		err = r.read(c, s)
+		err = r.read(c, s, was)
 	}
 	if err != nil {
 		s.Error = err.Error()
@@ -178,10 +185,18 @@ func (r *run) refresh() {
 }
 
 // read fills in the tracks and what's live on production.
-func (r *run) read(c *play.Client, s *Status) error {
-	ts, err := c.Tracks()
+func (r *run) read(c *play.Client, s *Status, was *Status) error {
+	// The icon rarely changes: read it once a day, or for a new package.
+	fresh := was != nil && was.Package == s.Package && r.req.Now.Sub(was.IconAt) < iconEvery
+	if fresh {
+		s.Icon, s.IconAt = was.Icon, was.IconAt
+	}
+	ts, icon, err := c.TracksAndIcon(!fresh)
 	if err != nil {
 		return err
+	}
+	if !fresh {
+		s.Icon, s.IconAt = icon, r.req.Now
 	}
 	for _, t := range ts {
 		if rel, ok := play.Live(t); ok {
@@ -198,6 +213,7 @@ func (r *run) read(c *play.Client, s *Status) error {
 func (s *Status) keep(was *Status) {
 	if was != nil && was.Package == s.Package && s.Reason == play.ReasonOther {
 		s.Tracks, s.Live, s.Reviews, s.Vitals = was.Tracks, was.Live, was.Reviews, was.Vitals
+		s.Icon, s.IconAt = was.Icon, was.IconAt
 	}
 }
 
@@ -208,6 +224,18 @@ func (r *run) version(s *Status) string {
 		return s.Live.Name
 	}
 	return r.setting("play_version")
+}
+
+// giveIcon gives the product the listing's icon when it changes, like App
+// does with the App Store's (ENP-380).
+func (r *run) giveIcon(s *Status, was *Status) {
+	before := ""
+	if was != nil {
+		before = was.Icon
+	}
+	if s.Icon != before && (s.Icon != "" || s.Connected) {
+		r.res.Ops = append(r.res.Ops, plugin.Op{Kind: "project.icon", ProjectID: r.pid, Params: map[string]string{"icon_url": s.Icon}})
+	}
 }
 
 func (r *run) publish(s *Status) {

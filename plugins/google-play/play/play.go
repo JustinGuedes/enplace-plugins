@@ -318,6 +318,45 @@ func (c *Client) Tracks() ([]Track, error) {
 	return e.Tracks()
 }
 
+// Icon is the store listing's icon in its default language, or "" when
+// the listing has none yet (ENP-380).
+func (e *Edit) Icon() (string, error) {
+	var d struct {
+		Lang string `json:"defaultLanguage"`
+	}
+	if err := e.c.Do("GET", e.url()+"/details", nil, &d); err != nil || d.Lang == "" {
+		return "", err
+	}
+	var out struct {
+		Images []struct {
+			URL string `json:"url"`
+		} `json:"images"`
+	}
+	if err := e.c.Do("GET", e.url()+"/listings/"+url.PathEscape(d.Lang)+"/icon", nil, &out); err != nil {
+		return "", err
+	}
+	if len(out.Images) == 0 {
+		return "", nil
+	}
+	return out.Images[0].URL, nil
+}
+
+// TracksAndIcon reads every track and, with icon, the listing's icon, in
+// one throwaway edit.
+func (c *Client) TracksAndIcon(icon bool) ([]Track, string, error) {
+	e, err := c.Edit()
+	if err != nil {
+		return nil, "", err
+	}
+	defer e.Drop()
+	ts, err := e.Tracks()
+	if err != nil || !icon {
+		return ts, "", err
+	}
+	u, err := e.Icon()
+	return ts, u, err
+}
+
 // Change opens an edit, hands its tracks to change, and commits when
 // change says to; otherwise the edit is dropped.
 func (c *Client) Change(change func(tracks []Track, e *Edit) (bool, error)) error {
