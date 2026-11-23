@@ -81,3 +81,25 @@ func TestBuiltInCatalogue(t *testing.T) {
 		t.Errorf("build stage: %+v", s)
 	}
 }
+
+func TestPerTrackSettingsAndPurposes(t *testing.T) {
+	m, err := ParseManifest([]byte(`{"id":"ci","name":"CI","version":"1.0.0","kind":"service","type":"ci","format":3,
+		"settings":[{"key":"workflow","name":"Workflow","type":"text","scope":"project","per":"track"}],
+		"contributes":{"purposes":[{"key":"nightly","name":"Nightly"}]}}`))
+	if err != nil || m.Settings[0].Per != "track" || m.Contributes.Purposes[0].Key != "nightly" {
+		t.Fatalf("%+v %v", m, err)
+	}
+	for _, c := range []struct{ json, want string }{
+		{`"settings":[{"key":"k","name":"K","type":"secret","scope":"project","per":"track"}]`, "per must be track"},
+		{`"settings":[{"key":"k","name":"K","type":"text","scope":"project","per":"release"}]`, "per must be track"},
+		{`"contributes":{"purposes":[{"key":"internal","name":"Mine"}]}`, "needs a new key"},
+	} {
+		_, err := ParseManifest([]byte(`{"id":"demo","name":"Demo","version":"1.0.0","kind":"service",` + c.json + `}`))
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: got %v, want %q", c.json, err, c.want)
+		}
+	}
+	if p, ok := PurposeByKey("check"); !ok || p.Makes {
+		t.Fatal("a check track makes nothing")
+	}
+}

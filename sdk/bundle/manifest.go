@@ -297,6 +297,12 @@ type Setting struct {
 	// once for both, when that plugin shares it (ShareWith). It names a
 	// plugin in Requires.
 	From string `json:"from,omitempty"`
+	// Per "track" lets the setting hold a different value in each of a
+	// product's tracks (ENP-350), like a CI plugin's workflow or a beta
+	// plugin's tester group. The logic reads each track's value from
+	// plugin.Request.Tracks; ProjectSettings holds the first track's.
+	// Only for project settings that aren't secrets or details.
+	Per string `json:"per,omitempty"`
 }
 
 // Owner is the id of the plugin whose secret a setting holds: From when
@@ -430,6 +436,8 @@ type Contributes struct {
 	// Stages are new lifecycle stages this one brings (see Stage), like
 	// Print for something people hold.
 	Stages []Stage `json:"stages,omitempty"`
+	// Purposes are new purposes for tracks this one brings (see Purpose).
+	Purposes []Purpose `json:"purposes,omitempty"`
 }
 
 // TestBuilds says how a plugin makes test builds.
@@ -778,6 +786,9 @@ func (m *Manifest) Check() error {
 			if _, ok := DetailFor(s.Detail); !ok || s.Scope != "project" || (s.Type != "text" && s.Type != "url") || s.Default != nil || s.Choices != "" {
 				return fmt.Errorf("setting %s: detail names one of the shared details, on a project text or url setting with no default", s.Key)
 			}
+		}
+		if s.Per != "" && (s.Per != "track" || s.Scope != "project" || s.Type == "secret" || s.Detail != "" || s.Level == "project") {
+			return fmt.Errorf("setting %s: per must be track, on a project setting that's no secret or detail", s.Key)
 		}
 		if s.Type == "secret" && s.Default != nil {
 			return fmt.Errorf("setting %s: a secret can't have a default", s.Key)

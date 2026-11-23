@@ -74,6 +74,7 @@
                 "pages",
                 "project_cards",
                 "project_status",
+                "purposes",
                 "schedule",
                 "settings_panel",
                 "skills",
@@ -133,6 +134,7 @@
                 "events",
                 "project_cards",
                 "project_status",
+                "purposes",
                 "schedule",
                 "settings_panel",
                 "skills",
@@ -309,6 +311,27 @@
         },
         "project_status": {
           "type": "boolean"
+        },
+        "purposes": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "about": {
+                "type": "string"
+              },
+              "key": {
+                "type": "string"
+              },
+              "makes": {
+                "type": "boolean"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
         },
         "rail_chip": {
           "type": "boolean"
@@ -940,6 +963,9 @@
               "type": "string"
             },
             "type": "array"
+          },
+          "per": {
+            "type": "string"
           },
           "scope": {
             "type": "string"
