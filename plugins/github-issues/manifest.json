@@ -2,14 +2,16 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "github-issues",
   "name": "GitHub Issues",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "kind": "source",
+  "format": 4,
   "author": "Enplace",
   "summary": "Use a repository's issues as a project's work.",
   "description": "Keeps a project's work in step with a GitHub repository's issues. Open issues come in as work (the first time as one batch, so it's one approval), and titles, descriptions, labels, assignees (by GitHub login) and stages stay in step both ways: closing an issue on GitHub marks the work done, and marking the work done here closes the issue. Pull requests never come in as work; the GitHub plugin already shows them on the items they mention. With GitHub on the project, it uses that repo and token, so there's nothing to set up. New work you add here becomes an issue only if you switch that on, so private planning stays off a public repo.",
   "colour": "#f2f2f0",
   "icon": "link",
   "suggest_for": [],
+  "connections": [ { "service": "github", "scopes": ["repo"], "for": "keeps issues in step with your work", "optional": true } ],
   "requires": [ { "id": "work-sync", "version": "^1.1.0" }, { "id": "github", "version": "^2.0.0", "optional": true } ],
   "card_settings": ["repo", "direction"],
   "contributes": {
@@ -20,7 +22,6 @@
     { "key": "repo", "name": "Repository", "type": "text", "scope": "project", "help": "Like owner/name. Blank uses the GitHub plugin's repo for this project." },
     { "key": "new_issues", "name": "New issues", "type": "select", "scope": "project", "options": ["Wait in the tray", "Ask me in Approvals", "Add automatically"], "default": "Wait in the tray", "allows": { "when": "Add automatically", "action": "create" }, "help": "Wait in the tray puts new issues in a From GitHub tray at the top of the project's work, to Accept or Skip; issues you open yourself, and ones with a label below, skip it. Ask me in Approvals sends each one to Approvals. Add automatically lets GitHub Issues add work to this project without asking, which shows in Permissions." },
     { "key": "bring_labels", "name": "Bring straight in when labelled", "type": "text", "scope": "project", "help": "Labels, split by commas, like enplace: issues with any of them skip the tray." },
-    { "key": "labels", "name": "Only issues labelled", "type": "text", "scope": "project", "help": "Blank brings in every open issue. Or labels, split by commas, like enplace: only issues with all of them come in, and new issues made from here get them." },
-    { "key": "token", "name": "GitHub token", "type": "secret", "scope": "workspace", "from": "github", "help": "The GitHub plugin's token, set once for both. Public repos can be read without one; changing issues needs a fine-grained token with Issues read and write." }
+    { "key": "labels", "name": "Only issues labelled", "type": "text", "scope": "project", "help": "Blank brings in every open issue. Or labels, split by commas, like enplace: only issues with all of them come in, and new issues made from here get them." }
   ]
 }

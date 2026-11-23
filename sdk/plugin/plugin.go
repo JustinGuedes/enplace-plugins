@@ -108,6 +108,11 @@ type Request struct {
 	// key: the project's own when the call is for a project, else the
 	// workspace's. They're only sent to schedule, action and event hooks.
 	Secrets map[string]string `json:"secrets,omitempty"`
+	// Connections are the accounts the plugin signs in with (the
+	// manifest's connections), by service: the one the product or project
+	// picked, else the workspace's. Same hooks as Secrets. A connection
+	// plugin's check action gets the account it checks here.
+	Connections map[string]Account `json:"connections,omitempty"`
 	// Vault is what the plugin stored with VaultPut, by name (same hooks).
 	Vault map[string]string `json:"vault,omitempty"`
 	// Peers is what linked plugins published: the state keys starting
@@ -923,6 +928,18 @@ type Track struct {
 type Trigger struct {
 	On      string `json:"on"`
 	Pattern string `json:"pattern,omitempty"`
+}
+
+// OnTracks are the keys of the scope's tracks this plugin is a step in,
+// like the tracks a builder makes the builds for.
+func (r *Request) OnTracks(scope string) []string {
+	var out []string
+	for _, t := range r.Tracks[scope] {
+		if t.On {
+			out = append(out, t.Key)
+		}
+	}
+	return out
 }
 
 // TrackFor finds the track a request names, or the first track of the

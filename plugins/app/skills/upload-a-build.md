@@ -5,7 +5,7 @@ applies: work tagged build, or uploading an app build to App Store Connect or Te
 
 # When to use
 A work item from the App Store plugin ("Build … and upload it"), filed when the
-app's Builds come from setting is "An agent on my Mac". It names the bundle ID,
+app has no build plugin on its track and its "Without a build plugin" setting is "An agent on my Mac". It names the bundle ID,
 branch, key ID and issuer ID, and usually the version and build number. The private key is a
 file on this Mac; it's never in the item.
 

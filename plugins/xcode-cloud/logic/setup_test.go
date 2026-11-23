@@ -87,8 +87,9 @@ func ownWorkflow(audience string) string {
 		"relationships":{"repository":{"data":{"type":"scmRepositories","id":"r1"}}}}}`
 }
 
-// A store build App passes on starts Enplace's workflow, only when the
-// app's Builds come from picks Xcode Cloud.
+// A store build App passes on starts Enplace's workflow, only when it's
+// passed to Xcode Cloud: the Builds step of its track, or, from an older
+// App, its pick in public.app.
 func TestStartsAStoreBuildWhenPicked(t *testing.T) {
 	sent := fake(t, withDefault(map[string]string{
 		"GET /v1/ciProducts/cp1/workflows":         ownWorkflows,
@@ -109,6 +110,15 @@ func TestStartsAStoreBuildWhenPicked(t *testing.T) {
 	}
 
 	publish(req, "app", "public.app", map[string]any{"bundle_id": "com.guedio.planit", "builder": map[string]string{"id": "xcode-cloud"}})
+	// Passed to another track's builder: left alone, whatever public.app says.
+	publish(req, "app", "public.build_request", Request{ID: "testflight-5", At: plugintest.Now.Add(-time.Minute), To: "github-actions"})
+	*sent = nil
+	plugintest.Call(t, handle, req)
+	if x := sentLike(*sent, "POST /v1/ciBuildRuns"); x != "" {
+		t.Fatalf("started a build passed to another builder: %s", x)
+	}
+	publish(req, "app", "public.app", map[string]any{"bundle_id": "com.guedio.planit", "builder": map[string]string{"id": "mac"}})
+	publish(req, "app", "public.build_request", Request{ID: "testflight-5", At: plugintest.Now.Add(-time.Minute), To: "xcode-cloud"})
 	*sent = nil
 	res := plugintest.Call(t, handle, req)
 	started := sentLike(*sent, "POST /v1/ciBuildRuns")

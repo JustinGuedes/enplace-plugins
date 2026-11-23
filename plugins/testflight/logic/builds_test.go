@@ -40,10 +40,10 @@ func TestABrokenStepComesBackAlone(t *testing.T) {
 	s := setUp()
 	s.Error = "App Store Connect refused the key (401)"
 	p := panelFor(t, s)
-	if p[0].Tone != "warn" || !strings.Contains(p[0].Text, "stopped working: add your App Store Connect key") {
+	if p[0].Tone != "warn" || !strings.Contains(p[0].Text, "stopped working: add your Apple account") {
 		t.Fatalf("lead %+v", p[0])
 	}
-	if items := p[1].Items; len(items) != 1 || items[0].Title != "2. Add your App Store Connect key" {
+	if items := p[1].Items; len(items) != 1 || items[0].Title != "2. Add your Apple account" {
 		t.Fatalf("only the broken step %+v", items)
 	}
 	if !strings.Contains(p[2].Text, "other 6 steps") {

@@ -67,10 +67,10 @@ func (c *client) do(method, path, accept string, body []byte) ([]byte, error) {
 	case r.Status >= 200 && r.Status < 300:
 		return r.Body, nil
 	case r.Status == 401:
-		return nil, &apiError{Status: r.Status, Text: "GitHub turned the token down. Check it in the plugin's settings."}
+		return nil, &apiError{Status: r.Status, Text: "GitHub turned the token down. Check it in Settings → Connections."}
 	case r.Status == 403 || r.Status == 429:
 		if c.token == "" {
-			return nil, &apiError{Status: r.Status, Text: "GitHub's limit for checks without a token is used up. Add a token in the plugin's settings."}
+			return nil, &apiError{Status: r.Status, Text: "GitHub's limit for checks without a token is used up. Add your GitHub account in Settings → Connections."}
 		}
 		return nil, &apiError{Status: r.Status, Text: "GitHub said no (it may be rate limiting, or the token can't read this repo)."}
 	case r.Status == 404:
@@ -107,7 +107,7 @@ func (c *client) repoInfo() (*repoInfo, error) {
 	err := c.getJSON("/repos/"+c.repo, &r)
 	if notFound(err) {
 		if c.token == "" {
-			return nil, fmt.Errorf("can't find %s. If it's private, add a GitHub token in the plugin's settings", c.repo)
+			return nil, fmt.Errorf("can't find %s. If it's private, add your GitHub account in Settings → Connections", c.repo)
 		}
 		return nil, fmt.Errorf("can't find %s, or the token can't read it", c.repo)
 	}
@@ -319,9 +319,9 @@ func (c *client) merge(n int, sha string) error {
 	}
 	switch e.Status {
 	case 401:
-		return errors.New("GitHub turned the token down. Check it in the plugin's settings.")
+		return errors.New("GitHub turned the token down. Check it in Settings → Connections.")
 	case 403, 404:
-		return errors.New("The GitHub token can't merge pull requests here. Give it Pull requests: read and write in the plugin's settings.")
+		return errors.New("The GitHub token can't merge pull requests here. Give it Pull requests: read and write, then check it again in Settings → Connections.")
 	case 405:
 		if e.Message != "" {
 			return fmt.Errorf("GitHub won't merge #%d yet: %s", n, e.Message)

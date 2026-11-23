@@ -31,7 +31,7 @@ func (r *run) steps(s *Status) []step {
 	keyOK := s.Keys && !strings.Contains(s.Error, "refused the key") && !strings.Contains(s.Error, "private key")
 	out := []step{
 		{"Give the app its bundle ID", "In this product's App details, type the app's bundle ID, like com.guedio.planit. It's the same one as in Xcode.", s.BundleID != ""},
-		{"Add your App Store Connect key", "Make a key in App Store Connect (Users and Access → Integrations → App Store Connect API, role App Manager) and paste its three parts into the workspace's TestFlight (or App Store) settings. The guide shows each tap.", keyOK},
+		{"Add your Apple account", "Make a key in App Store Connect (Users and Access → Integrations → App Store Connect API, role App Manager) and add it once in Settings → Connections. The guide shows each tap.", keyOK},
 		{"Register the bundle ID", "Enplace does this for you once the key is in, so the app can be added.", s.AppID != "" || s.IDReady},
 		{"Add the app in App Store Connect", r.newAppHow(s), s.AppID != ""},
 		{"Say who gets every build", "Put the email you sign in to App Store Connect with in Who gets every build, below.", len(r.testers()) > 0 && invited},

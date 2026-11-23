@@ -206,7 +206,7 @@ func readyStatus(req *plugin.Request, builds ...beta.Build) {
 	req.State.PutProject(pid, keyStatus, &Status{BundleID: "com.guedio.planit", AppName: "Plan It", Keys: true, AppID: "900", Builds: builds})
 }
 
-// TestFlight asks whoever App's Builds come from picks, and never names
+// TestFlight asks whoever builds its track, as App says, and never names
 // them: here a builder called Xcode Cloud.
 func TestSendAsksTheBuilder(t *testing.T) {
 	req := request(t, plugin.HookAction, nil)
@@ -228,6 +228,13 @@ func TestSendAsksTheBuilder(t *testing.T) {
 		{Key: "release", Purpose: "production", Makes: true, On: true},
 		{Key: "internal-beta", Purpose: "internal", Makes: true, On: true},
 	}}
+	// App says another builder makes the internal-beta track's builds.
+	publish(req, "app", "public.build", map[string]any{"id": "xcode-cloud", "name": "Xcode Cloud", "ready": true,
+		"by_track": map[string]any{"internal-beta": map[string]any{"id": "hand", "name": "I upload from Xcode", "ready": true}}})
+	if res := plugintest.Call(t, handle, req); !strings.Contains(res.Toast, "Product → Archive") {
+		t.Fatalf("the track's builder: %q", res.Toast)
+	}
+	publish(req, "app", "public.build", map[string]any{"id": "xcode-cloud", "name": "Xcode Cloud", "ready": true})
 	res := plugintest.Call(t, handle, req)
 	var q map[string]any
 	if !res.State.GetProject(pid, "public.build_request", &q) || !strings.HasPrefix(q["id"].(string), "testflight-") || q["version"] != "1.1" || q["build"] != "13" || q["track"] != "internal-beta" {

@@ -8,8 +8,8 @@
 // for a build with "public.ci_request", it starts one run per request, and
 // it shares its runs and how each request went as "public.ci".
 //
-// It's also a builder (the builds contract): when the app product's
-// "Builds come from" picks it, it answers the store builds App passes on
+// It's also a builder (the builds contract): when it's the Builds step
+// of the app product's track, it answers the store builds App passes on
 // ("public.build_request") with its own workflow, "Enplace store build",
 // which it makes with Set it up and keeps right. It never knows who wanted
 // the build or what happens to it after: its "Builds it makes" setting
@@ -37,6 +37,8 @@ type Request struct {
 	// Track asks for one of the product's tracks by key: its workflow and
 	// branch, unless Workflow or Branch say otherwise.
 	Track string `json:"track,omitempty"`
+	// To is the builder App passed a store build on to.
+	To string `json:"to,omitempty"`
 	// Store is a store build passed on by App (public.build_request),
 	// made with Enplace's own workflow.
 	Store bool `json:"-"`
@@ -93,6 +95,7 @@ type run struct {
 }
 
 func handle(req *plugin.Request) (*plugin.Response, error) {
+	req.SignIn("apple") // the Apple account this product uses (ENP-351)
 	r := &run{req: req, res: &plugin.Response{}, pid: req.ProjectID}
 	if r.pid == "" {
 		return r.res, nil
@@ -183,20 +186,23 @@ func (r *run) requests() map[string]Request {
 			out[id] = q
 		}
 	}
-	if r.picked() {
-		var q Request
-		if r.peer("app", "public.build_request", &q) && q.ID != "" {
-			q.Store = true
-			out["app"] = q
-		}
+	var q Request
+	if r.peer("app", "public.build_request", &q) && q.ID != "" && r.picked(q) {
+		q.Store = true
+		out["app"] = q
 	}
 	return out
 }
 
 const selfID = "xcode-cloud"
 
-// picked says the app product's "Builds come from" is Xcode Cloud.
-func (r *run) picked() bool {
+// picked says App passed the store build on to Xcode Cloud: it's the
+// Builds step of the build's track (ENP-351). A request from an older App
+// says nothing, and App's pick in "public.app" stands.
+func (r *run) picked(q Request) bool {
+	if q.To != "" {
+		return q.To == selfID
+	}
 	var a struct {
 		Builder struct {
 			ID string `json:"id"`
@@ -367,6 +373,7 @@ func (r *run) publish(s *Status) {
 	ready, note := r.builderReady(s)
 	r.res.SetProject(r.pid, "public.builder", map[string]any{
 		"name": "Xcode Cloud", "ready": ready, "note": note, "requests": s.Requests,
+		"tracks": r.req.OnTracks(r.pid),
 	})
 }
 
@@ -391,7 +398,7 @@ func (r *run) artifact(s *Status, x cloud.Run) string {
 func (r *run) builderReady(s *Status) (bool, string) {
 	switch {
 	case !s.Keys || s.BundleID == "" || s.AppID == "":
-		return false, "Xcode Cloud needs the app's bundle ID and App Store Connect key first."
+		return false, "Xcode Cloud needs the app's bundle ID and Apple account first."
 	case s.ProductID == "":
 		return false, "Connect Xcode Cloud once in Xcode: Product → Xcode Cloud → Create Workflow."
 	case r.audience() == cloud.ForNobody:

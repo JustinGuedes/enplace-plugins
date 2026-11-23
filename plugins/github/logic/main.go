@@ -85,6 +85,7 @@ type run struct {
 }
 
 func handle(req *plugin.Request) (*plugin.Response, error) {
+	req.SignIn("github") // the GitHub account this project uses (ENP-351)
 	r := &run{req: req, res: &plugin.Response{}, pid: req.ProjectID, fetch: plugin.Fetch}
 	switch req.Hook {
 	case plugin.HookSchedule:
@@ -163,7 +164,7 @@ func (r *run) merge() {
 		fail("Link this project to its GitHub repo first.")
 		return
 	case r.req.Secrets["token"] == "":
-		fail("Add a GitHub token with Pull requests: read and write in the plugin's settings to merge from Enplace.")
+		fail("Add a GitHub account with Pull requests: read and write in Settings → Connections to merge from Enplace.")
 		return
 	}
 	gh := &client{fetch: r.fetch, token: r.req.Secrets["token"], repo: c.Repo}

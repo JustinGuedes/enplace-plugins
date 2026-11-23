@@ -2,14 +2,14 @@
 // product's builds onto the person's own phone.
 //
 // It asks for a build through the builds contract ("public.build_request")
-// and never knows who makes it: the App Store plugin's Builds come from
-// picks a builder (Xcode Cloud, an agent on the person's Mac, or the
+// and never knows who makes it: the App Store plugin passes it to the
+// builder of its track (Xcode Cloud, an agent on the person's Mac, or the
 // person in Xcode) and shares how it's going ("public.build"). TestFlight
 // takes the build from there once it's in App Store Connect.
 //
 // It builds on the App Store plugin: it reads which app the product is
-// from App's "public.app", signs in with the same App Store Connect key
-// (the secrets share their names, so the key is entered once) and reuses
+// from App's "public.app", signs in with the product's Apple account
+// (added once in Settings → Connections) and reuses
 // App's code for the key (plugins/app/store through package beta). Versions
 // gives the version and build number ("public.versions"), and it shares
 // the builds as "public.builds" for Release cycle.
@@ -63,6 +63,7 @@ type run struct {
 }
 
 func handle(req *plugin.Request) (*plugin.Response, error) {
+	req.SignIn("apple") // the Apple account this product uses (ENP-351)
 	r := &run{req: req, res: &plugin.Response{}, pid: req.ProjectID}
 	fetched = 0
 	if r.pid == "" {

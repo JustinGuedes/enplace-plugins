@@ -29,6 +29,9 @@ One manifest format, with a `kind` that fills in the rest:
 - `skills`: skills for agents, nothing else. A manifest of five lines.
 - `agent`: does work items for people, like Claude Code or Codex.
 - `source`: keeps a project's work in step with another tool, like Linear.
+- `connection`: signs in to an outside service once, like GitHub or App
+  Store Connect, for every plugin that names it in `connections`. People
+  add named accounts and pick one per project or product.
 - `service`: follows something a product ships to: a store, a site, a repo.
 - `extension`: adds a feature across Enplace, like Release cycle or XP.
 - `role`: a job on your team, like App shipper: the work it takes, what its
@@ -49,6 +52,12 @@ One manifest format, with a `kind` that fills in the rest:
 - [GitHub Issues](plugins/github-issues): Use a repository's issues as a project's work.
 - [Linear](plugins/linear): Use a Linear team as a project's work.
 - [Obsidian vault](plugins/obsidian): Keep a project's work as Markdown notes in your Obsidian vault.
+
+### Connections
+
+- [Apple account](plugins/apple-account): Sign in to App Store Connect once, for the App Store, TestFlight and Xcode Cloud.
+- [GitHub account](plugins/github-account): Sign in to GitHub once, for every plugin that works with your repos.
+- [Google Play account](plugins/google-account): Sign in to the Google Play Console once, for Google Play and Play testing.
 
 ### Services
 

@@ -35,6 +35,11 @@ type Rated struct {
 const keepRatings = 62
 
 func (r *run) vendor() string {
+	// The Apple account's (ENP-351), else the App Store plugin's own from
+	// before accounts.
+	if v := strings.TrimSpace(r.req.Secrets["asc_vendor"]); v != "" {
+		return v
+	}
 	v, _ := r.req.Settings["asc_vendor"].(string)
 	return strings.TrimSpace(v)
 }
@@ -348,12 +353,12 @@ func stars(n int) string {
 
 // setup says what's missing before downloads can be shown, "" when nothing.
 func (r *run) setup(n *numbers) (text string, btn *plugin.Button) {
-	ws := &plugin.Button{Label: "Open App Store settings", Href: "/settings/plugins/" + r.req.Plugin.ID}
+	ws := &plugin.Button{Label: "Open Connections", Href: "/settings/connections"}
 	switch n.st.Sales {
 	case "no_keys":
-		return "Add App Store Connect keys to see downloads, purchases and reviews here.", ws
+		return "Add your Apple account in Settings → Connections to see downloads, purchases and reviews here.", ws
 	case "no_vendor":
-		return "Add your vendor number to see downloads and purchases. It's in App Store Connect under Payments and Financial Reports.", ws
+		return "Add your vendor number to your Apple account in Settings → Connections to see downloads and purchases. It's in App Store Connect under Payments and Financial Reports.", ws
 	case "error":
 		return "Downloads: " + n.st.SalesError + ".", ws
 	case "ok":

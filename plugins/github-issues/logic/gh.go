@@ -72,14 +72,14 @@ func (c *client) do(method, path string, body any) ([]byte, error) {
 	case r.Status >= 200 && r.Status < 300:
 		return r.Body, nil
 	case r.Status == 401:
-		return nil, &worksync.AuthError{Msg: "GitHub turned the token down. Check it in the plugin's settings"}
+		return nil, &worksync.AuthError{Msg: "GitHub turned the token down. Check it in Settings → Connections"}
 	case write && (r.Status == 403 || r.Status == 404) && c.token == "":
 		return nil, &worksync.AuthError{Msg: "changing issues needs a GitHub token with Issues read and write"}
 	case write && r.Status == 403:
 		return nil, &worksync.AuthError{Msg: "the token can't change issues: give it Issues read and write"}
 	case r.Status == 403 || r.Status == 429:
 		if c.token == "" {
-			return nil, errors.New("GitHub's limit without a token is used up. Add a token in the plugin's settings")
+			return nil, errors.New("GitHub's limit without a token is used up. Add your GitHub account in Settings → Connections")
 		}
 		return nil, errors.New("GitHub said no (it may be rate limiting, or the token can't read this repo)")
 	case r.Status == 404:

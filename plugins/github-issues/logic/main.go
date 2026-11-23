@@ -21,7 +21,10 @@ import (
 
 func main() { plugin.Run(handle) }
 
-func handle(req *plugin.Request) (*plugin.Response, error) { return run(req, &source{}) }
+func handle(req *plugin.Request) (*plugin.Response, error) {
+	req.SignIn("github") // the GitHub account this project uses (ENP-351)
+	return run(req, &source{})
+}
 
 func run(req *plugin.Request, src *source) (*plugin.Response, error) {
 	return worksync.Handle(req, worksync.Config{Name: "GitHub Issues", Noun: "issue", Source: src, Hold: src.hold, Skip: []string{"priority", "due"}})

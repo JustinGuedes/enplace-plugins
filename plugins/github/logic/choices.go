@@ -47,7 +47,7 @@ func (r *run) choices(name string) {
 
 func (r *run) repos(gh *client) (plugin.Choices, error) {
 	if gh.token == "" {
-		return plugin.Choices{Note: "Add a GitHub token in the workspace's GitHub settings to pick from your repos. You can still type owner/name for a public one."}, nil
+		return plugin.Choices{Note: "Add your GitHub account in Settings → Connections to pick from your repos. You can still type owner/name for a public one."}, nil
 	}
 	var out plugin.Choices
 	for page := 1; page <= listPages; page++ {
