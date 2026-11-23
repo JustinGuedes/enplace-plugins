@@ -220,22 +220,42 @@ func testerLine(ts []beta.Tester) string {
 	return "Testers: " + strings.Join(parts, ", ")
 }
 
-// panel is the top of the plugin's settings: the setup steps, ticked off
-// as they're done.
+// panel is the setup steps. While some are left it lists them all, ticked
+// off as they're done. Once every one is done it folds into one line,
+// and if one breaks after that only the broken ones open again.
 func (r *run) panel() []plugin.Block {
 	s := r.status()
 	steps := r.steps(s)
+	items := func(only bool) []plugin.Item {
+		out := []plugin.Item{}
+		for i, st := range steps {
+			if !only || !st.Done {
+				out = append(out, plugin.Item{Title: fmt.Sprintf("%d. %s", i+1, st.Title), Sub: st.How, Done: st.Done})
+			}
+		}
+		return out
+	}
 	blocks := []plugin.Block{}
-	if n := left(steps); n == 0 {
-		blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: "TestFlight is set up. Every build goes to the " + r.group() + " group by itself.", Tone: "muted"})
-	} else {
-		blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: fmt.Sprintf("%d of %d steps left. Each one ticks itself off once Enplace sees it done.", n, len(steps))})
+	n := left(steps)
+	worked := s != nil && len(s.Builds) > 0
+	switch {
+	case n == 0:
+		sub := fmt.Sprintf("All %d steps done. Every build goes to the %s group by itself.", len(steps), r.group())
+		if s != nil && !s.CheckedAt.IsZero() {
+			sub += " Checked " + ago(s.CheckedAt, r.req.Now) + "."
+		}
+		blocks = append(blocks, plugin.Block{Type: plugin.BlockSection, Text: "TestFlight is set up", Sub: sub, Tone: "good", Collapsed: true,
+			Blocks: []plugin.Block{{Type: plugin.BlockList, Items: items(false)}}})
+	case worked:
+		// It worked before: say what broke, and keep the rest out of the way.
+		blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Tone: "warn",
+			Text: "TestFlight stopped working: " + strings.ToLower(firstLeft(steps)[:1]) + firstLeft(steps)[1:] + " The builds below are from the last good check."},
+			plugin.Block{Type: plugin.BlockList, Items: items(true)},
+			plugin.Block{Type: plugin.BlockText, Tone: "muted", Text: fmt.Sprintf("The other %d steps are still done.", len(steps)-n)})
+	default:
+		blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: fmt.Sprintf("%d of %d steps left. Each one ticks itself off once Enplace sees it done.", n, len(steps))},
+			plugin.Block{Type: plugin.BlockList, Items: items(false)})
 	}
-	items := []plugin.Item{}
-	for i, st := range steps {
-		items = append(items, plugin.Item{Title: fmt.Sprintf("%d. %s", i+1, st.Title), Sub: st.How, Done: st.Done})
-	}
-	blocks = append(blocks, plugin.Block{Type: plugin.BlockList, Items: items})
 	if s != nil {
 		if s.Error != "" {
 			blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: "App Store Connect: " + s.Error, Tone: "warn"})
@@ -246,6 +266,9 @@ func (r *run) panel() []plugin.Block {
 		if s.Keys && s.BundleID != "" && s.AppID == "" && s.Error == "" && !s.CheckedAt.IsZero() {
 			blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: "App Store Connect has no app with the bundle ID " + s.BundleID + " yet.", Tone: "warn"})
 		}
+	}
+	if n == 0 {
+		return blocks
 	}
 	return append(blocks, plugin.Block{Type: plugin.BlockButtons, Buttons: []plugin.Button{{Label: "Check now", Action: "refresh"}}})
 }
