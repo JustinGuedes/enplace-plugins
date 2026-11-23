@@ -34,6 +34,9 @@ type Request struct {
 	Workflow string `json:"workflow,omitempty"`
 	Branch   string `json:"branch,omitempty"`
 	Reason   string `json:"reason,omitempty"`
+	// Track asks for one of the product's tracks by key: its workflow and
+	// branch, unless Workflow or Branch say otherwise.
+	Track string `json:"track,omitempty"`
 	// Store is a store build passed on by App (public.build_request),
 	// made with Enplace's own workflow.
 	Store bool `json:"-"`
@@ -292,7 +295,11 @@ func (r *run) refresh(start *Request) {
 // branch (or the project's).
 func (r *run) start(c *cloud.Client, s *Status, q Request) Answer {
 	a := Answer{At: r.req.Now}
+	t, hasTrack := r.trackFor(q)
 	want := q.Workflow
+	if want == "" && hasTrack {
+		want = trackSetting(t, "workflow")
+	}
 	if want == "" && q.Store && s.Own != "" {
 		want = s.Own
 	}
@@ -308,6 +315,9 @@ func (r *run) start(c *cloud.Client, s *Status, q Request) Answer {
 		return a
 	}
 	branch := q.Branch
+	if branch == "" && hasTrack {
+		branch = trackSetting(t, "branch")
+	}
 	if branch == "" {
 		branch = r.setting("branch")
 	}
@@ -347,6 +357,7 @@ func (r *run) publish(s *Status) {
 	runs := make([]cloud.Run, 0, len(s.Runs))
 	for _, x := range s.Runs {
 		x.Artifact = r.artifact(s, x)
+		x.Track = r.trackOfRun(x)
 		runs = append(runs, x)
 	}
 	r.res.SetProject(r.pid, "public.ci", map[string]any{
@@ -436,4 +447,42 @@ func (r *run) choices() plugin.Choices {
 		}
 	}
 	return out
+}
+
+// trackFor is the track a request asks for: by key, or for a store build
+// the product's release track.
+func (r *run) trackFor(q Request) (plugin.Track, bool) {
+	if q.Track != "" {
+		return r.req.TrackFor(r.pid, q.Track, "")
+	}
+	if q.Store {
+		return r.req.TrackFor(r.pid, "", "production")
+	}
+	return plugin.Track{}, false
+}
+
+func trackSetting(t plugin.Track, k string) string {
+	v, _ := t.Settings[k].(string)
+	return strings.TrimSpace(v)
+}
+
+// trackOfRun says which of the product's tracks a run is on: the one
+// naming its workflow (and its branch, when the track names one). With
+// one track, every run is on it; a run no track names is on none.
+func (r *run) trackOfRun(x cloud.Run) string {
+	ts := r.req.Tracks[r.pid]
+	if len(ts) == 1 {
+		return ts[0].Key
+	}
+	for _, t := range ts {
+		w := trackSetting(t, "workflow")
+		if w == "" || !strings.EqualFold(w, x.Workflow) {
+			continue
+		}
+		if b := trackSetting(t, "branch"); b != "" && x.Branch != "" && b != x.Branch {
+			continue
+		}
+		return t.Key
+	}
+	return ""
 }

@@ -763,7 +763,11 @@ old is never started, so switching a CI plugin on doesn't run old ones:
 ```
 
 `workflow` and `branch` are optional; the CI plugin's own settings fill
-them in.
+them in. `track` (optional) names one of the product's tracks: the CI
+plugin then uses that track's settings, like its workflow, and a store
+build with no track uses the product's `production` track when it has one.
+A plugin that wants builds to test takes them from a track that `makes`
+them, never from a check track.
 
 ### Store builds: who makes an app's builds
 

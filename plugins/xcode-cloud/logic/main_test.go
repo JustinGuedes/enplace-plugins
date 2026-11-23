@@ -174,3 +174,42 @@ func TestArtifactOnlyForOwnWorkflow(t *testing.T) {
 		}
 	}
 }
+
+// A request for a track starts that track's workflow on its branch, and
+// each run is tagged with the track naming its workflow (ENP-350).
+func TestTracks(t *testing.T) {
+	sent := fake(t, linked)
+	req := request(t, plugin.HookSchedule)
+	req.Tracks = map[string][]plugin.Track{pid: {
+		{Key: "main", Name: "Main builds", Purpose: "check", On: true, Settings: map[string]any{"workflow": "Archive", "branch": "main"}},
+		{Key: "internal-beta", Name: "Internal beta", Purpose: "internal", Makes: true, On: true, Settings: map[string]any{"workflow": "TestFlight", "branch": "main"}},
+	}}
+	publish(req, "testflight", "public.ci_request", Request{ID: "tf-2", Track: "internal-beta", At: plugintest.Now.Add(-time.Minute)})
+	res := plugintest.Call(t, handle, req)
+	started := ""
+	for _, x := range *sent {
+		if strings.HasPrefix(x, "POST /v1/ciBuildRuns") {
+			started = x
+		}
+	}
+	if !strings.Contains(started, `"id":"wf1"`) {
+		t.Fatalf("started %s", started)
+	}
+	var ci struct {
+		Runs []cloud.Run `json:"runs"`
+	}
+	res.State.GetProject(pid, "public.ci", &ci)
+	if len(ci.Runs) != 1 || ci.Runs[0].Track != "internal-beta" {
+		t.Fatalf("runs %+v", ci.Runs)
+	}
+
+	// With one track, every run is on it; with none naming the workflow, none.
+	r := &run{req: req, pid: pid}
+	if got := r.trackOfRun(cloud.Run{Workflow: "Nightly"}); got != "" {
+		t.Fatalf("unnamed workflow on %q", got)
+	}
+	req.Tracks[pid] = req.Tracks[pid][:1]
+	if got := r.trackOfRun(cloud.Run{Workflow: "Nightly"}); got != "main" {
+		t.Fatalf("one track: %q", got)
+	}
+}

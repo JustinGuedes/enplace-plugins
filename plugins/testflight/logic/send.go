@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/JustinGuedes/enplace-plugins/plugins/testflight/beta"
+	"github.com/JustinGuedes/enplace-plugins/sdk/plugin"
 )
 
 // next is the version and build number the next upload gets: the version
@@ -129,9 +130,33 @@ func (r *run) ask(reason string) (version, number, why string) {
 		return "", "", where + "."
 	}
 	version, number = r.next(s)
-	r.res.SetProject(r.pid, "public.build_request", map[string]any{
+	q := map[string]any{
 		"id": fmt.Sprintf("testflight-%d", r.req.Now.Unix()), "reason": reason, "at": r.req.Now,
 		"version": version, "build": number, "for": number,
-	})
+	}
+	if t, ok := r.track(); ok {
+		q["track"] = t.Key
+	}
+	r.res.SetProject(r.pid, "public.build_request", q)
 	return version, number, ""
+}
+
+// track is the track TestFlight takes its builds from (ENP-350): the first
+// it's a step on that makes builds for people, your own team's first. A
+// track that only checks the code makes nothing to test.
+func (r *run) track() (plugin.Track, bool) {
+	ts := r.req.Tracks[r.pid]
+	for _, purpose := range []string{"internal", "external"} {
+		for _, t := range ts {
+			if t.On && t.Makes && t.Purpose == purpose {
+				return t, true
+			}
+		}
+	}
+	for _, t := range ts {
+		if t.On && t.Makes && t.Purpose != "production" {
+			return t, true
+		}
+	}
+	return plugin.Track{}, false
 }
