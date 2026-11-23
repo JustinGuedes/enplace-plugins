@@ -77,8 +77,10 @@
                 "schedule",
                 "settings_panel",
                 "skills",
+                "stages",
                 "test_builds",
                 "tools",
+                "types",
                 "webhook",
                 "work_fields",
                 "work_panel"
@@ -134,7 +136,9 @@
                 "schedule",
                 "settings_panel",
                 "skills",
+                "stages",
                 "tools",
+                "types",
                 "webhook",
                 "work_fields",
                 "work_panel",
@@ -477,6 +481,33 @@
           },
           "type": "array"
         },
+        "stages": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "about": {
+                "type": "string"
+              },
+              "icon": {
+                "type": "string"
+              },
+              "key": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "order": {
+                "type": "integer"
+              },
+              "page": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
         "test_builds": {
           "additionalProperties": false,
           "properties": {
@@ -522,6 +553,72 @@
               },
               "project": {
                 "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "types": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "about": {
+                "type": "string"
+              },
+              "answers": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "contract": {
+                "type": "integer"
+              },
+              "key": {
+                "type": "string"
+              },
+              "manual": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "about": {
+                      "type": "string"
+                    },
+                    "key": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "many": {
+                "type": "boolean"
+              },
+              "name": {
+                "type": "string"
+              },
+              "product_types": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "publishes": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "stage": {
+                "type": "string"
+              },
+              "view": {
+                "type": "string"
               }
             },
             "type": "object"
@@ -645,6 +742,9 @@
       },
       "type": "array"
     },
+    "format": {
+      "type": "integer"
+    },
     "glyph": {
       "items": {
         "additionalProperties": false,
@@ -702,6 +802,33 @@
     },
     "name": {
       "type": "string"
+    },
+    "needs": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "contract": {
+            "type": "string"
+          },
+          "for": {
+            "type": "string"
+          },
+          "many": {
+            "type": "boolean"
+          },
+          "optional": {
+            "type": "boolean"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "type": "array"
     },
     "permissions": {
       "additionalProperties": false,
@@ -838,6 +965,9 @@
       "type": "array"
     },
     "summary": {
+      "type": "string"
+    },
+    "type": {
       "type": "string"
     },
     "upstream": {

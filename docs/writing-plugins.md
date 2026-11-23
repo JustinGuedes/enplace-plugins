@@ -167,6 +167,60 @@ A repo whose licence doesn't allow copies (like a non-commercial one) can
 still be on the shelf as a link: a skills plugin with no skills, its
 `homepage` and its `license`.
 
+## Types: the plugin's job in a product's lifecycle
+
+A product's work goes through stages: **Plan, Code, Build, Test, Ship,
+Watch**. A plugin that does a job in one of them names that job, its
+`type`, and Enplace puts it in its stage and draws it the same way as
+every other plugin of that type. A plugin does one job: GitHub is Code,
+GitHub Actions is Builds, even when one company makes both.
+
+| Type | Name | Stage | Shares |
+| --- | --- | --- | --- |
+| `work` | Work source | Plan | `public.work_sync` |
+| `vcs` | Code | Code | `public.repo` |
+| `ci` | Builds | Build | `public.ci`, `public.builder`; answers `public.ci_request`, `public.build_request` |
+| `beta` | Beta testing | Test | `public.builds` |
+| `store` | Store | Ship | `public.app` |
+| `release` | Release | Ship | `public.releases` |
+| `version` | Versioning | Ship | `public.version` |
+| `deploy` | Hosting | Ship | `public.deploy` |
+| `health` | Health | Watch | `public.health` |
+
+The list lives in `sdk/bundle/lifecycle.go` (`Stages`, `Types`). A
+source plugin is `work` by itself. Agents, roles and skill packs have no
+type; an extension without one shows as an extra.
+
+Ask for another job by type with `needs`, not by naming a plugin, so any
+plugin of that type fills it:
+
+```json
+{
+  "id": "testflight", "kind": "service", "type": "beta", "format": 2,
+  "needs": [ { "type": "ci", "contract": "^1", "for": "to get builds" } ]
+}
+```
+
+- `contract` is the range of the type's contract you read. A type's
+  contract changes major version only when a change would break readers.
+- `optional`: you work without it and do more with it.
+- `many`: you take every plugin of the type, not just one.
+- `scope`: `track` (the default), `product` or `project`. A need is filled
+  from the same place first, then upwards: product, project, workspace.
+- Where no plugin fills a need, the type's manual ways stand in (for
+  Builds: an agent on your Mac, or you), so a need never leaves a plugin
+  stuck.
+
+A job Enplace doesn't know yet can come with the plugin:
+`contributes.types` adds a type (its stage, contract, the public keys it
+shares and answers, and how it's drawn, `plugin` meaning by you), and
+`contributes.stages` adds a stage, like Print for something people hold.
+Other plugins can then be of that type and need it.
+
+Set `"format": 2` once you use `type`, `needs` or these pieces. An
+Enplace that reads an older format keeps your previous version instead of
+failing on this one.
+
 ## Levels, and flowing down
 
 Enplace has three levels, workspace › project › product, and each has its
