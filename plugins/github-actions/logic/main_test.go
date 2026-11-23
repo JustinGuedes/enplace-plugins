@@ -4,6 +4,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -139,12 +140,45 @@ func TestItReadsRunsWithEachJob(t *testing.T) {
 		t.Fatalf("job %+v", j)
 	}
 	var ci struct {
-		Provider string `json:"provider"`
-		Ready    bool   `json:"ready"`
-		Runs     []Run  `json:"runs"`
+		Provider string  `json:"provider"`
+		Ready    bool    `json:"ready"`
+		Runs     []CIRun `json:"runs"`
 	}
 	if !res.State.GetProject(pid, "public.ci", &ci) || ci.Provider != selfID || !ci.Ready || len(ci.Runs) != 2 || ci.Runs[0].Workflow != "Build" || ci.Runs[0].Commit == "" {
 		t.Fatalf("public.ci %+v", ci)
+	}
+}
+
+// Each product's job is shared as a build of that product, so iOS and
+// Android each get their own history. A run that builds no product is
+// shared whole.
+func TestEachProductsJobIsSharedAsItsOwnBuild(t *testing.T) {
+	a := answers("142 completed failure 5m", "141 completed success 2h", "140 completed success 3h")
+	a["GET "+base+"/runs/14000/jobs"] = jobsOf("Lint success")
+	fake(t, a)
+	req := request(plugin.HookSchedule, pid)
+	req.Projects[0].Products = append(req.Projects[0].Products, plugin.ProductInfo{Key: "android", Name: "Android app", Type: "app", On: true})
+	res := plugintest.Call(t, handle, req)
+	var ci struct {
+		Runs []CIRun `json:"runs"`
+	}
+	res.State.GetProject(pid, "public.ci", &ci)
+	got := []string{}
+	for _, c := range ci.Runs {
+		got = append(got, fmt.Sprintf("%d %s %s %s %s", c.Number, c.Product, c.Status, c.Trigger, c.URL))
+	}
+	want := []string{
+		"142 ios failed push https://github.com/job1",
+		"142 android passed push https://github.com/job2",
+		"141 ios passed push https://github.com/job1",
+		"141 android passed push https://github.com/job2",
+		"140  passed push https://github.com/acme/game/actions/runs/14000",
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("public.ci runs:\n%s", strings.Join(got, "\n"))
+	}
+	if c := ci.Runs[0]; c.ID == ci.Runs[1].ID || c.Started.IsZero() || c.Finished.IsZero() || c.Commit == "" {
+		t.Fatalf("run %+v", c)
 	}
 }
 

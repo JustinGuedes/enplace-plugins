@@ -757,7 +757,7 @@ built at once without conflicts, and each ships its own updates.
 
 ### Builds on a CI service
 
-A CI plugin (Xcode Cloud now; GitHub Actions could follow) shares its runs
+A CI plugin (Xcode Cloud, GitHub Actions) shares its runs
 for the project, in the same shape whatever the service:
 
 ```json
@@ -787,6 +787,7 @@ plugin that shares more gets richer stats. The optional fields:
 | `tests` | `{"passed": 120, "failed": 2, "skipped": 3}` |
 | `minutes` | Billed minutes, when the service bills by the minute |
 | `url` | The run on the service's own site |
+| `product` | For a plugin on the project whose run builds one of its products (an iOS job and an Android job in one workflow): the product's key. Enplace keeps the run under that product. Share such a run once per product, each with its own `id` |
 
 Share the newest runs (Xcode Cloud shares about 20). Older ones drop out of
 `runs`, but Enplace remembers them for 90 days.

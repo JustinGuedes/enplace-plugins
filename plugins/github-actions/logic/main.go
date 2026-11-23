@@ -402,14 +402,10 @@ func trim(m map[string]Answer, n int) {
 // product, how it's doing as a builder.
 func (r *run) publish(s *Status) {
 	shown := r.status()
-	runs := []Run{}
-	if shown != nil && shown.Runs != nil {
-		runs = shown.Runs
-	}
 	ready := shown != nil && shown.Repo != "" && len(shown.Workflows) > 0 && shown.Error == ""
 	r.res.SetProject(r.pid, "public.ci", map[string]any{
 		"provider": selfID, "name": "GitHub Actions", "ready": ready,
-		"runs": runs, "requests": s.Requests,
+		"runs": r.ciRuns(shown), "requests": s.Requests,
 	})
 	if _, ok := r.req.Peers["app"]; !ok {
 		return
