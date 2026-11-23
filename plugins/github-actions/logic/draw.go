@@ -118,26 +118,22 @@ func (r *run) overview() []plugin.Block {
 		blocks = append(blocks, plugin.Block{Type: plugin.BlockStat, Value: "No runs yet"})
 	} else {
 		x := s.Runs[0]
-		bug := ""
-		for _, j := range x.Jobs {
-			if f := fixing(s, x, j); f != "" {
-				bug = j.Name + " failed: " + f
-				break
-			}
+		bug := "" // with several jobs, each job's tile says it
+		if len(x.Jobs) == 1 {
+			bug = fixing(s, x, x.Jobs[0])
 		}
 		blocks = append(blocks, plugin.Block{Type: plugin.BlockStat, Value: r.runName(x),
 			Sub: join(words4[x.Status], x.Branch, x.Message, ago(x.Created, r.req.Now), bug)})
 		if len(x.Jobs) > 1 {
 			items := []plugin.Item{}
 			for _, j := range x.Jobs {
-				it := plugin.Item{Title: j.Name, Value: words4[j.Status], Sub: join(took(j.Started, j.Finished), fixing(s, x, j)), Done: j.Status == "passed"}
-				items = append(items, it)
+				items = append(items, plugin.Item{Title: j.Name, Value: words4[j.Status], Sub: join(took(j.Started, j.Finished), fixing(s, x, j))})
 			}
 			blocks = append(blocks, plugin.Block{Type: plugin.BlockStats, Items: items})
 		}
 		items := []plugin.Item{}
 		for _, y := range s.Runs[1:min(len(s.Runs), 4)] {
-			it := plugin.Item{Title: r.runName(y), Sub: join(words4[y.Status], y.Branch, ago(y.Created, r.req.Now)), Done: y.Status == "passed"}
+			it := plugin.Item{Title: r.runName(y), Sub: join(words4[y.Status], y.Branch, ago(y.Created, r.req.Now))}
 			if y.URL != "" {
 				it.Button = &plugin.Button{Label: "Open", URL: y.URL}
 			}
