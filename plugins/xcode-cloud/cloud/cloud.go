@@ -113,6 +113,9 @@ type Run struct {
 	// "app_store"; empty for a run that only checked the code, or when
 	// Xcode Cloud doesn't say.
 	Artifact string `json:"artifact,omitempty"`
+	// Track is the product's track the run belongs to, when Enplace can
+	// tell (by the workflow each track names).
+	Track string `json:"track,omitempty"`
 }
 
 // trigger says what started a run, in the CI contract's words.

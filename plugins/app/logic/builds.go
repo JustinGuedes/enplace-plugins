@@ -39,6 +39,9 @@ type BuildRequest struct {
 	At     time.Time `json:"at"`
 	Reason string    `json:"reason,omitempty"`
 	Branch string    `json:"branch,omitempty"`
+	// Track is the product's track to build on (ENP-350), like
+	// "internal-beta": the builder uses that track's own settings.
+	Track string `json:"track,omitempty"`
 	// Version and Build are what the build should be numbered, when the
 	// asker knows; a builder that numbers its own builds can ignore them.
 	Version string `json:"version,omitempty"`

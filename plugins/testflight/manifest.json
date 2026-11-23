@@ -2,7 +2,7 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "testflight",
   "name": "TestFlight",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "kind": "service",
   "format": 2,
   "type": "beta",

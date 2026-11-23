@@ -2,7 +2,7 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "app",
   "name": "App Store",
-  "version": "3.5.0",
+  "version": "3.6.0",
   "kind": "service",
   "format": 2,
   "type": "store",

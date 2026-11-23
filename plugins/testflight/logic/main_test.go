@@ -221,9 +221,16 @@ func TestSendAsksTheBuilder(t *testing.T) {
 		t.Fatalf("not ready: %q", res.Toast)
 	}
 	publish(req, "app", "public.build", map[string]any{"id": "xcode-cloud", "name": "Xcode Cloud", "ready": true})
+	// Builds come from the track that makes them for the team, never one
+	// that only checks (ENP-350).
+	req.Tracks = map[string][]plugin.Track{pid: {
+		{Key: "main", Purpose: "check", On: true},
+		{Key: "release", Purpose: "production", Makes: true, On: true},
+		{Key: "internal-beta", Purpose: "internal", Makes: true, On: true},
+	}}
 	res := plugintest.Call(t, handle, req)
 	var q map[string]any
-	if !res.State.GetProject(pid, "public.build_request", &q) || !strings.HasPrefix(q["id"].(string), "testflight-") || q["version"] != "1.1" || q["build"] != "13" {
+	if !res.State.GetProject(pid, "public.build_request", &q) || !strings.HasPrefix(q["id"].(string), "testflight-") || q["version"] != "1.1" || q["build"] != "13" || q["track"] != "internal-beta" {
 		t.Fatalf("request %v (%q)", q, res.Toast)
 	}
 	keep(req, res)
