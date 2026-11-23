@@ -749,6 +749,9 @@ type Button struct {
 	// plugin's settings that has choices, right where the button is, and
 	// saves what the person picks for the project the card is on.
 	Pick string `json:"pick,omitempty"`
+	// Copy, instead of running anything, copies this text, like a
+	// workflow step to paste into a file. Pressed, the label says Copied.
+	Copy string `json:"copy,omitempty"`
 }
 
 // ChoicesArgs are the args of a setting's choices action (Setting.Choices

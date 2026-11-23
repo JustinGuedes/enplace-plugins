@@ -74,7 +74,12 @@ type CI struct {
 	Provider string `json:"provider"`
 	Name     string `json:"name"`
 	Ready    bool   `json:"ready"`
-	Runs     []struct {
+	// Repo, Scanned and Uploads: the repo, and the stores its workflow
+	// files upload to when it could read them (ENP-379).
+	Repo    string   `json:"repo"`
+	Scanned bool     `json:"scanned"`
+	Uploads []string `json:"uploads"`
+	Runs    []struct {
 		Status   string    `json:"status"`
 		Finished time.Time `json:"finished"`
 	} `json:"runs"`
