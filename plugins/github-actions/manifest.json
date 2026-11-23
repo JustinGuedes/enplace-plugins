@@ -2,7 +2,7 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "github-actions",
   "name": "GitHub Actions",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "kind": "service",
   "format": 2,
   "type": "ci",
