@@ -65,12 +65,12 @@ var kinds = map[string]kindRule{
 		scope: "project", levels: []string{"project", "product"}, inherit: InheritOffer,
 		extends: []string{"work-sync"},
 		pieces: []string{"brief", "events", "project_cards", "project_status", "schedule", "settings_panel",
-			"skills", "stages", "tools", "types", "webhook", "work_fields", "work_panel", "work_views"},
+			"purposes", "skills", "stages", "tools", "types", "webhook", "work_fields", "work_panel", "work_views"},
 	},
 	KindService: {
 		scope: "project", levels: []string{"product"}, inherit: InheritNone,
 		pieces: []string{"brief", "calendar", "deadlines", "events", "pages", "project_cards", "project_status",
-			"schedule", "settings_panel", "skills", "stages", "test_builds", "tools", "types", "webhook", "work_fields", "work_panel"},
+			"purposes", "schedule", "settings_panel", "skills", "stages", "test_builds", "tools", "types", "webhook", "work_fields", "work_panel"},
 	},
 	KindExtension: {},
 	KindRole: {

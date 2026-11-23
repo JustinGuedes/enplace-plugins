@@ -122,3 +122,16 @@ func TestBlocksReplaceByID(t *testing.T) {
 		t.Errorf("response = %s", got)
 	}
 }
+
+func TestTrackFor(t *testing.T) {
+	r := &Request{Tracks: map[string][]Track{"p/ios": {{Key: "main", Purpose: "check"}, {Key: "beta", Purpose: "internal", Makes: true}}}}
+	if tr, ok := r.TrackFor("p/ios", "", "internal"); !ok || tr.Key != "beta" {
+		t.Fatalf("by purpose: %+v", tr)
+	}
+	if tr, ok := r.TrackFor("p/ios", "main", "internal"); !ok || tr.Key != "main" {
+		t.Fatalf("by key: %+v", tr)
+	}
+	if _, ok := r.TrackFor("p/ios", "gone", ""); ok {
+		t.Fatal("a track that isn't there")
+	}
+}

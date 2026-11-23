@@ -221,6 +221,48 @@ Set `"format": 2` once you use `type`, `needs` or these pieces. An
 Enplace that reads an older format keeps your previous version instead of
 failing on this one.
 
+## Tracks: several paths through one product
+
+A product can take more than one path from code to people: main builds
+that only check the code, an internal beta, a release. Each is a **track**
+(format 3). A track has a key and name, a **purpose** and a **trigger**,
+and lists which plugins are its steps.
+
+| Purpose | Makes something | For |
+| --- | --- | --- |
+| `check` | no | Builds and tests the code, like every push to main |
+| `internal` | yes | Your own phone and your team |
+| `external` | yes | Testers outside the team |
+| `production` | yes | The store, or the live site |
+| `preview` | yes | A build per pull request |
+
+Features find a track by purpose, not by name: Autopilot's test build
+takes the `internal` one, Releases ships through `production`. A beta or
+store plugin only takes builds from a track that makes something, so a
+check track never feeds TestFlight. A plugin can bring a purpose of its own
+with `contributes.purposes`.
+
+A trigger is `push`, `tag`, `pull_request`, `schedule`, `manual` or
+`release`, with an optional branch or tag pattern like `release/*`. A
+Builds plugin maps it to its own start conditions.
+
+A project setting marked `"per": "track"` holds a value for each track, like
+Xcode Cloud's workflow or TestFlight's tester group:
+
+```json
+{"key": "workflow", "name": "Workflow", "type": "text", "scope": "project", "per": "track"}
+```
+
+The logic gets every track of each product in `Request.Tracks` (by product
+scope id), each with `on` (whether this plugin is one of its steps) and its
+per-track `settings`. `ProjectSettings` keeps the first track's values, so a
+plugin that ignores tracks works as before. `Request.TrackFor(scope, key,
+purpose)` finds the track a request names, or the first of a purpose.
+
+Requests and runs carry the track: put `track` (its key) on
+`public.ci_request`, `public.build_request` and each run in `public.ci`, so
+Enplace can show each track's last build and split build stats by track.
+
 ## Levels, and flowing down
 
 Enplace has three levels, workspace › project › product, and each has its

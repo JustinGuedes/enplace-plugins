@@ -27,7 +27,8 @@ import (
 //
 //   - 1: everything before lifecycle types.
 //   - 2: type, needs, format, contributes.types and contributes.stages.
-const FormatVersion = 2
+//   - 3: tracks: a setting's per, and contributes.purposes.
+const FormatVersion = 3
 
 // ErrNewerFormat is returned for a manifest written for a newer Enplace.
 var ErrNewerFormat = errors.New("this plugin needs a newer Enplace")
@@ -272,5 +273,51 @@ func (m *Manifest) checkLifecycle() error {
 			}
 		}
 	}
+	for _, p := range m.Contributes.Purposes {
+		if _, builtIn := PurposeByKey(p.Key); !keyRe.MatchString(p.Key) || builtIn || p.Name == "" || len(p.Name) > 24 || len(p.About) > 120 {
+			return fmt.Errorf("purposes: %q needs a new key and a name of up to 24 characters", p.Key)
+		}
+	}
 	return nil
 }
+
+// Tracks (ENP-350). A track is one path a product's work takes: Main
+// builds, Internal beta, Release. Each has a purpose, which features look
+// tracks up by (Autopilot's test build takes the internal one, Releases
+// ships through production), and a trigger. A setting with "per": "track"
+// holds a value for each track (plugin.Request.Tracks).
+
+// Purpose is what a track is for.
+type Purpose struct {
+	Key  string `json:"key"`
+	Name string `json:"name"`
+	// Makes says the track's builds are made for someone to use (a
+	// TestFlight build, a store build, a deploy). A check track only
+	// proves the code builds and passes, so a beta or store step can't
+	// take builds from it.
+	Makes bool   `json:"makes"`
+	About string `json:"about,omitempty"`
+}
+
+// Purposes are the purposes Enplace knows, in the order they're offered.
+var Purposes = []Purpose{
+	{Key: "check", Name: "Checks", About: "Builds and tests the code, like every push to main. Makes nothing to install."},
+	{Key: "internal", Name: "Internal", Makes: true, About: "Builds for your own phone and your team."},
+	{Key: "external", Name: "Beta testers", Makes: true, About: "Builds for testers outside the team."},
+	{Key: "production", Name: "Release", Makes: true, About: "The build that goes to the store, or the live site."},
+	{Key: "preview", Name: "Preview", Makes: true, About: "A build for each pull request, to try before merging."},
+}
+
+// PurposeByKey finds one of Enplace's purposes.
+func PurposeByKey(key string) (Purpose, bool) {
+	for _, p := range Purposes {
+		if p.Key == key {
+			return p, true
+		}
+	}
+	return Purpose{}, false
+}
+
+// Triggers are what can start a track: a push to matching branches, a tag,
+// a pull request, a schedule, a press of a button, or a release being cut.
+var Triggers = []string{"push", "tag", "pull_request", "schedule", "manual", "release"}

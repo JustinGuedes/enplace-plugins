@@ -92,7 +92,12 @@ type Request struct {
 	// per project, by project id.
 	Settings        map[string]any            `json:"settings"`
 	ProjectSettings map[string]map[string]any `json:"project_settings,omitempty"`
-	State           State                     `json:"state"`
+	// Tracks are each product's tracks (ENP-350), by product scope id, for
+	// a plugin with settings that are "per": "track". The first track's
+	// values are also in ProjectSettings, so a plugin that ignores tracks
+	// works as before.
+	Tracks map[string][]Track `json:"tracks,omitempty"`
+	State  State              `json:"state"`
 	// Projects are the workspace's projects, with On set where the plugin
 	// is switched on. Details beyond names need the "projects" permission.
 	Projects []Project `json:"projects"`
@@ -893,4 +898,49 @@ type BoardMove struct {
 type BoardAdd struct {
 	Column string `json:"column"`
 	Title  string `json:"title"`
+}
+
+// Track is one of a product's tracks: a path its work takes, like
+// Internal beta. See bundle.Purpose.
+type Track struct {
+	Key     string `json:"key"`
+	Name    string `json:"name"`
+	Purpose string `json:"purpose"`
+	// Makes says the track's builds are for someone to use; a check track
+	// only builds and tests the code.
+	Makes   bool    `json:"makes"`
+	Trigger Trigger `json:"trigger"`
+	// On says this plugin is a step in the track. A plugin that isn't is
+	// left out of it: it doesn't build or ship for that track.
+	On bool `json:"on"`
+	// Settings are this plugin's per-track settings for the track.
+	Settings map[string]any `json:"settings,omitempty"`
+}
+
+// Trigger is what starts a track: On is push, tag, pull_request,
+// schedule, manual or release, and Pattern the branches or tags it
+// matches, like "main" or "release/*".
+type Trigger struct {
+	On      string `json:"on"`
+	Pattern string `json:"pattern,omitempty"`
+}
+
+// TrackFor finds the track a request names, or the first track of the
+// purpose; ok is false when the product has neither.
+func (r *Request) TrackFor(scope, key, purpose string) (Track, bool) {
+	ts := r.Tracks[scope]
+	for _, t := range ts {
+		if key != "" && t.Key == key {
+			return t, true
+		}
+	}
+	if key != "" {
+		return Track{}, false
+	}
+	for _, t := range ts {
+		if t.Purpose == purpose {
+			return t, true
+		}
+	}
+	return Track{}, false
 }
