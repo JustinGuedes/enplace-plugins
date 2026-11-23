@@ -17,6 +17,8 @@ const (
 	urlReporting = "https://console.cloud.google.com/apis/library/playdeveloperreporting.googleapis.com"
 	urlAccount   = "https://console.cloud.google.com/iam-admin/serviceaccounts/create"
 	urlConsole   = "https://play.google.com/console/developers"
+	// The key is the workspace's, set once for every Android app.
+	hrefKey = "/settings/plugins/google-play"
 )
 
 type step struct {
@@ -44,7 +46,7 @@ func (r *run) steps(s *Status) []step {
 			How:     "In a Google Cloud project of yours, switch on the Google Play Android Developer API, and the Play Developer Reporting API for crash rates.",
 			Buttons: []plugin.Button{{Label: "Play API", URL: urlAPI}, {Label: "Reporting API", URL: urlReporting}}},
 		{Title: "Make a key for Enplace", Done: key && s.Reason != play.ReasonKey,
-			How:     "Create a service account in the same project (no roles needed), then Keys → Add key → JSON. Paste the whole file into Play Console key in these settings.",
+			How:     "Create a service account in the same project (no roles needed), then Keys → Add key → JSON. Then press Add the key below and drop the file in.",
 			Buttons: []plugin.Button{{Label: "Create service account", URL: urlAccount}}},
 		{Title: "Invite it in the Play Console", Done: s.Connected, How: invite,
 			Buttons: []plugin.Button{{Label: "Open the Play Console", URL: urlConsole}}},
@@ -79,7 +81,7 @@ func (r *run) setup(s *Status) []plugin.Block {
 	if s != nil && s.Error != "" && s.Key {
 		blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: "Last check: " + s.Error + ".", Tone: "warn"})
 	}
-	btns := []plugin.Button{{Label: "Check", Action: "refresh"}, {Label: "Reporting API", URL: urlReporting}}
+	btns := []plugin.Button{{Label: "Check", Action: "refresh"}, {Label: "Add the key", Href: hrefKey}, {Label: "Reporting API", URL: urlReporting}}
 	return append(blocks, plugin.Block{Type: plugin.BlockButtons, Buttons: btns})
 }
 
@@ -119,7 +121,7 @@ func (r *run) overview() []plugin.Block {
 	if v := r.version(s); v != "" {
 		live = v + " live"
 	}
-	blocks := []plugin.Block{{Type: plugin.BlockStat, Label: "Google Play", Value: live, Sub: r.liveSub(s)}}
+	blocks := []plugin.Block{{Type: plugin.BlockStat, Label: "Production", Value: live, Sub: r.liveSub(s)}}
 	if s == nil || !s.Connected {
 		blocks = append(blocks, plugin.Block{Type: plugin.BlockText, Text: "Connect the Play Console to follow rollouts, reviews and crashes.", Tone: "muted"})
 	} else if line := vitalsLine(s); line != "" {
@@ -173,7 +175,8 @@ func (r *run) page() *plugin.Page {
 	s := r.status()
 	blocks := []plugin.Block{}
 	if s == nil || !s.Connected || r.pkg() == "" {
-		blocks = append(blocks, plugin.Block{Type: plugin.BlockSection, ID: "setup", Text: "Connect the Play Console", Blocks: r.setup(s)})
+		// The settings panel above the page has the steps.
+		blocks = append(blocks, plugin.Block{Type: plugin.BlockText, ID: "setup", Tone: "muted", Text: "Once the Play Console is connected, this page shows what's live on production and its rollout, the week's reviews, and crash and ANR rates."})
 		return &plugin.Page{Title: "Google Play", Blocks: blocks}
 	}
 	blocks = append(blocks, r.production(s))
@@ -253,7 +256,10 @@ func (r *run) vitals(s *Status) plugin.Block {
 		sec.Blocks = []plugin.Block{{Type: plugin.BlockText, Tone: "muted", Text: "No numbers yet. Play has them once enough people use the app, a couple of days behind."}}
 		return sec
 	}
-	sec.Sub = "Share of daily users, " + s.Vitals.Day
+	sec.Sub = "Share of daily users"
+	if d, err := time.Parse("2006-01-02", s.Vitals.Day); err == nil {
+		sec.Sub += ", " + d.Format("2 Jan")
+	}
 	sec.Blocks = []plugin.Block{{Type: plugin.BlockStats, Items: []plugin.Item{
 		{Title: "Crashes", Value: percent2(s.Vitals.Crash), Sub: "Play's line is " + percent2(play.CrashLine)},
 		{Title: "ANRs", Value: percent2(s.Vitals.ANR), Sub: "Play's line is " + percent2(play.ANRLine)},

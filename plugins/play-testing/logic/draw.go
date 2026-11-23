@@ -20,14 +20,11 @@ type step struct {
 }
 
 func (r *run) steps(s *Status) []step {
-	st, hasPlay := r.store()
+	st, _ := r.store()
 	t, hasTrack := r.track()
 	c, hasCI := r.ci()
 	_, hasBuild := latest(s)
-	connect := "Add Google Play to this product and connect the Play Console in its settings."
-	if hasPlay {
-		connect = "Finish the steps in Google Play's settings: Play testing uses the same key."
-	}
+	connect := "Follow the steps on the Google Play page. Play testing uses the same key, so there's nothing more to enter here."
 	feeds := "Set up a track that makes builds for testers under the product's Tracks, and pick its Play track."
 	if hasTrack {
 		feeds = t.Name + " builds go to " + play.TrackName(playTrack(t)) + "."
@@ -132,15 +129,14 @@ func (r *run) overview() []plugin.Block {
 
 func (r *run) page() *plugin.Page {
 	s := r.status()
+	// The settings panel above the page has the setup steps while some
+	// are left, so the page doesn't repeat them.
 	blocks := []plugin.Block{}
-	if len(r.stepsLeft(s)) > 0 {
-		blocks = append(blocks, plugin.Block{Type: plugin.BlockSection, ID: "setup", Text: "Set up Play testing", Blocks: r.setup(s)})
-	}
 	head := plugin.Block{Type: plugin.BlockSection, ID: "latest", Label: "Latest build", Text: "No builds yet", Buttons: []plugin.Button{{Label: "Send to testers", Action: "send"}}}
 	if b, ok := latest(s); ok {
 		head.Text, head.Sub = b.Version+" ("+b.Code+")", state(b)+" · "+ago(b.Seen, r.req.Now)
 		if b.Notes != "" {
-			head.Blocks = []plugin.Block{{Type: plugin.BlockText, Text: b.Notes}}
+			head.Blocks = notes(b.Notes)
 		}
 	}
 	if where, failed := r.building(s); where != "" {
@@ -152,7 +148,7 @@ func (r *run) page() *plugin.Page {
 	if s != nil && len(s.Builds) > 0 {
 		items := []plugin.Item{}
 		for _, b := range s.Builds {
-			items = append(items, plugin.Item{Title: b.Version + " (" + b.Code + ")", Sub: state(b), Value: ago(b.Seen, r.req.Now), Button: promoteButton(b)})
+			items = append(items, plugin.Item{Title: b.Version + " (" + b.Code + ")", Sub: state(b) + " · " + ago(b.Seen, r.req.Now), Button: promoteButton(b)})
 		}
 		blocks = append(blocks, plugin.Block{Type: plugin.BlockSection, ID: "builds", Text: "Builds", Blocks: []plugin.Block{{Type: plugin.BlockList, Items: items}}})
 	}
@@ -165,6 +161,17 @@ func (r *run) page() *plugin.Page {
 		}
 	}
 	return &plugin.Page{Title: "Play testing", Blocks: blocks}
+}
+
+// notes draws release notes a line each.
+func notes(text string) []plugin.Block {
+	out := []plugin.Block{}
+	for _, l := range strings.Split(text, "\n") {
+		if l = strings.TrimSpace(l); l != "" {
+			out = append(out, plugin.Block{Type: plugin.BlockText, Text: l})
+		}
+	}
+	return out
 }
 
 func raw(kv ...string) json.RawMessage {
