@@ -2,8 +2,13 @@
   "$schema": "../../schema/manifest.schema.json",
   "id": "versions",
   "name": "Versions",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "kind": "extension",
+  "format": 2,
+  "type": "version",
+  "needs": [
+    {"type": "vcs", "for": "to read and bump the version in the code"}
+  ],
   "author": "Enplace",
   "summary": "Where a project's version lives, how it's numbered, and bumping it in the code.",
   "description": "Keeps everything about a project's version in one place. It finds the file the code keeps its version in (an Xcode project or .xcconfig file, package.json, Gradle, pubspec.yaml, Cargo.toml, a VERSION file and more), or you name it, and reads the version and build number from it through a code plugin like GitHub. Set the version style, what each release bumps and where numbering starts, and Release cycle numbers its releases that way. When a release is cut, or when you press Bump, it writes the new version (and the next build number) into the file and the code plugin opens a pull request for you to merge.",
