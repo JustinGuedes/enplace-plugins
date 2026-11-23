@@ -324,35 +324,42 @@ func whatsNew(work []plugin.Work, pid string, from, to time.Time) string {
 	return strings.Join(lines, "\n")
 }
 
-// publish shares the builds as every beta plugin does, and for Release
-// cycle.
+// publish shares the builds in the shape every beta plugin does (the
+// server draws them on the Testing page), and for Release cycle.
 func (r *run) publish(s *Status) {
 	type pub struct {
 		ID         string    `json:"id"`
 		Version    string    `json:"version"`
 		Number     string    `json:"number"`
 		State      string    `json:"state"`
+		StateText  string    `json:"state_text"`
 		Uploaded   time.Time `json:"uploaded"`
 		WhatToTest string    `json:"what_to_test,omitempty"`
-		Groups     []string  `json:"groups"`
-		Track      string    `json:"track,omitempty"`
+		Groups     []string  `json:"groups,omitempty"`
 	}
 	out, old := []pub{}, []map[string]any{}
 	for _, b := range s.Builds {
-		p := pub{ID: b.Code, Version: b.Version, Number: b.Code, State: "testing", Uploaded: b.Seen, WhatToTest: b.Notes, Groups: []string{}}
-		if b.Draft {
-			p.State = "ready"
-		}
+		p := pub{ID: b.Code, Version: b.Version, Number: b.Code, State: "ready", StateText: state(b), Uploaded: b.Seen, WhatToTest: b.Notes}
 		for _, t := range b.Tracks {
 			p.Groups = append(p.Groups, play.TrackName(t))
-		}
-		if len(b.Tracks) > 0 {
-			p.Track = r.enplaceTrack(b.Tracks[0])
 		}
 		out = append(out, p)
 		old = append(old, map[string]any{"version": b.Version, "build": b.Code, "state": p.State, "uploaded": b.Seen})
 	}
-	r.res.SetProject(r.pid, "public.beta", map[string]any{"provider": "play-testing", "name": "Play testing", "builds": out})
+	shared := map[string]any{
+		"provider": "play-testing", "checked_at": s.CheckedAt, "setup_left": len(r.stepsLeft(s)),
+		"builds": out, "testers": []any{}, "feedback": []any{},
+	}
+	if s.Package != "" {
+		shared["url"] = "https://play.google.com/apps/testing/" + s.Package
+	}
+	if t, ok := r.track(); ok {
+		shared["group"] = play.TrackName(playTrack(t))
+	}
+	if s.Error != "" {
+		shared["error"] = s.Error
+	}
+	r.res.SetProject(r.pid, "public.beta", shared)
 	r.res.SetProject(r.pid, "public.builds", old)
 }
 

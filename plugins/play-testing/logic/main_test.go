@@ -118,3 +118,33 @@ func TestSetupWaitsForGooglePlay(t *testing.T) {
 		t.Fatalf("first step = %+v", list.Items[0])
 	}
 }
+
+// Builds are shared in the shape the Testing page reads (public.beta).
+func TestPublishesTheSharedBetaShape(t *testing.T) {
+	req := plugintest.Request(plugin.HookSchedule)
+	req.ProjectID, req.Now = "p/android", now
+	r := &run{req: req, res: &plugin.Response{}, pid: "p/android"}
+	r.publish(&Status{CheckedAt: now, Package: "com.demo", Builds: []Build{
+		{Code: "214", Version: "0.8.0", Tracks: []string{play.Internal, play.Closed}, Notes: "• Forge", Seen: now},
+		{Code: "215", Version: "0.8.1", Draft: true, Seen: now},
+	}})
+	var got struct {
+		Provider  string `json:"provider"`
+		URL       string `json:"url"`
+		SetupLeft int    `json:"setup_left"`
+		Builds    []struct {
+			Number    string   `json:"number"`
+			State     string   `json:"state"`
+			StateText string   `json:"state_text"`
+			Groups    []string `json:"groups"`
+		} `json:"builds"`
+	}
+	if !r.res.State.GetProject("p/android", "public.beta", &got) {
+		t.Fatal("nothing shared")
+	}
+	b := got.Builds[0]
+	if got.Provider != "play-testing" || got.URL != "https://play.google.com/apps/testing/com.demo" || got.SetupLeft == 0 ||
+		b.Number != "214" || b.State != "ready" || len(b.Groups) != 2 || got.Builds[1].StateText != "Draft on Play" {
+		t.Fatalf("shared = %+v", got)
+	}
+}
